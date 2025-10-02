@@ -1,0 +1,25 @@
+# railway.toml
+[build]
+builder = "DOCKERFILE"
+
+[deploy]
+numReplicas = 1
+healthcheckPath = "/health"
+healthcheckTimeout = 300
+sleepApplication = true
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 3
+
+[service]
+# $PORT is injected by Railway
+start = "bash /app/start.sh"
+
+# Recommended env you can keep in the Railway UI OR here
+[service.env]
+APP_ENV = "production"
+API_V1_STR = "/api/v1"
+STORAGE_DIR = "/app/storage"
+
+# Persistent volume mount (add the Volume in Railway UI and match this path)
+[[service.mounts]]
+path = "/app/storage"

@@ -1,7 +1,8 @@
-from sqlalchemy import String, Index, UniqueConstraint
+from datetime import datetime
+from sqlalchemy import String, Index, UniqueConstraint, TIMESTAMP
 from sqlalchemy.orm import Mapped, mapped_column
 from app.db.base import Base
-from app.models.mixins import AuditMixin
+from app.models.mixins import AuditMixin 
 
 
 class UserAccount(Base, AuditMixin):
@@ -17,10 +18,10 @@ class UserAccount(Base, AuditMixin):
     ua_last_name: Mapped[str | None] = mapped_column(String(50))
     ua_phone: Mapped[str | None] = mapped_column(String(15))
     ua_status: Mapped[str | None] = mapped_column(String(20), default="active", server_default="active")
-    ua_last_login: Mapped["datetime" | None]
+    ua_last_login: Mapped[datetime | None] = mapped_column(TIMESTAMP(timezone=False), nullable=True)
     ua_login_attempts: Mapped[int] = mapped_column(default=0, server_default="0")
-    ua_locked_until: Mapped["datetime" | None]
-    ua_password_expires: Mapped["datetime" | None]
+    ua_locked_until: Mapped[datetime | None] = mapped_column(TIMESTAMP(timezone=False), nullable=True)
+    ua_password_expires: Mapped[datetime | None] = mapped_column(TIMESTAMP(timezone=False), nullable=True)
     ua_must_change_password: Mapped[bool] = mapped_column(default=False, server_default="false")
     ua_two_factor_enabled: Mapped[bool] = mapped_column(default=False, server_default="false")
     ua_two_factor_secret: Mapped[str | None] = mapped_column(String(100))
