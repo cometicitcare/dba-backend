@@ -2,13 +2,13 @@
 set -euo pipefail
 
 : "${PORT:=8080}"
-: "${STORAGE_DIR:=/app/storage}"
+: "${STORAGE_DIR:=/home/appuser/storage}"
 
-# Create storage mount path if missing (works with Railway Volume)
-mkdir -p "$STORAGE_DIR"
+# Ensure storage directory exists (works with or without a mounted volume)
+mkdir -p "$STORAGE_DIR" || true
 
-# Run DB migrations
+# Run DB migrations (requires DATABASE_URL to be set by Railway Postgres plugin)
 alembic upgrade head
 
-# Start app (adjust import path if your main is different)
+# Start FastAPI app
 exec uvicorn app.main:app --host 0.0.0.0 --port "$PORT"

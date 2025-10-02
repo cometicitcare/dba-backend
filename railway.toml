@@ -1,4 +1,4 @@
-# railway.toml
+# railway.toml — Docker deploy with healthcheck and env wiring
 [build]
 builder = "DOCKERFILE"
 
@@ -6,20 +6,19 @@ builder = "DOCKERFILE"
 numReplicas = 1
 healthcheckPath = "/health"
 healthcheckTimeout = 300
-sleepApplication = true
 restartPolicyType = "ON_FAILURE"
 restartPolicyMaxRetries = 3
 
 [service]
-# $PORT is injected by Railway
 start = "bash /app/start.sh"
 
-# Recommended env you can keep in the Railway UI OR here
 [service.env]
 APP_ENV = "production"
 API_V1_STR = "/api/v1"
-STORAGE_DIR = "/app/storage"
+STORAGE_DIR = "/home/appuser/storage"
+# DATABASE_URL is injected automatically when you attach the Postgres plugin
+# SECRET_KEY should be set in Railway → Variables
 
-# Persistent volume mount (add the Volume in Railway UI and match this path)
-[[service.mounts]]
-path = "/app/storage"
+# If you also manage volumes via TOML, keep the path consistent with STORAGE_DIR:
+# [[service.mounts]]
+# path = "/home/appuser/storage"
