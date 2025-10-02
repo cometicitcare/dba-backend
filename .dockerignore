@@ -1,0 +1,14 @@
+# .dockerignore
+.git
+.gitignore
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.log
+.env
+.venv
+.vscode
+dist/
+build/
+.alembic_cache/
