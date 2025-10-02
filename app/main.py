@@ -21,3 +21,7 @@ app.include_router(api_router, prefix=settings.API_V1_STR)
 @app.get("/")
 async def root():
     return {"app": settings.APP_NAME, "env": settings.APP_ENV}
+
+@app.get("/health", include_in_schema=False)
+async def health():
+    return {"status": "ok"}
