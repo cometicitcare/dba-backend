@@ -20,5 +20,5 @@ STORAGE_DIR = "/home/appuser/storage"
 # SECRET_KEY should be set in Railway → Variables
 
 # If you also manage volumes via TOML, keep the path consistent with STORAGE_DIR:
-# [[service.mounts]]
-# path = "/home/appuser/storage"
+[[service.mounts]]
+path = "/home/appuser/storage"
