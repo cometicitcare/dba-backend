@@ -1,49 +1,62 @@
-from fastapi import APIRouter, Depends, Response, Request
-from sqlalchemy.ext.asyncio import AsyncSession
-from jose import jwt, JWTError
+# app/api/v1/routes/auth.py
+from fastapi import APIRouter, Depends, HTTPException, status, Request
+from sqlalchemy.orm import Session
 from app.api.deps import get_db
-from app.schemas.auth import LoginIn, Token
-from app.services.auth_service import auth_service
-from app.utils.cookies import set_auth_cookies, clear_auth_cookies
-from app.core.config import settings
-from fastapi import HTTPException, status
+from app.schemas.user import UserCreate, UserLogin
+from app.repositories import auth_repo
+from app.core.security import verify_password, generate_session_id
 
 router = APIRouter()
 
+
+@router.post("/register")
+def register_user(user: UserCreate, db: Session = Depends(get_db)):
+    db_user = auth_repo.get_user_by_username(db, username=user.ua_username)
+    if db_user:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Username already registered",
+        )
+    return auth_repo.create_user(db=db, user=user)
+
+
 @router.post("/login")
-async def login(data: LoginIn, response: Response, db: AsyncSession = Depends(get_db)):
-    access, refresh = await auth_service.authenticate(db, data.username, data.password)
-    set_auth_cookies(response, access_token=access, refresh_token=refresh)
-    # We can return a minimal body; FE won't need tokens in JSON
-    return {"ok": True}
+def login(
+    request: Request,
+    form_data: UserLogin,
+    db: Session = Depends(get_db),
+):
+    user = auth_repo.get_user_by_username(db, username=form_data.ua_username)
+    if not user or not verify_password(
+        form_data.ua_password + user.ua_salt, user.ua_password_hash
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Incorrect username or password",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
 
-@router.post("/refresh")
-async def refresh_token(request: Request, response: Response):
-    # Read refresh token from cookie
-    refresh = request.cookies.get("refresh_token")
-    if not refresh:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Missing refresh token")
-
-    # Validate refresh token & subject
-    try:
-        payload = jwt.decode(refresh, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
-        if payload.get("typ") != "refresh":
-            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token type")
-        user_id = str(payload.get("sub"))
-    except JWTError:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid refresh token")
-
-    # Issue a new access token (optionally rotate refresh as well)
-    new_access = jwt.encode(
-        {"sub": user_id, "typ": "access"},
-        settings.SECRET_KEY,
-        algorithm=settings.ALGORITHM,
+    session_id = generate_session_id(user.ua_username)
+    auth_repo.create_login_history(
+        db,
+        user_id=user.ua_id,
+        session_id=session_id,
+        ip_address=request.client.host,
+        user_agent=request.headers.get("user-agent"),
+        success=True,
     )
-    # keep max-age via cookie options; you can also rotate refresh if you prefer
-    set_auth_cookies(response, access_token=new_access, refresh_token=refresh)
-    return {"ok": True}
+    auth_repo.update_user_last_login(db, user_id=user.ua_id)
+
+    return {"session_id": session_id}
+
 
 @router.post("/logout")
-async def logout(response: Response):
-    clear_auth_cookies(response)
-    return {"ok": True}
+def logout(session_id: str, db: Session = Depends(get_db)):
+    db_login_history = auth_repo.get_login_history_by_session_id(db, session_id)
+    if not db_login_history:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Active session not found"
+        )
+
+    auth_repo.update_logout_time(db, session_id)
+    return {"message": "Logout successful"}
