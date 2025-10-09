@@ -1,5 +1,0 @@
-# Normalize line endings and ensure shell scripts stay LF on all platforms
-* text=auto
-
-# Force LF for shell scripts to avoid /bin/bash^M errors in Linux containers
-*.sh text eol=lf
