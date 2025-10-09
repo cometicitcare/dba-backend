@@ -1,9 +1,8 @@
-# app/api/v1/router.py
 from fastapi import APIRouter
-from app.api.v1.routes import health, bhikkus, auth
+from .routes import auth, users, health
+
 
 api_router = APIRouter()
-
-api_router.include_router(health.router, tags=["Health"])
-api_router.include_router(bhikkus.router, prefix="/bhikkus", tags=["Bhikkus"])
-api_router.include_router(auth.router, prefix="/auth", tags=["Authentication"])
+api_router.include_router(health.router, prefix="/health", tags=["health"])
+api_router.include_router(auth.router, prefix="/auth", tags=["auth"])
+api_router.include_router(users.router, prefix="/users", tags=["users"])

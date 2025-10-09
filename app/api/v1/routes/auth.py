@@ -1,127 +1,49 @@
-# app/api/v1/routes/auth.py
-from fastapi import APIRouter, Depends, HTTPException, status, Request
-from sqlalchemy.orm import Session
+from fastapi import APIRouter, Depends, Response, Request
+from sqlalchemy.ext.asyncio import AsyncSession
+from jose import jwt, JWTError
 from app.api.deps import get_db
-from app.schemas.user import UserCreate, UserLogin, UserResponse, LoginResponse
-from app.repositories import auth_repo
-from app.core.security import verify_password, generate_session_id
-
-from datetime import datetime
+from app.schemas.auth import LoginIn, Token
+from app.services.auth_service import auth_service
+from app.utils.cookies import set_auth_cookies, clear_auth_cookies
+from app.core.config import settings
+from fastapi import HTTPException, status
 
 router = APIRouter()
 
+@router.post("/login")
+async def login(data: LoginIn, response: Response, db: AsyncSession = Depends(get_db)):
+    access, refresh = await auth_service.authenticate(db, data.username, data.password)
+    set_auth_cookies(response, access_token=access, refresh_token=refresh)
+    # We can return a minimal body; FE won't need tokens in JSON
+    return {"ok": True}
 
-@router.get("/roles")
-def get_roles(db: Session = Depends(get_db)):
-    """Get all available roles"""
-    roles = auth_repo.get_all_roles(db)
-    return {"roles": roles}
+@router.post("/refresh")
+async def refresh_token(request: Request, response: Response):
+    # Read refresh token from cookie
+    refresh = request.cookies.get("refresh_token")
+    if not refresh:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Missing refresh token")
 
-
-@router.post("/register", response_model=UserResponse)
-def register_user(user: UserCreate, db: Session = Depends(get_db)):
-    """Register a new user with role assignment"""
-    # Check if username already exists
-    db_user = auth_repo.get_user_by_username(db, username=user.ua_username)
-    if db_user:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Username already registered",
-        )
-    
-    # Check if email already exists
-    existing_email = db.query(auth_repo.UserAccount).filter(
-        auth_repo.UserAccount.ua_email == user.ua_email,
-        auth_repo.UserAccount.ua_is_deleted == False
-    ).first()
-    if existing_email:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Email already registered",
-        )
-    
-    # Validate role exists
-    role = auth_repo.get_role_by_id(db, user.ro_role_id)
-    if not role:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Invalid role ID: {user.ro_role_id}. Please use one of the available roles.",
-        )
-    
+    # Validate refresh token & subject
     try:
-        created_user = auth_repo.create_user(db=db, user=user)
-        return created_user
-    except ValueError as e:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(e),
-        )
+        payload = jwt.decode(refresh, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
+        if payload.get("typ") != "refresh":
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token type")
+        user_id = str(payload.get("sub"))
+    except JWTError:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid refresh token")
 
-
-@router.post("/login", response_model=LoginResponse)
-def login(
-    request: Request,
-    form_data: UserLogin,
-    db: Session = Depends(get_db),
-):
-    """Login user and return session with role information"""
-    user = auth_repo.get_user_by_username(db, username=form_data.ua_username)
-    
-    if not user or not verify_password(
-        form_data.ua_password + user.ua_salt, user.ua_password_hash
-    ):
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect username or password",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-    
-    # Check if user is active
-    if user.ua_status != "active":
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="User account is not active",
-        )
-    
-    # Check if account is locked
-    if user.ua_locked_until and user.ua_locked_until > datetime.utcnow():
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Account is locked. Please try again later.",
-        )
-
-    session_id = generate_session_id(user.ua_username)
-    
-    # Create login history
-    auth_repo.create_login_history(
-        db,
-        user_id=user.ua_user_id,
-        session_id=session_id,
-        ip_address=request.client.host if request.client else None,
-        user_agent=request.headers.get("user-agent"),
-        success=True,
+    # Issue a new access token (optionally rotate refresh as well)
+    new_access = jwt.encode(
+        {"sub": user_id, "typ": "access"},
+        settings.SECRET_KEY,
+        algorithm=settings.ALGORITHM,
     )
-    
-    # Update last login
-    auth_repo.update_user_last_login(db, user_id=user.ua_user_id)
-
-    return {
-        "session_id": session_id,
-        "user": user
-    }
-
+    # keep max-age via cookie options; you can also rotate refresh if you prefer
+    set_auth_cookies(response, access_token=new_access, refresh_token=refresh)
+    return {"ok": True}
 
 @router.post("/logout")
-def logout(session_id: str, db: Session = Depends(get_db)):
-    """Logout user by ending session"""
-    db_login_history = auth_repo.get_login_history_by_session_id(db, session_id)
-    if not db_login_history:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, 
-            detail="Active session not found"
-        )
-
-    auth_repo.update_logout_time(db, session_id)
-    return {"message": "Logout successful"}
-
-
+async def logout(response: Response):
+    clear_auth_cookies(response)
+    return {"ok": True}
