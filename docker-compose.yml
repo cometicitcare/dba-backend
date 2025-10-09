@@ -1,27 +1,27 @@
 version: "3.8"
 services:
   db:
-  image: postgres:16-alpine
-  environment:
-    POSTGRES_DB: ${POSTGRES_DB:-templedb}
-    POSTGRES_USER: ${POSTGRES_USER:-temple}
-    POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-templepw}
-  ports:
-    - "5432:5432"
-  volumes:
-    - pg_data:/var/lib/postgresql/data
-  healthcheck:
-    test: ["CMD", "pg_isready", "-U", "temple"]
-    interval: 5s
-    retries: 20
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-templedb}
+      POSTGRES_USER: ${POSTGRES_USER:-temple}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-templepw}
+    ports:
+      - "5432:5432"
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "temple"]
+      interval: 5s
+      retries: 20
   api:
     build: .
     env_file: .env
     ports:
       - "8000:8000"
-  depends_on:
-    db:
-      condition: service_healthy
+    depends_on:
+      db:
+        condition: service_healthy
     command: ["bash", "-lc", "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8000"]
 volumes:
   pg_data:
