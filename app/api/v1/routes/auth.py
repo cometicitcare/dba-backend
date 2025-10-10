@@ -1,10 +1,13 @@
 # app/api/v1/routes/auth.py
 from fastapi import APIRouter, Depends, HTTPException, status, Request
+from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 from app.api.deps import get_db
 from app.schemas.user import UserCreate, UserLogin, UserResponse, LoginResponse
 from app.repositories import auth_repo
-from app.core.security import verify_password, generate_session_id
+from app.core.security import verify_password
+from app.services.auth_service import auth_service
+from app.utils.cookies import set_auth_cookies, clear_auth_cookies
 
 from datetime import datetime
 
@@ -58,70 +61,36 @@ def register_user(user: UserCreate, db: Session = Depends(get_db)):
         )
 
 
-@router.post("/login", response_model=LoginResponse)
+@router.post("/login")
 def login(
     request: Request,
     form_data: UserLogin,
     db: Session = Depends(get_db),
 ):
-    """Login user and return session with role information"""
-    user = auth_repo.get_user_by_username(db, username=form_data.ua_username)
-    
-    if not user or not verify_password(
-        form_data.ua_password + user.ua_salt, user.ua_password_hash
-    ):
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect username or password",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-    
-    # Check if user is active
-    if user.ua_status != "active":
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="User account is not active",
-        )
-    
-    # Check if account is locked
-    if user.ua_locked_until and user.ua_locked_until > datetime.utcnow():
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Account is locked. Please try again later.",
-        )
+    """Login user, set http-only cookies with access/refresh tokens, and return user info"""
+    access, refresh, user = auth_service.authenticate(db, form_data.ua_username, form_data.ua_password)
 
-    session_id = generate_session_id(user.ua_username)
-    
-    # Create login history
+    # Create login history for observability (store token hash if needed, but skip here)
     auth_repo.create_login_history(
         db,
         user_id=user.ua_user_id,
-        session_id=session_id,
+        session_id=f"login-{user.ua_user_id}",
         ip_address=request.client.host if request.client else None,
         user_agent=request.headers.get("user-agent"),
         success=True,
     )
-    
-    # Update last login
     auth_repo.update_user_last_login(db, user_id=user.ua_user_id)
 
-    return {
-        "session_id": session_id,
-        "user": user
-    }
+    response = JSONResponse(content={"user": user.ua_username})
+    set_auth_cookies(response, access_token=access, refresh_token=refresh)
+    return response
 
 
 @router.post("/logout")
-def logout(session_id: str, db: Session = Depends(get_db)):
-    """Logout user by ending session"""
-    db_login_history = auth_repo.get_login_history_by_session_id(db, session_id)
-    if not db_login_history:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, 
-            detail="Active session not found"
-        )
-
-    auth_repo.update_logout_time(db, session_id)
-    return {"message": "Logout successful"}
+def logout(db: Session = Depends(get_db)):
+    """Logout user by clearing auth cookies"""
+    response = JSONResponse(content={"message": "Logout successful"})
+    clear_auth_cookies(response)
+    return response
 
 

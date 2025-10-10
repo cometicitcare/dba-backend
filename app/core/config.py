@@ -10,6 +10,16 @@ class Settings:
     PROJECT_NAME: str = "Bhikku Registry API"
     PROJECT_VERSION: str = "1.0.0"
     DATABASE_URL: str = os.getenv("DATABASE_URL")
+    # Auth / JWT
+    SECRET_KEY: str = os.getenv("SECRET_KEY", "change-me-in-prod")
+    ALGORITHM: str = os.getenv("ALGORITHM", "HS256")
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "15"))
+    REFRESH_TOKEN_EXPIRE_DAYS: int = int(os.getenv("REFRESH_TOKEN_EXPIRE_DAYS", "7"))
+    # Cookies
+    COOKIE_DOMAIN: str | None = os.getenv("COOKIE_DOMAIN") or None
+    COOKIE_PATH: str = os.getenv("COOKIE_PATH", "/")
+    COOKIE_SAMESITE: str = os.getenv("COOKIE_SAMESITE", "lax")
+    COOKIE_SECURE: bool = os.getenv("APP_ENV", "development").lower() == "production"
 
     def __init__(self) -> None:
         # Normalize DATABASE_URL for SQLAlchemy/psycopg2 and Railway
