@@ -25,10 +25,13 @@ class Settings:
         """
         parsed = urlparse(raw_url)
 
-        # Upgrade scheme to explicit driver for SQLAlchemy sync engine
+        # Upgrade/translate scheme to explicit sync driver for SQLAlchemy engine
         scheme = parsed.scheme
         if scheme.startswith("postgres") and "+" not in scheme:
             # e.g., postgres:// or postgresql:// -> postgresql+psycopg2://
+            scheme = "postgresql+psycopg2"
+        elif scheme == "postgresql+asyncpg":
+            # Translate async driver URL provided by hosting to sync driver
             scheme = "postgresql+psycopg2"
 
         # Rebuild URL with possibly updated scheme
