@@ -1,9 +1,7 @@
 from __future__ import annotations
-import asyncio
 from logging.config import fileConfig
-from sqlalchemy import pool
+from sqlalchemy import pool, create_engine
 from sqlalchemy.engine import Connection
-from sqlalchemy.ext.asyncio import async_engine_from_config
 from alembic import context
 from dotenv import load_dotenv
 from pathlib import Path
@@ -80,19 +78,14 @@ def do_run_migrations(connection: Connection) -> None:
 
 
 
-async def run_migrations_online() -> None:
-    connectable = async_engine_from_config(
-        config.get_section(config.config_ini_section),
-        prefix="sqlalchemy.",
+def run_migrations_online() -> None:
+    connectable = create_engine(
+        config.get_main_option("sqlalchemy.url"),
         poolclass=pool.NullPool,
     )
 
-
-    async with connectable.connect() as connection:
-        await connection.run_sync(do_run_migrations)
-
-
-    await connectable.dispose()
+    with connectable.connect() as connection:
+        do_run_migrations(connection)
 
 
 
@@ -100,4 +93,4 @@ async def run_migrations_online() -> None:
 if context.is_offline_mode():
     run_migrations_offline()
 else:
-    asyncio.run(run_migrations_online())
+    run_migrations_online()
