@@ -5,9 +5,10 @@ from sqlalchemy.orm import Session
 from app.api.deps import get_db
 from app.schemas.user import UserCreate, UserLogin, UserResponse, LoginResponse
 from app.repositories import auth_repo
-from app.core.security import verify_password
+from app.core.security import verify_password, create_access_token
 from app.services.auth_service import auth_service
 from app.utils.cookies import set_auth_cookies, clear_auth_cookies
+from app.core.config import settings
 
 from datetime import datetime
 
@@ -92,5 +93,39 @@ def logout(db: Session = Depends(get_db)):
     response = JSONResponse(content={"message": "Logout successful"})
     clear_auth_cookies(response)
     return response
+
+
+@router.post("/refresh")
+def refresh_token(request: Request, db: Session = Depends(get_db)):
+    """Refresh access token using refresh token from cookie"""
+    refresh_token = request.cookies.get("refresh_token")
+    if not refresh_token:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Refresh token missing")
+    
+    try:
+        user_id = auth_service.decode_token(refresh_token)
+        user = db.query(auth_repo.UserAccount).filter(
+            auth_repo.UserAccount.ua_user_id == user_id,
+            auth_repo.UserAccount.ua_is_deleted == False
+        ).first()
+        
+        if not user or user.ua_status != "active":
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid refresh token")
+        
+        new_access = create_access_token(user.ua_user_id)
+        response = JSONResponse(content={"message": "Token refreshed"})
+        response.set_cookie(
+            key="access_token",
+            value=new_access,
+            httponly=True,
+            secure=settings.COOKIE_SECURE,
+            samesite=settings.COOKIE_SAMESITE,
+            max_age=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+            domain=settings.COOKIE_DOMAIN,
+            path=settings.COOKIE_PATH,
+        )
+        return response
+    except Exception:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid refresh token")
 
 
