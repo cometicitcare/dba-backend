@@ -3,7 +3,13 @@ import secrets
 import hashlib
 from passlib.context import CryptContext
 
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+# Configure bcrypt to avoid raising on >72-byte inputs (bcrypt truncates internally).
+# This also sidesteps false positives due to additional salting concatenation.
+pwd_context = CryptContext(
+    schemes=["bcrypt"],
+    deprecated="auto",
+    bcrypt__truncate_error=False,
+)
 
 
 def verify_password(plain_password, hashed_password):
