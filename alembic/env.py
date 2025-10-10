@@ -23,14 +23,8 @@ print("POSTGRES_HOST:", os.getenv("POSTGRES_HOST"), file=sys.stderr)
 
 # this is the Alembic Config object, which provides access to the values
 config = context.config
-# Escape % for ConfigParser interpolation syntax
+# Always use normalized URL from settings (handles asyncpg->psycopg2 and SSL)
 config.set_main_option("sqlalchemy.url", settings.DATABASE_URL.replace("%", "%%"))
-
-
-# set DB URL from env at runtime if provided
-import os
-if os.getenv("DATABASE_URL"):
-    config.set_main_option("sqlalchemy.url", os.getenv("DATABASE_URL").replace("%", "%%"))
 
 
 # Interpret the config file for Python logging.
