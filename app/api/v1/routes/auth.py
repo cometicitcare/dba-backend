@@ -1,10 +1,14 @@
 # app/api/v1/routes/auth.py
 from fastapi import APIRouter, Depends, HTTPException, status, Request
+from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 from app.api.deps import get_db
 from app.schemas.user import UserCreate, UserLogin, UserResponse, LoginResponse
 from app.repositories import auth_repo
-from app.core.security import verify_password, generate_session_id
+from app.core.security import verify_password, create_access_token
+from app.services.auth_service import auth_service
+from app.utils.cookies import set_auth_cookies, clear_auth_cookies
+from app.core.config import settings
 
 from datetime import datetime
 
@@ -58,70 +62,70 @@ def register_user(user: UserCreate, db: Session = Depends(get_db)):
         )
 
 
-@router.post("/login", response_model=LoginResponse)
+@router.post("/login")
 def login(
     request: Request,
     form_data: UserLogin,
     db: Session = Depends(get_db),
 ):
-    """Login user and return session with role information"""
-    user = auth_repo.get_user_by_username(db, username=form_data.ua_username)
-    
-    if not user or not verify_password(
-        form_data.ua_password + user.ua_salt, user.ua_password_hash
-    ):
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect username or password",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-    
-    # Check if user is active
-    if user.ua_status != "active":
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="User account is not active",
-        )
-    
-    # Check if account is locked
-    if user.ua_locked_until and user.ua_locked_until > datetime.utcnow():
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Account is locked. Please try again later.",
-        )
+    """Login user, set http-only cookies with access/refresh tokens, and return user info"""
+    access, refresh, user = auth_service.authenticate(db, form_data.ua_username, form_data.ua_password)
 
-    session_id = generate_session_id(user.ua_username)
-    
-    # Create login history
+    # Create login history for observability (store token hash if needed, but skip here)
     auth_repo.create_login_history(
         db,
         user_id=user.ua_user_id,
-        session_id=session_id,
+        session_id=f"login-{user.ua_user_id}",
         ip_address=request.client.host if request.client else None,
         user_agent=request.headers.get("user-agent"),
         success=True,
     )
-    
-    # Update last login
     auth_repo.update_user_last_login(db, user_id=user.ua_user_id)
 
-    return {
-        "session_id": session_id,
-        "user": user
-    }
+    response = JSONResponse(content={"user": user.ua_username})
+    set_auth_cookies(response, access_token=access, refresh_token=refresh)
+    return response
 
 
 @router.post("/logout")
-def logout(session_id: str, db: Session = Depends(get_db)):
-    """Logout user by ending session"""
-    db_login_history = auth_repo.get_login_history_by_session_id(db, session_id)
-    if not db_login_history:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, 
-            detail="Active session not found"
-        )
+def logout(db: Session = Depends(get_db)):
+    """Logout user by clearing auth cookies"""
+    response = JSONResponse(content={"message": "Logout successful"})
+    clear_auth_cookies(response)
+    return response
 
-    auth_repo.update_logout_time(db, session_id)
-    return {"message": "Logout successful"}
+
+@router.post("/refresh")
+def refresh_token(request: Request, db: Session = Depends(get_db)):
+    """Refresh access token using refresh token from cookie"""
+    refresh_token = request.cookies.get("refresh_token")
+    if not refresh_token:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Refresh token missing")
+    
+    try:
+        user_id = auth_service.decode_token(refresh_token)
+        user = db.query(auth_repo.UserAccount).filter(
+            auth_repo.UserAccount.ua_user_id == user_id,
+            auth_repo.UserAccount.ua_is_deleted == False
+        ).first()
+        
+        if not user or user.ua_status != "active":
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid refresh token")
+        
+        new_access = create_access_token(user.ua_user_id)
+        response = JSONResponse(content={"message": "Token refreshed"})
+        response.set_cookie(
+            key="access_token",
+            value=new_access,
+            httponly=True,
+            secure=settings.COOKIE_SECURE,
+            samesite=settings.COOKIE_SAMESITE,
+            max_age=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+            domain=settings.COOKIE_DOMAIN,
+            path=settings.COOKIE_PATH,
+        )
+        return response
+    except Exception:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid refresh token")
 
 
