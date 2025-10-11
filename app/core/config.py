@@ -10,6 +10,12 @@ class Settings:
     PROJECT_NAME: str = "Bhikku Registry API"
     PROJECT_VERSION: str = "1.0.0"
     DATABASE_URL: str = os.getenv("DATABASE_URL")
+    # CORS
+    BACKEND_CORS_ORIGINS: list[str] = [
+        origin.strip()
+        for origin in os.getenv("BACKEND_CORS_ORIGINS", "").split(",")
+        if origin.strip()
+    ]
     # Auth / JWT
     SECRET_KEY: str = os.getenv("SECRET_KEY", "change-me-in-prod")
     ALGORITHM: str = os.getenv("ALGORITHM", "HS256")
