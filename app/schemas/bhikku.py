@@ -82,10 +82,11 @@ class Bhikku(BhikkuBase):
 class BhikkuRequestPayload(BaseModel):
     # For READ_ONE, UPDATE, DELETE
     br_regn: Optional[str] = None 
-    # For READ_ALL - Enhanced with page number
+    # For READ_ALL - Enhanced with page number and search
     skip: int = 0
     limit: int = 10
-    page: Optional[int] = 1  # Added page number
+    page: Optional[int] = 1
+    search_key: Optional[str] = ""  # Added search_key field
     # For CREATE, UPDATE
     data: Optional[Union[BhikkuCreate, BhikkuUpdate]] = None
 
