@@ -50,9 +50,17 @@ def manage_bhikku_records(
 
     elif action == schemas.CRUDAction.READ_ALL:
         # Calculate pagination parameters
-        page = payload.page if payload.page and payload.page > 0 else 1
         limit = payload.limit if payload.limit > 0 else 10
-        skip = (page - 1) * limit
+        
+        # Prioritize page-based pagination, fall back to skip if page not provided
+        if payload.page and payload.page > 0:
+            # Page-based pagination
+            page = payload.page
+            skip = (page - 1) * limit
+        else:
+            # Direct skip-based pagination
+            skip = payload.skip if payload.skip >= 0 else 0
+            page = (skip // limit) + 1 if limit > 0 else 1
         
         # Get search key (empty string if not provided)
         search_key = payload.search_key if payload.search_key else ""
