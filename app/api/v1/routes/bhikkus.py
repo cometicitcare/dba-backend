@@ -30,14 +30,25 @@ def manage_bhikku_records(
         if not payload.data or not isinstance(payload.data, schemas.BhikkuCreate):
             raise HTTPException(status_code=400, detail="Invalid data for CREATE action")
         
-        db_bhikku_existing = bhikku_repo.get_by_regn(db, br_regn=payload.data.br_regn)
-        if db_bhikku_existing:
-            raise HTTPException(status_code=400, detail=f"Registration number '{payload.data.br_regn}' already exists.")
+        # Check if br_regn was manually provided (optional check)
+        if payload.data.br_regn:
+            db_bhikku_existing = bhikku_repo.get_by_regn(db, br_regn=payload.data.br_regn)
+            if db_bhikku_existing:
+                raise HTTPException(
+                    status_code=400, 
+                    detail=f"Registration number '{payload.data.br_regn}' already exists."
+                )
         
         # Set the created_by field to current user ID (foreign key constraint)
         payload.data.br_created_by = user_id
+        
+        # br_regn will be auto-generated in repository if not provided
         created_bhikku = bhikku_repo.create(db=db, bhikku=payload.data)
-        return {"status": "success", "message": "Bhikku created successfully.", "data": created_bhikku}
+        return {
+            "status": "success", 
+            "message": f"Bhikku created successfully with registration number: {created_bhikku.br_regn}", 
+            "data": created_bhikku
+        }
 
     elif action == schemas.CRUDAction.READ_ONE:
         if not payload.br_regn:
