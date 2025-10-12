@@ -1,5 +1,5 @@
 # app/schemas/bhikku.py
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, EmailStr
 from datetime import date
 from typing import Optional, List, Union, Any
 from enum import Enum
@@ -12,18 +12,32 @@ class CRUDAction(str, Enum):
     UPDATE = "UPDATE"
     DELETE = "DELETE"
 
-# --- Original Bhikku Schemas ---
+# --- Bhikku Schemas with ALL Fields ---
 class BhikkuBase(BaseModel):
     br_regn: str
     br_reqstdate: date
+    
+    # Geographic/Birth Information
+    br_birthpls: Optional[str] = None
+    br_province: Optional[str] = None
+    br_district: Optional[str] = None
+    br_korale: Optional[str] = None
+    br_pattu: Optional[str] = None
+    br_division: Optional[str] = None
     br_vilage: Optional[str] = None
     br_gndiv: str
+    
+    # Personal Information
     br_gihiname: Optional[str] = None
     br_dofb: Optional[date] = None
     br_fathrname: Optional[str] = None
     br_remarks: Optional[str] = None
+    
+    # Status Information
     br_currstat: str
     br_effctdate: Optional[date] = None
+    
+    # Temple/Religious Information
     br_parshawaya: str
     br_livtemple: str
     br_mahanatemple: str
@@ -32,28 +46,50 @@ class BhikkuBase(BaseModel):
     br_mahananame: Optional[str] = None
     br_mahanadate: Optional[date] = None
     br_cat: Optional[str] = None
-    br_mobile: Optional[str] = None
-    br_email: Optional[str] = None
+    
+    # Contact Information
+    br_mobile: Optional[str] = Field(None, max_length=10)
+    br_email: Optional[EmailStr] = None
     br_fathrsaddrs: Optional[str] = None
-    br_fathrsmobile: Optional[str] = None
+    br_fathrsmobile: Optional[str] = Field(None, max_length=10)
+    
+    # Serial Number
     br_upasampada_serial_no: Optional[str] = None
+    
+    # Audit Fields
     br_created_by: Optional[str] = None
     br_updated_by: Optional[str] = None
 
 class BhikkuCreate(BhikkuBase):
+    """Schema for creating a new Bhikku record"""
     pass
 
 class BhikkuUpdate(BaseModel):
+    """Schema for updating a Bhikku record - all fields optional"""
     br_regn: Optional[str] = None
     br_reqstdate: Optional[date] = None
+    
+    # Geographic/Birth Information
+    br_birthpls: Optional[str] = None
+    br_province: Optional[str] = None
+    br_district: Optional[str] = None
+    br_korale: Optional[str] = None
+    br_pattu: Optional[str] = None
+    br_division: Optional[str] = None
     br_vilage: Optional[str] = None
     br_gndiv: Optional[str] = None
+    
+    # Personal Information
     br_gihiname: Optional[str] = None
     br_dofb: Optional[date] = None
     br_fathrname: Optional[str] = None
     br_remarks: Optional[str] = None
+    
+    # Status Information
     br_currstat: Optional[str] = None
     br_effctdate: Optional[date] = None
+    
+    # Temple/Religious Information
     br_parshawaya: Optional[str] = None
     br_livtemple: Optional[str] = None
     br_mahanatemple: Optional[str] = None
@@ -62,15 +98,22 @@ class BhikkuUpdate(BaseModel):
     br_mahananame: Optional[str] = None
     br_mahanadate: Optional[date] = None
     br_cat: Optional[str] = None
-    br_mobile: Optional[str] = None
-    br_email: Optional[str] = None
+    
+    # Contact Information
+    br_mobile: Optional[str] = Field(None, max_length=10)
+    br_email: Optional[EmailStr] = None
     br_fathrsaddrs: Optional[str] = None
-    br_fathrsmobile: Optional[str] = None
+    br_fathrsmobile: Optional[str] = Field(None, max_length=10)
+    
+    # Serial Number
     br_upasampada_serial_no: Optional[str] = None
+    
+    # Audit Fields
     br_created_by: Optional[str] = None
     br_updated_by: Optional[str] = None
 
 class Bhikku(BhikkuBase):
+    """Schema for returning a Bhikku record"""
     br_id: int
     br_is_deleted: bool
     br_version_number: int
@@ -86,11 +129,10 @@ class BhikkuRequestPayload(BaseModel):
     skip: int = 0
     limit: int = 10
     page: Optional[int] = 1
-    search_key: Optional[str] = ""  # Added search_key field
+    search_key: Optional[str] = ""
     # For CREATE, UPDATE
     data: Optional[Union[BhikkuCreate, BhikkuUpdate]] = None
 
-# NEW: Paginated response for READ_ALL
 class BhikkuPaginatedResponse(BaseModel):
     status: str
     message: str
@@ -111,3 +153,10 @@ class BhikkuManagementResponse(BaseModel):
     totalRecords: Optional[int] = None
     page: Optional[int] = None
     limit: Optional[int] = None
+
+
+# Note: You may want to add validation rules, for example:
+# - Mobile numbers should be exactly 10 digits
+# - Email should be valid format (handled by EmailStr)
+# - Dates should be valid and logical (br_dofb < br_mahanadate, etc.)
+# - Foreign key references should be validated against lookup tables
