@@ -82,11 +82,21 @@ class Bhikku(BhikkuBase):
 class BhikkuRequestPayload(BaseModel):
     # For READ_ONE, UPDATE, DELETE
     br_regn: Optional[str] = None 
-    # For READ_ALL
+    # For READ_ALL - Enhanced with page number
     skip: int = 0
-    limit: int = 100
+    limit: int = 10
+    page: Optional[int] = 1  # Added page number
     # For CREATE, UPDATE
     data: Optional[Union[BhikkuCreate, BhikkuUpdate]] = None
+
+# NEW: Paginated response for READ_ALL
+class BhikkuPaginatedResponse(BaseModel):
+    status: str
+    message: str
+    data: List[Bhikku]
+    totalRecords: int
+    page: int
+    limit: int
 
 class BhikkuManagementRequest(BaseModel):
     action: CRUDAction
@@ -96,3 +106,7 @@ class BhikkuManagementResponse(BaseModel):
     status: str
     message: str
     data: Optional[Union[Bhikku, List[Bhikku], Any]] = None
+    # Optional pagination fields (only for READ_ALL)
+    totalRecords: Optional[int] = None
+    page: Optional[int] = None
+    limit: Optional[int] = None
