@@ -12,7 +12,7 @@ def get_by_regn(db: Session, br_regn: str):
     ).first()
 
 def get_all(db: Session, skip: int = 0, limit: int = 100, search_key: Optional[str] = None):
-    """Get paginated bhikkus with optional search functionality"""
+    """Get paginated bhikkus with optional search functionality across all text fields"""
     query = db.query(models.Bhikku).filter(
         models.Bhikku.br_is_deleted == False
     )
@@ -22,19 +22,42 @@ def get_all(db: Session, skip: int = 0, limit: int = 100, search_key: Optional[s
         search_pattern = f"%{search_key.strip()}%"
         query = query.filter(
             or_(
+                # Registration and identification
                 models.Bhikku.br_regn.ilike(search_pattern),
+                models.Bhikku.br_upasampada_serial_no.ilike(search_pattern),
+                
+                # Personal information
                 models.Bhikku.br_gihiname.ilike(search_pattern),
                 models.Bhikku.br_fathrname.ilike(search_pattern),
+                models.Bhikku.br_mahananame.ilike(search_pattern),
+                
+                # Geographic information
+                models.Bhikku.br_birthpls.ilike(search_pattern),
+                models.Bhikku.br_province.ilike(search_pattern),
+                models.Bhikku.br_district.ilike(search_pattern),
+                models.Bhikku.br_korale.ilike(search_pattern),
+                models.Bhikku.br_pattu.ilike(search_pattern),
+                models.Bhikku.br_division.ilike(search_pattern),
                 models.Bhikku.br_vilage.ilike(search_pattern),
                 models.Bhikku.br_gndiv.ilike(search_pattern),
-                models.Bhikku.br_mahananame.ilike(search_pattern),
+                
+                # Contact information
                 models.Bhikku.br_mobile.ilike(search_pattern),
                 models.Bhikku.br_email.ilike(search_pattern),
-                models.Bhikku.br_upasampada_serial_no.ilike(search_pattern),
+                models.Bhikku.br_fathrsaddrs.ilike(search_pattern),
+                models.Bhikku.br_fathrsmobile.ilike(search_pattern),
+                
+                # Temple/Religious codes
+                models.Bhikku.br_parshawaya.ilike(search_pattern),
+                models.Bhikku.br_livtemple.ilike(search_pattern),
+                models.Bhikku.br_mahanatemple.ilike(search_pattern),
+                models.Bhikku.br_mahanaacharyacd.ilike(search_pattern),
+                models.Bhikku.br_currstat.ilike(search_pattern),
+                models.Bhikku.br_cat.ilike(search_pattern),
             )
         )
     
-    # ✅ CRITICAL FIX: Add explicit ordering for consistent pagination
+    # CRITICAL: Add explicit ordering for consistent pagination
     return query.order_by(models.Bhikku.br_id).offset(skip).limit(limit).all()
 
 def get_total_count(db: Session, search_key: Optional[str] = None):
@@ -43,20 +66,43 @@ def get_total_count(db: Session, search_key: Optional[str] = None):
         models.Bhikku.br_is_deleted == False
     )
     
-    # Apply search filter if search_key is provided and not empty
+    # Apply same search filter as get_all
     if search_key and search_key.strip():
         search_pattern = f"%{search_key.strip()}%"
         query = query.filter(
             or_(
+                # Registration and identification
                 models.Bhikku.br_regn.ilike(search_pattern),
+                models.Bhikku.br_upasampada_serial_no.ilike(search_pattern),
+                
+                # Personal information
                 models.Bhikku.br_gihiname.ilike(search_pattern),
                 models.Bhikku.br_fathrname.ilike(search_pattern),
+                models.Bhikku.br_mahananame.ilike(search_pattern),
+                
+                # Geographic information
+                models.Bhikku.br_birthpls.ilike(search_pattern),
+                models.Bhikku.br_province.ilike(search_pattern),
+                models.Bhikku.br_district.ilike(search_pattern),
+                models.Bhikku.br_korale.ilike(search_pattern),
+                models.Bhikku.br_pattu.ilike(search_pattern),
+                models.Bhikku.br_division.ilike(search_pattern),
                 models.Bhikku.br_vilage.ilike(search_pattern),
                 models.Bhikku.br_gndiv.ilike(search_pattern),
-                models.Bhikku.br_mahananame.ilike(search_pattern),
+                
+                # Contact information
                 models.Bhikku.br_mobile.ilike(search_pattern),
                 models.Bhikku.br_email.ilike(search_pattern),
-                models.Bhikku.br_upasampada_serial_no.ilike(search_pattern),
+                models.Bhikku.br_fathrsaddrs.ilike(search_pattern),
+                models.Bhikku.br_fathrsmobile.ilike(search_pattern),
+                
+                # Temple/Religious codes
+                models.Bhikku.br_parshawaya.ilike(search_pattern),
+                models.Bhikku.br_livtemple.ilike(search_pattern),
+                models.Bhikku.br_mahanatemple.ilike(search_pattern),
+                models.Bhikku.br_mahanaacharyacd.ilike(search_pattern),
+                models.Bhikku.br_currstat.ilike(search_pattern),
+                models.Bhikku.br_cat.ilike(search_pattern),
             )
         )
     
