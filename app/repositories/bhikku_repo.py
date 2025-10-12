@@ -34,7 +34,8 @@ def get_all(db: Session, skip: int = 0, limit: int = 100, search_key: Optional[s
             )
         )
     
-    return query.offset(skip).limit(limit).all()
+    # ✅ CRITICAL FIX: Add explicit ordering for consistent pagination
+    return query.order_by(models.Bhikku.br_id).offset(skip).limit(limit).all()
 
 def get_total_count(db: Session, search_key: Optional[str] = None):
     """Get total count of non-deleted bhikkus for pagination with optional search"""
