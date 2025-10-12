@@ -14,7 +14,7 @@ class CRUDAction(str, Enum):
 
 # --- Bhikku Schemas with ALL Fields ---
 class BhikkuBase(BaseModel):
-    br_regn: str
+    br_regn: Optional[str] = None  # Made optional - will be auto-generated
     br_reqstdate: date
     
     # Geographic/Birth Information
@@ -61,7 +61,7 @@ class BhikkuBase(BaseModel):
     br_updated_by: Optional[str] = None
 
 class BhikkuCreate(BhikkuBase):
-    """Schema for creating a new Bhikku record"""
+    """Schema for creating a new Bhikku record - br_regn is auto-generated"""
     pass
 
 class BhikkuUpdate(BaseModel):
@@ -115,6 +115,7 @@ class BhikkuUpdate(BaseModel):
 class Bhikku(BhikkuBase):
     """Schema for returning a Bhikku record"""
     br_id: int
+    br_regn: str  # Required in response
     br_is_deleted: bool
     br_version_number: int
 
@@ -153,10 +154,3 @@ class BhikkuManagementResponse(BaseModel):
     totalRecords: Optional[int] = None
     page: Optional[int] = None
     limit: Optional[int] = None
-
-
-# Note: You may want to add validation rules, for example:
-# - Mobile numbers should be exactly 10 digits
-# - Email should be valid format (handled by EmailStr)
-# - Dates should be valid and logical (br_dofb < br_mahanadate, etc.)
-# - Foreign key references should be validated against lookup tables
