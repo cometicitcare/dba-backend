@@ -1,8 +1,9 @@
 # app/repositories/bhikku_repo.py
 from sqlalchemy.orm import Session
-from sqlalchemy import func
+from sqlalchemy import func, or_
 from app.models import bhikku as models
 from app.schemas import bhikku as schemas
+from typing import Optional
 
 def get_by_regn(db: Session, br_regn: str):
     return db.query(models.Bhikku).filter(
@@ -10,17 +11,55 @@ def get_by_regn(db: Session, br_regn: str):
         models.Bhikku.br_is_deleted == False
     ).first()
 
-def get_all(db: Session, skip: int = 0, limit: int = 100):
-    """Get paginated bhikkus"""
-    return db.query(models.Bhikku).filter(
+def get_all(db: Session, skip: int = 0, limit: int = 100, search_key: Optional[str] = None):
+    """Get paginated bhikkus with optional search functionality"""
+    query = db.query(models.Bhikku).filter(
         models.Bhikku.br_is_deleted == False
-    ).offset(skip).limit(limit).all()
+    )
+    
+    # Apply search filter if search_key is provided and not empty
+    if search_key and search_key.strip():
+        search_pattern = f"%{search_key.strip()}%"
+        query = query.filter(
+            or_(
+                models.Bhikku.br_regn.ilike(search_pattern),
+                models.Bhikku.br_gihiname.ilike(search_pattern),
+                models.Bhikku.br_fathrname.ilike(search_pattern),
+                models.Bhikku.br_vilage.ilike(search_pattern),
+                models.Bhikku.br_gndiv.ilike(search_pattern),
+                models.Bhikku.br_mahananame.ilike(search_pattern),
+                models.Bhikku.br_mobile.ilike(search_pattern),
+                models.Bhikku.br_email.ilike(search_pattern),
+                models.Bhikku.br_upasampada_serial_no.ilike(search_pattern),
+            )
+        )
+    
+    return query.offset(skip).limit(limit).all()
 
-def get_total_count(db: Session):
-    """Get total count of non-deleted bhikkus for pagination"""
-    return db.query(func.count(models.Bhikku.br_id)).filter(
+def get_total_count(db: Session, search_key: Optional[str] = None):
+    """Get total count of non-deleted bhikkus for pagination with optional search"""
+    query = db.query(func.count(models.Bhikku.br_id)).filter(
         models.Bhikku.br_is_deleted == False
-    ).scalar()
+    )
+    
+    # Apply search filter if search_key is provided and not empty
+    if search_key and search_key.strip():
+        search_pattern = f"%{search_key.strip()}%"
+        query = query.filter(
+            or_(
+                models.Bhikku.br_regn.ilike(search_pattern),
+                models.Bhikku.br_gihiname.ilike(search_pattern),
+                models.Bhikku.br_fathrname.ilike(search_pattern),
+                models.Bhikku.br_vilage.ilike(search_pattern),
+                models.Bhikku.br_gndiv.ilike(search_pattern),
+                models.Bhikku.br_mahananame.ilike(search_pattern),
+                models.Bhikku.br_mobile.ilike(search_pattern),
+                models.Bhikku.br_email.ilike(search_pattern),
+                models.Bhikku.br_upasampada_serial_no.ilike(search_pattern),
+            )
+        )
+    
+    return query.scalar()
 
 def create(db: Session, bhikku: schemas.BhikkuCreate):
     db_bhikku = models.Bhikku(**bhikku.model_dump())

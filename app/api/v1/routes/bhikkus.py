@@ -54,13 +54,16 @@ def manage_bhikku_records(
         limit = payload.limit if payload.limit > 0 else 10
         skip = (page - 1) * limit
         
-        # Get paginated data and total count
-        bhikkus = bhikku_repo.get_all(db, skip=skip, limit=limit)
-        total_records = bhikku_repo.get_total_count(db)
+        # Get search key (empty string if not provided)
+        search_key = payload.search_key if payload.search_key else ""
+        
+        # Get paginated data and total count with search filter
+        bhikkus = bhikku_repo.get_all(db, skip=skip, limit=limit, search_key=search_key)
+        total_records = bhikku_repo.get_total_count(db, search_key=search_key)
         
         return {
             "status": "success",
-            "message": "Bhikkus retrieved successfully.",
+            "message": "Bhikkus retrieved successfully." if not search_key else f"Bhikkus matching '{search_key}' retrieved successfully.",
             "data": bhikkus,
             "totalRecords": total_records,
             "page": page,
