@@ -49,8 +49,23 @@ def manage_bhikku_records(
         return {"status": "success", "message": "Bhikku retrieved successfully.", "data": db_bhikku}
 
     elif action == schemas.CRUDAction.READ_ALL:
-        bhikkus = bhikku_repo.get_all(db, skip=payload.skip, limit=payload.limit)
-        return {"status": "success", "message": "Bhikkus retrieved successfully.", "data": bhikkus}
+        # Calculate pagination parameters
+        page = payload.page if payload.page and payload.page > 0 else 1
+        limit = payload.limit if payload.limit > 0 else 10
+        skip = (page - 1) * limit
+        
+        # Get paginated data and total count
+        bhikkus = bhikku_repo.get_all(db, skip=skip, limit=limit)
+        total_records = bhikku_repo.get_total_count(db)
+        
+        return {
+            "status": "success",
+            "message": "Bhikkus retrieved successfully.",
+            "data": bhikkus,
+            "totalRecords": total_records,
+            "page": page,
+            "limit": limit
+        }
 
     elif action == schemas.CRUDAction.UPDATE:
         if not payload.br_regn or not payload.data or not isinstance(payload.data, schemas.BhikkuUpdate):

@@ -1,5 +1,6 @@
 # app/repositories/bhikku_repo.py
 from sqlalchemy.orm import Session
+from sqlalchemy import func
 from app.models import bhikku as models
 from app.schemas import bhikku as schemas
 
@@ -10,9 +11,16 @@ def get_by_regn(db: Session, br_regn: str):
     ).first()
 
 def get_all(db: Session, skip: int = 0, limit: int = 100):
+    """Get paginated bhikkus"""
     return db.query(models.Bhikku).filter(
         models.Bhikku.br_is_deleted == False
     ).offset(skip).limit(limit).all()
+
+def get_total_count(db: Session):
+    """Get total count of non-deleted bhikkus for pagination"""
+    return db.query(func.count(models.Bhikku.br_id)).filter(
+        models.Bhikku.br_is_deleted == False
+    ).scalar()
 
 def create(db: Session, bhikku: schemas.BhikkuCreate):
     db_bhikku = models.Bhikku(**bhikku.model_dump())
