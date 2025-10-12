@@ -10,22 +10,27 @@ class Settings:
     PROJECT_NAME: str = "Bhikku Registry API"
     PROJECT_VERSION: str = "1.0.0"
     DATABASE_URL: str = os.getenv("DATABASE_URL")
-    # CORS
+    
+    # CORS - CRITICAL: Must include your frontend URL
     BACKEND_CORS_ORIGINS: list[str] = [
         origin.strip()
         for origin in os.getenv("BACKEND_CORS_ORIGINS", "").split(",")
         if origin.strip()
     ]
+    
     # Auth / JWT
     SECRET_KEY: str = os.getenv("SECRET_KEY", "change-me-in-prod")
     ALGORITHM: str = os.getenv("ALGORITHM", "HS256")
     ACCESS_TOKEN_EXPIRE_MINUTES: int = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "15"))
     REFRESH_TOKEN_EXPIRE_DAYS: int = int(os.getenv("REFRESH_TOKEN_EXPIRE_DAYS", "7"))
-    # Cookies
-    COOKIE_DOMAIN: str | None = os.getenv("COOKIE_DOMAIN") or None
+    
+    # Cookie settings - FIXED for browser compatibility
+    COOKIE_DOMAIN: str | None = os.getenv("COOKIE_DOMAIN") or None  # Don't set domain for localhost
     COOKIE_PATH: str = os.getenv("COOKIE_PATH", "/")
-    COOKIE_SAMESITE: str = os.getenv("COOKIE_SAMESITE", "lax")
-    COOKIE_SECURE: bool = os.getenv("APP_ENV", "development").lower() == "production"
+    # CRITICAL: Use "none" for cross-origin, "lax" for same-origin
+    COOKIE_SAMESITE: str = os.getenv("COOKIE_SAMESITE", "none")  # Changed from "lax"
+    # CRITICAL: Must be True when SameSite=none
+    COOKIE_SECURE: bool = os.getenv("COOKIE_SECURE", "true").lower() == "true"  # Changed logic
 
     def __init__(self) -> None:
         # Normalize DATABASE_URL for SQLAlchemy/psycopg2 and Railway
