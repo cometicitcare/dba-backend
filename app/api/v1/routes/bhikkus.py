@@ -90,12 +90,21 @@ def manage_bhikku_records(
         }
 
     elif action == schemas.CRUDAction.UPDATE:
-        if not payload.br_regn or not payload.data or not isinstance(payload.data, schemas.BhikkuUpdate):
+        if not payload.br_regn or not payload.data:
             raise HTTPException(status_code=400, detail="br_regn and data are required for UPDATE action")
 
+        # Convert data to BhikkuUpdate if it's BhikkuCreate (Pydantic Union parsing issue)
+        if isinstance(payload.data, schemas.BhikkuCreate):
+            # Convert BhikkuCreate to BhikkuUpdate
+            update_data = schemas.BhikkuUpdate(**payload.data.model_dump(exclude_unset=True))
+        elif isinstance(payload.data, schemas.BhikkuUpdate):
+            update_data = payload.data
+        else:
+            raise HTTPException(status_code=400, detail="Invalid data type for UPDATE action")
+
         # Set the updated_by field to current user ID
-        payload.data.br_updated_by = user_id
-        updated_bhikku = bhikku_repo.update(db=db, br_regn=payload.br_regn, bhikku_update=payload.data)
+        update_data.br_updated_by = user_id
+        updated_bhikku = bhikku_repo.update(db=db, br_regn=payload.br_regn, bhikku_update=update_data)
         if updated_bhikku is None:
             raise HTTPException(status_code=404, detail="Bhikku not found")
         return {"status": "success", "message": "Bhikku updated successfully.", "data": updated_bhikku}
