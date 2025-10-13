@@ -4,12 +4,12 @@ from sqlalchemy import func, or_
 from app.models import bhikku as models
 from app.schemas import bhikku as schemas
 from typing import Optional
-import re
 
 def generate_next_regn(db: Session) -> str:
     """
     Generate the next registration number in format: BH{YEAR}{SEQUENCE}
     Example: BH2025000010, BH2025000011, etc.
+    Total length: BH(2) + YEAR(4) + SEQUENCE(6) = 12 characters
     """
     from datetime import datetime
     current_year = datetime.now().year
@@ -21,20 +21,22 @@ def generate_next_regn(db: Session) -> str:
     ).order_by(models.Bhikku.br_regn.desc()).first()
     
     if latest:
-        # Extract the numeric part and increment
-        match = re.search(r'BH\d{4}(\d+)', latest.br_regn)
-        if match:
-            last_sequence = int(match.group(1))
+        # Extract the numeric part after BH{YEAR} and increment
+        # Pattern: BH2025000010 -> extract "000010"
+        try:
+            sequence_part = latest.br_regn[len(prefix):]  # Get everything after "BH2025"
+            last_sequence = int(sequence_part)
             next_sequence = last_sequence + 1
-        else:
-            # Fallback if pattern doesn't match
+        except (ValueError, IndexError):
+            # Fallback if extraction fails
             next_sequence = 10
     else:
         # First registration for this year
         next_sequence = 10
     
-    # Format: BH + YEAR + zero-padded sequence (9 digits)
-    return f"{prefix}{next_sequence:09d}"
+    # Format: BH + YEAR + zero-padded sequence (6 digits)
+    # BH2025000010, BH2025000011, etc.
+    return f"{prefix}{next_sequence:06d}"
 
 def get_by_regn(db: Session, br_regn: str):
     return db.query(models.Bhikku).filter(
