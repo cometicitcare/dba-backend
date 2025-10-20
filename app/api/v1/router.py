@@ -7,6 +7,7 @@ from app.api.v1.routes import (
     bhikkus,
     bhikku_high,
     bhikku_certification,
+    nilame,
     health,
     vihara_data,
 )
@@ -21,6 +22,7 @@ api_router.include_router(
     prefix="/bhikkus-certifications",
     tags=["Bhikku Certification"],
 )
+api_router.include_router(nilame.router, prefix="/nilame", tags=["Nilame"])
 api_router.include_router(auth.router, prefix="/auth", tags=["Authentication"])
 api_router.include_router(vihara_data.router, prefix="/vihara-data")
 api_router.include_router(beneficiary_data.router, prefix="/beneficiary-data")
