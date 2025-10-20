@@ -21,7 +21,7 @@ def get_all_roles(db: Session):
 
 
 def create_user(db: Session, user: UserCreate):
-    """Create a new user with role validation"""
+    """Create a new user with role validation and all required fields"""
     # Validate that the role exists
     role = get_role_by_id(db, user.ro_role_id)
     if not role:
@@ -34,17 +34,36 @@ def create_user(db: Session, user: UserCreate):
     user_id = f"UA{str(uuid.uuid4().int)[:7]}"
 
     db_user = UserAccount(
+        # Required fields
         ua_user_id=user_id,
         ua_username=user.ua_username,
         ua_password_hash=hashed_password,
         ua_salt=salt,
         ua_email=user.ua_email,
+        ro_role_id=user.ro_role_id,
+        
+        # Optional personal info from registration
         ua_first_name=user.ua_first_name,
         ua_last_name=user.ua_last_name,
         ua_phone=user.ua_phone,
-        ro_role_id=user.ro_role_id,
+        
+        # Status and security fields - explicitly set defaults
+        ua_status="active",
+        ua_login_attempts=0,
+        ua_must_change_password=False,
+        ua_two_factor_enabled=False,
+        ua_is_deleted=False,
+        ua_version_number=1,
+        
+        # Audit fields
         ua_created_by=user_id,  # Self-created
         ua_updated_by=user_id,
+        
+        # Nullable timestamp fields (set later during usage)
+        ua_last_login=None,
+        ua_locked_until=None,
+        ua_password_expires=None,
+        ua_two_factor_secret=None,
     )
     db.add(db_user)
     db.commit()
