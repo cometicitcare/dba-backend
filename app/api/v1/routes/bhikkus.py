@@ -18,7 +18,7 @@ def manage_bhikku_records(
 ):
     """
     Unified endpoint for all Bhikku CRUD operations.
-    Requires authentication via http-only cookies (access_token).
+    Requires authentication via session ID in Authorization header.
     """
     action = request.action
     payload = request.payload
@@ -30,25 +30,14 @@ def manage_bhikku_records(
         if not payload.data or not isinstance(payload.data, schemas.BhikkuCreate):
             raise HTTPException(status_code=400, detail="Invalid data for CREATE action")
         
-        # Check if br_regn was manually provided (optional check)
-        if payload.data.br_regn:
-            db_bhikku_existing = bhikku_repo.get_by_regn(db, br_regn=payload.data.br_regn)
-            if db_bhikku_existing:
-                raise HTTPException(
-                    status_code=400, 
-                    detail=f"Registration number '{payload.data.br_regn}' already exists."
-                )
+        db_bhikku_existing = bhikku_repo.get_by_regn(db, br_regn=payload.data.br_regn)
+        if db_bhikku_existing:
+            raise HTTPException(status_code=400, detail=f"Registration number '{payload.data.br_regn}' already exists.")
         
         # Set the created_by field to current user ID (foreign key constraint)
         payload.data.br_created_by = user_id
-        
-        # br_regn will be auto-generated in repository if not provided
         created_bhikku = bhikku_repo.create(db=db, bhikku=payload.data)
-        return {
-            "status": "success", 
-            "message": f"Bhikku created successfully with registration number: {created_bhikku.br_regn}", 
-            "data": created_bhikku
-        }
+        return {"status": "success", "message": "Bhikku created successfully.", "data": created_bhikku}
 
     elif action == schemas.CRUDAction.READ_ONE:
         if not payload.br_regn:
@@ -60,51 +49,16 @@ def manage_bhikku_records(
         return {"status": "success", "message": "Bhikku retrieved successfully.", "data": db_bhikku}
 
     elif action == schemas.CRUDAction.READ_ALL:
-        # Calculate pagination parameters
-        limit = payload.limit if payload.limit > 0 else 10
-        
-        # Prioritize page-based pagination, fall back to skip if page not provided
-        if payload.page and payload.page > 0:
-            # Page-based pagination
-            page = payload.page
-            skip = (page - 1) * limit
-        else:
-            # Direct skip-based pagination
-            skip = payload.skip if payload.skip >= 0 else 0
-            page = (skip // limit) + 1 if limit > 0 else 1
-        
-        # Get search key (empty string if not provided)
-        search_key = payload.search_key if payload.search_key else ""
-        
-        # Get paginated data and total count with search filter
-        bhikkus = bhikku_repo.get_all(db, skip=skip, limit=limit, search_key=search_key)
-        total_records = bhikku_repo.get_total_count(db, search_key=search_key)
-        
-        return {
-            "status": "success",
-            "message": "Bhikkus retrieved successfully." if not search_key else f"Bhikkus matching '{search_key}' retrieved successfully.",
-            "data": bhikkus,
-            "totalRecords": total_records,
-            "page": page,
-            "limit": limit
-        }
+        bhikkus = bhikku_repo.get_all(db, skip=payload.skip, limit=payload.limit)
+        return {"status": "success", "message": "Bhikkus retrieved successfully.", "data": bhikkus}
 
     elif action == schemas.CRUDAction.UPDATE:
-        if not payload.br_regn or not payload.data:
+        if not payload.br_regn or not payload.data or not isinstance(payload.data, schemas.BhikkuUpdate):
             raise HTTPException(status_code=400, detail="br_regn and data are required for UPDATE action")
 
-        # Convert data to BhikkuUpdate if it's BhikkuCreate (Pydantic Union parsing issue)
-        if isinstance(payload.data, schemas.BhikkuCreate):
-            # Convert BhikkuCreate to BhikkuUpdate
-            update_data = schemas.BhikkuUpdate(**payload.data.model_dump(exclude_unset=True))
-        elif isinstance(payload.data, schemas.BhikkuUpdate):
-            update_data = payload.data
-        else:
-            raise HTTPException(status_code=400, detail="Invalid data type for UPDATE action")
-
-        # Set the updated_by field to current user ID
-        update_data.br_updated_by = user_id
-        updated_bhikku = bhikku_repo.update(db=db, br_regn=payload.br_regn, bhikku_update=update_data)
+        # FIXED: Changed 'username' to 'user_id'
+        payload.data.br_updated_by = user_id
+        updated_bhikku = bhikku_repo.update(db=db, br_regn=payload.br_regn, bhikku_update=payload.data)
         if updated_bhikku is None:
             raise HTTPException(status_code=404, detail="Bhikku not found")
         return {"status": "success", "message": "Bhikku updated successfully.", "data": updated_bhikku}
