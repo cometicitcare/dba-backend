@@ -13,6 +13,7 @@ from app.schemas.vihara import (
     ViharaUpdate,
 )
 from app.services.vihara_service import vihara_service
+from app.utils.http_exceptions import validation_error
 
 router = APIRouter(tags=["Vihara Data"])
 
@@ -29,9 +30,8 @@ def manage_vihara_records(
 
     if action == CRUDAction.CREATE:
         if not payload.data or not isinstance(payload.data, ViharaCreate):
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Invalid data for CREATE action",
+            raise validation_error(
+                [("payload.data", "Invalid data for CREATE action")]
             )
         try:
             created = vihara_service.create_vihara(
@@ -43,17 +43,14 @@ def manage_vihara_records(
                 data=created,
             )
         except ValueError as exc:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)
-            ) from exc
+            raise validation_error([(None, str(exc))]) from exc
 
     if action == CRUDAction.READ_ONE:
         identifier_id = payload.vh_id
         identifier_trn = payload.vh_trn
         if identifier_id is None and not identifier_trn:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="vh_id or vh_trn is required for READ_ONE action",
+            raise validation_error(
+                [("payload.vh_id", "vh_id or vh_trn is required for READ_ONE action")]
             )
 
         entity: ViharaOut | None = None
@@ -96,14 +93,12 @@ def manage_vihara_records(
 
     if action == CRUDAction.UPDATE:
         if payload.vh_id is None:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="vh_id is required for UPDATE action",
+            raise validation_error(
+                [("payload.vh_id", "vh_id is required for UPDATE action")]
             )
         if not payload.data or not isinstance(payload.data, ViharaUpdate):
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Invalid data for UPDATE action",
+            raise validation_error(
+                [("payload.data", "Invalid data for UPDATE action")]
             )
 
         try:
@@ -123,15 +118,12 @@ def manage_vihara_records(
                 raise HTTPException(
                     status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)
                 ) from exc
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)
-            ) from exc
+            raise validation_error([(None, str(exc))]) from exc
 
     if action == CRUDAction.DELETE:
         if payload.vh_id is None:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="vh_id is required for DELETE action",
+            raise validation_error(
+                [("payload.vh_id", "vh_id is required for DELETE action")]
             )
         try:
             vihara_service.delete_vihara(
@@ -149,6 +141,4 @@ def manage_vihara_records(
                 status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)
             ) from exc
 
-    raise HTTPException(
-        status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid action specified"
-    )
+    raise validation_error([("action", "Invalid action specified")])

@@ -13,6 +13,7 @@ from app.schemas.beneficiary import (
     CRUDAction,
 )
 from app.services.beneficiary_service import beneficiary_service
+from app.utils.http_exceptions import validation_error
 
 router = APIRouter(tags=["Beneficiary Data"])
 
@@ -29,9 +30,8 @@ def manage_beneficiary_records(
 
     if action == CRUDAction.CREATE:
         if not payload.data or not isinstance(payload.data, BeneficiaryCreate):
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Invalid data for CREATE action",
+            raise validation_error(
+                [("payload.data", "Invalid data for CREATE action")]
             )
         try:
             created = beneficiary_service.create_beneficiary(
@@ -43,17 +43,14 @@ def manage_beneficiary_records(
                 data=created,
             )
         except ValueError as exc:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)
-            ) from exc
+            raise validation_error([(None, str(exc))]) from exc
 
     if action == CRUDAction.READ_ONE:
         identifier_id = payload.bf_id
         identifier_bnn = payload.bf_bnn
         if identifier_id is None and not identifier_bnn:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="bf_id or bf_bnn is required for READ_ONE action",
+            raise validation_error(
+                [("payload.bf_id", "bf_id or bf_bnn is required for READ_ONE action")]
             )
 
         entity: BeneficiaryOut | None = None
@@ -97,14 +94,12 @@ def manage_beneficiary_records(
 
     if action == CRUDAction.UPDATE:
         if payload.bf_id is None:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="bf_id is required for UPDATE action",
+            raise validation_error(
+                [("payload.bf_id", "bf_id is required for UPDATE action")]
             )
         if not payload.data or not isinstance(payload.data, BeneficiaryUpdate):
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Invalid data for UPDATE action",
+            raise validation_error(
+                [("payload.data", "Invalid data for UPDATE action")]
             )
         try:
             updated = beneficiary_service.update_beneficiary(
@@ -123,15 +118,12 @@ def manage_beneficiary_records(
                 raise HTTPException(
                     status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)
                 ) from exc
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)
-            ) from exc
+            raise validation_error([(None, str(exc))]) from exc
 
     if action == CRUDAction.DELETE:
         if payload.bf_id is None:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="bf_id is required for DELETE action",
+            raise validation_error(
+                [("payload.bf_id", "bf_id is required for DELETE action")]
             )
         try:
             beneficiary_service.delete_beneficiary(
@@ -149,6 +141,4 @@ def manage_beneficiary_records(
                 status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)
             ) from exc
 
-    raise HTTPException(
-        status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid action specified"
-    )
+    raise validation_error([("action", "Invalid action specified")])

@@ -1,5 +1,5 @@
 # app/api/v1/routes/bhikkus.py
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_db
@@ -7,6 +7,7 @@ from app.api.auth_middleware import get_current_user
 from app.models.user import UserAccount
 from app.schemas import bhikku as schemas
 from app.repositories import bhikku_repo
+from app.utils.http_exceptions import validation_error
 
 router = APIRouter()
 
@@ -28,11 +29,20 @@ def manage_bhikku_records(
 
     if action == schemas.CRUDAction.CREATE:
         if not payload.data or not isinstance(payload.data, schemas.BhikkuCreate):
-            raise HTTPException(status_code=400, detail="Invalid data for CREATE action")
+            raise validation_error(
+                [("payload.data", "Invalid data for CREATE action")]
+            )
         
         db_bhikku_existing = bhikku_repo.get_by_regn(db, br_regn=payload.data.br_regn)
         if db_bhikku_existing:
-            raise HTTPException(status_code=400, detail=f"Registration number '{payload.data.br_regn}' already exists.")
+            raise validation_error(
+                [
+                    (
+                        "payload.data.br_regn",
+                        f"Registration number '{payload.data.br_regn}' already exists.",
+                    )
+                ]
+            )
         
         # Set the created_by field to current user ID (foreign key constraint)
         payload.data.br_created_by = user_id
@@ -41,7 +51,9 @@ def manage_bhikku_records(
 
     elif action == schemas.CRUDAction.READ_ONE:
         if not payload.br_regn:
-            raise HTTPException(status_code=400, detail="br_regn is required for READ_ONE action")
+            raise validation_error(
+                [("payload.br_regn", "br_regn is required for READ_ONE action")]
+            )
         
         db_bhikku = bhikku_repo.get_by_regn(db, br_regn=payload.br_regn)
         if db_bhikku is None:
@@ -77,8 +89,19 @@ def manage_bhikku_records(
         }
 
     elif action == schemas.CRUDAction.UPDATE:
-        if not payload.br_regn or not payload.data or not isinstance(payload.data, schemas.BhikkuUpdate):
-            raise HTTPException(status_code=400, detail="br_regn and data are required for UPDATE action")
+        update_errors = []
+        if not payload.br_regn:
+            update_errors.append(
+                ("payload.br_regn", "br_regn is required for UPDATE action")
+            )
+        if not payload.data:
+            update_errors.append(("payload.data", "data is required for UPDATE action"))
+        elif not isinstance(payload.data, schemas.BhikkuUpdate):
+            update_errors.append(
+                ("payload.data", "Invalid data payload for UPDATE action")
+            )
+        if update_errors:
+            raise validation_error(update_errors)
 
         # Set the updated_by field to current user ID
         payload.data.br_updated_by = user_id
@@ -89,7 +112,9 @@ def manage_bhikku_records(
 
     elif action == schemas.CRUDAction.DELETE:
         if not payload.br_regn:
-            raise HTTPException(status_code=400, detail="br_regn is required for DELETE action")
+            raise validation_error(
+                [("payload.br_regn", "br_regn is required for DELETE action")]
+            )
         
         deleted_bhikku = bhikku_repo.delete(db=db, br_regn=payload.br_regn)
         if deleted_bhikku is None:
@@ -97,4 +122,4 @@ def manage_bhikku_records(
         return {"status": "success", "message": "Bhikku deleted successfully.", "data": None}
 
     else:
-        raise HTTPException(status_code=400, detail="Invalid action specified")
+        raise validation_error([("action", "Invalid action specified")])

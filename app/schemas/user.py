@@ -1,7 +1,8 @@
 # app/schemas/user.py
-from pydantic import BaseModel, EmailStr
-from typing import Optional
 from datetime import datetime
+from typing import Annotated, Optional
+
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator, model_validator
 
 
 class RoleBase(BaseModel):
@@ -22,18 +23,74 @@ class Role(RoleBase):
 
 
 class UserCreate(BaseModel):
-    ua_username: str
-    ua_password: str
+    model_config = ConfigDict(
+        str_strip_whitespace=True,
+        populate_by_name=True,
+        extra="forbid",
+    )
+
+    ua_username: Annotated[str, Field(min_length=3, max_length=50)]
+    ua_password: Annotated[str, Field(min_length=8, max_length=255)]
+    confirm_password: Annotated[str, Field(min_length=8, max_length=255)] = Field(
+        alias="confirmPassword"
+    )
     ua_email: EmailStr
-    ua_first_name: Optional[str] = None
-    ua_last_name: Optional[str] = None
-    ua_phone: Optional[str] = None
-    ro_role_id: str  # Role selection (must be one of the 5 roles)
+    ua_first_name: Annotated[Optional[str], Field(default=None, max_length=50)] = None
+    ua_last_name: Annotated[Optional[str], Field(default=None, max_length=50)] = None
+    ua_phone: Annotated[Optional[str], Field(default=None, max_length=15)] = None
+    ro_role_id: Annotated[str, Field(min_length=1, max_length=20)]
+
+    @field_validator("ua_username", "ro_role_id", mode="before")
+    @classmethod
+    def _validate_required_strings(cls, value: Optional[str]) -> Optional[str]:
+        if isinstance(value, str):
+            value = value.strip()
+        if not value:
+            raise ValueError("Field is required.")
+        return value
+
+    @field_validator("ua_first_name", "ua_last_name", "ua_phone", mode="before")
+    @classmethod
+    def _normalize_optional_strings(cls, value: Optional[str]) -> Optional[str]:
+        if isinstance(value, str):
+            value = value.strip()
+            return value or None
+        return value
+
+    @field_validator("ua_password")
+    @classmethod
+    def _validate_password_strength(cls, value: str) -> str:
+        if not any(ch.islower() for ch in value):
+            raise ValueError("Password must include at least one lowercase letter.")
+        if not any(ch.isupper() for ch in value):
+            raise ValueError("Password must include at least one uppercase letter.")
+        if not any(ch.isdigit() for ch in value):
+            raise ValueError("Password must include at least one digit.")
+        if not any(ch in "!@#$%^&*()-_=+[]{}|;:,.<>?/" for ch in value):
+            raise ValueError("Password must include at least one special character.")
+        return value
+
+    @model_validator(mode="after")
+    def _check_password_confirmation(self):
+        if self.ua_password != self.confirm_password:
+            raise ValueError("Passwords do not match.")
+        return self
 
 
 class UserLogin(BaseModel):
-    ua_username: str
-    ua_password: str
+    model_config = ConfigDict(str_strip_whitespace=True, extra="forbid")
+
+    ua_username: Annotated[str, Field(min_length=3, max_length=50)]
+    ua_password: Annotated[str, Field(min_length=8, max_length=255)]
+
+    @field_validator("ua_username", "ua_password", mode="before")
+    @classmethod
+    def _ensure_not_empty(cls, value: Optional[str]) -> Optional[str]:
+        if isinstance(value, str):
+            value = value.strip()
+        if not value:
+            raise ValueError("Field is required.")
+        return value
 
 
 class UserResponse(BaseModel):

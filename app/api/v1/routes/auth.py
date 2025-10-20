@@ -3,14 +3,13 @@ from fastapi import APIRouter, Depends, HTTPException, status, Request
 from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 from app.api.deps import get_db
-from app.schemas.user import UserCreate, UserLogin, UserResponse, LoginResponse
+from app.schemas.user import UserCreate, UserLogin, UserResponse
 from app.repositories import auth_repo
-from app.core.security import verify_password, create_access_token
+from app.core.security import create_access_token
 from app.services.auth_service import auth_service
 from app.utils.cookies import set_auth_cookies, clear_auth_cookies
+from app.utils.http_exceptions import validation_error
 from app.core.config import settings
-
-from datetime import datetime
 
 router = APIRouter()
 
@@ -28,9 +27,8 @@ def register_user(user: UserCreate, db: Session = Depends(get_db)):
     # Check if username already exists
     db_user = auth_repo.get_user_by_username(db, username=user.ua_username)
     if db_user:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Username already registered",
+        raise validation_error(
+            [("ua_username", "Username already registered")]
         )
     
     # Check if email already exists
@@ -39,27 +37,27 @@ def register_user(user: UserCreate, db: Session = Depends(get_db)):
         auth_repo.UserAccount.ua_is_deleted == False
     ).first()
     if existing_email:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Email already registered",
+        raise validation_error(
+            [("ua_email", "Email already registered")]
         )
     
     # Validate role exists
     role = auth_repo.get_role_by_id(db, user.ro_role_id)
     if not role:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Invalid role ID: {user.ro_role_id}. Please use one of the available roles.",
+        raise validation_error(
+            [
+                (
+                    "ro_role_id",
+                    f"Invalid role ID: {user.ro_role_id}. Please use one of the available roles.",
+                )
+            ]
         )
     
     try:
         created_user = auth_repo.create_user(db=db, user=user)
         return created_user
     except ValueError as e:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(e),
-        )
+        raise validation_error([(None, str(e))])
 
 
 @router.post("/login")
@@ -127,5 +125,3 @@ def refresh_token(request: Request, db: Session = Depends(get_db)):
         return response
     except Exception:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid refresh token")
-
-
