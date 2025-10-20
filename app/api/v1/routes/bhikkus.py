@@ -49,14 +49,38 @@ def manage_bhikku_records(
         return {"status": "success", "message": "Bhikku retrieved successfully.", "data": db_bhikku}
 
     elif action == schemas.CRUDAction.READ_ALL:
-        bhikkus = bhikku_repo.get_all(db, skip=payload.skip, limit=payload.limit)
-        return {"status": "success", "message": "Bhikkus retrieved successfully.", "data": bhikkus}
+        # Handle pagination - use page-based or skip-based
+        page = payload.page or 1
+        limit = payload.limit
+        search_key = payload.search_key.strip() if payload.search_key else None
+        
+        # If search_key is empty string, treat as None
+        if search_key == "":
+            search_key = None
+        
+        # Calculate skip based on page if page is provided, otherwise use skip directly
+        skip = payload.skip if payload.page is None else (page - 1) * limit
+        
+        # Get paginated bhikku records with search
+        bhikkus = bhikku_repo.get_all(db, skip=skip, limit=limit, search_key=search_key)
+        
+        # Get total count for pagination
+        total_count = bhikku_repo.get_total_count(db, search_key=search_key)
+        
+        return {
+            "status": "success",
+            "message": "Bhikkus retrieved successfully.",
+            "data": bhikkus,
+            "totalRecords": total_count,
+            "page": page,
+            "limit": limit
+        }
 
     elif action == schemas.CRUDAction.UPDATE:
         if not payload.br_regn or not payload.data or not isinstance(payload.data, schemas.BhikkuUpdate):
             raise HTTPException(status_code=400, detail="br_regn and data are required for UPDATE action")
 
-        # FIXED: Changed 'username' to 'user_id'
+        # Set the updated_by field to current user ID
         payload.data.br_updated_by = user_id
         updated_bhikku = bhikku_repo.update(db=db, br_regn=payload.br_regn, bhikku_update=payload.data)
         if updated_bhikku is None:
