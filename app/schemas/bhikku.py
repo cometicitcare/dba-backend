@@ -1,7 +1,7 @@
 # app/schemas/bhikku.py
 from pydantic import BaseModel, Field, EmailStr
 from datetime import date
-from typing import Optional, List, Union, Any
+from typing import Annotated, Optional, List, Union, Any
 from enum import Enum
 
 # --- Action Enum ---
@@ -127,10 +127,10 @@ class BhikkuRequestPayload(BaseModel):
     # For READ_ONE, UPDATE, DELETE
     br_regn: Optional[str] = None 
     # For READ_ALL - Enhanced with page number and search
-    skip: int = 0
-    limit: int = 10
-    page: Optional[int] = 1
-    search_key: Optional[str] = ""
+    skip: Annotated[int, Field(ge=0)] = 0
+    limit: Annotated[int, Field(ge=1, le=200)] = 10
+    page: Annotated[Optional[int], Field(ge=1)] = 1
+    search_key: Optional[str] = Field(default="", max_length=100)
     # For CREATE, UPDATE
     data: Optional[Union[BhikkuCreate, BhikkuUpdate]] = None
 

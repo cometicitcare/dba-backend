@@ -62,7 +62,7 @@ def manage_bhikku_records(
 
     elif action == schemas.CRUDAction.READ_ALL:
         # Handle pagination - use page-based or skip-based
-        page = payload.page or 1
+        page = payload.page if payload.page is not None else 1
         limit = payload.limit
         search_key = payload.search_key.strip() if payload.search_key else None
         
@@ -72,6 +72,7 @@ def manage_bhikku_records(
         
         # Calculate skip based on page if page is provided, otherwise use skip directly
         skip = payload.skip if payload.page is None else (page - 1) * limit
+        skip = max(0, skip)
         
         # Get paginated bhikku records with search
         bhikkus = bhikku_repo.get_all(db, skip=skip, limit=limit, search_key=search_key)

@@ -1,7 +1,7 @@
 # app/schemas/nilame.py
 from datetime import date, datetime
 from enum import Enum
-from typing import List, Optional, Union
+from typing import Annotated, List, Optional, Union
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -62,10 +62,10 @@ class Nilame(NilameBase):
 class NilameRequestPayload(BaseModel):
     kr_id: Optional[int] = None
     kr_krn: Optional[str] = None
-    skip: int = 0
-    limit: int = 10
-    page: Optional[int] = 1
-    search_key: Optional[str] = ""
+    skip: Annotated[int, Field(ge=0)] = 0
+    limit: Annotated[int, Field(ge=1, le=200)] = 10
+    page: Annotated[Optional[int], Field(ge=1)] = 1
+    search_key: Optional[str] = Field(default="", max_length=100)
     data: Optional[Union[NilameCreate, NilameUpdate]] = None
 
 
@@ -81,4 +81,3 @@ class NilameManagementResponse(BaseModel):
     totalRecords: Optional[int] = None
     page: Optional[int] = None
     limit: Optional[int] = None
-

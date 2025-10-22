@@ -68,7 +68,7 @@ def manage_nilame_records(
         )
 
     if action == schemas.CRUDAction.READ_ALL:
-        page = payload.page or 1
+        page = payload.page if payload.page is not None else 1
         limit = payload.limit
         search = payload.search_key.strip() if payload.search_key else None
         if search == "":
@@ -143,4 +143,3 @@ def manage_nilame_records(
         )
 
     raise validation_error([("action", "Invalid action specified")])
-
