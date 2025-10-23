@@ -26,10 +26,12 @@ class ViharaService:
         payload_dict = payload.model_dump(exclude_unset=True)
         payload_dict.pop("vh_trn", None)
         payload_dict.pop("vh_id", None)
+        payload_dict.pop("vh_version_number", None)
         payload_dict["vh_created_by"] = actor_id
         payload_dict["vh_updated_by"] = actor_id
         payload_dict.setdefault("vh_created_at", now)
         payload_dict.setdefault("vh_updated_at", now)
+        payload_dict["vh_version_number"] = 1
 
         enriched_payload = ViharaCreate(**payload_dict)
         self._validate_foreign_keys(db, enriched_payload)
@@ -81,6 +83,7 @@ class ViharaService:
                 )
 
         update_data = payload.model_dump(exclude_unset=True)
+        update_data.pop("vh_version_number", None)
         update_data["vh_updated_by"] = actor_id
         update_data["vh_updated_at"] = datetime.utcnow()
 
