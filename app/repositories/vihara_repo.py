@@ -85,10 +85,31 @@ class ViharaRepository:
 
         return query.scalar() or 0
 
+    def allocate_identifiers(self, db: Session) -> tuple[int, str]:
+        next_id = (db.query(func.max(ViharaData.vh_id)).scalar() or 0) + 1
+        next_trn = self._format_vh_trn(next_id)
+
+        while (
+            db.query(ViharaData)
+            .filter(or_(ViharaData.vh_id == next_id, ViharaData.vh_trn == next_trn))
+            .first()
+        ):
+            next_id += 1
+            next_trn = self._format_vh_trn(next_id)
+
+        return next_id, next_trn
+
+    @staticmethod
+    def _format_vh_trn(sequence: int) -> str:
+        return f"TRN{sequence:07d}"
+
     def create(self, db: Session, *, data: ViharaCreate) -> ViharaData:
         payload = data.model_dump()
         payload.setdefault("vh_is_deleted", False)
         payload.setdefault("vh_version_number", 1)
+        next_id, next_trn = self.allocate_identifiers(db)
+        payload["vh_id"] = next_id
+        payload["vh_trn"] = next_trn
 
         vihara = ViharaData(**payload)
         db.add(vihara)

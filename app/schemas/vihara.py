@@ -89,7 +89,8 @@ class ViharaBase(BaseModel):
 
 
 class ViharaCreate(ViharaBase):
-    pass
+    vh_trn: Annotated[Optional[str], Field(default=None, min_length=1, max_length=10)]
+    vh_id: Annotated[Optional[int], Field(default=None, ge=1)] = None
 
 
 class ViharaUpdate(BaseModel):
