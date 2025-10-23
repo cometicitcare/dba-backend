@@ -106,7 +106,7 @@ class ViharaRepository:
     def create(self, db: Session, *, data: ViharaCreate) -> ViharaData:
         payload = data.model_dump()
         payload.setdefault("vh_is_deleted", False)
-        payload.setdefault("vh_version_number", 1)
+        payload["vh_version_number"] = 1
         next_id, next_trn = self.allocate_identifiers(db)
         payload["vh_id"] = next_id
         payload["vh_trn"] = next_trn
