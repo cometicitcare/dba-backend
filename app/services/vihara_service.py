@@ -18,24 +18,21 @@ class ViharaService:
     def create_vihara(
         self, db: Session, *, payload: ViharaCreate, actor_id: Optional[str]
     ) -> ViharaData:
-        existing = vihara_repo.get_by_trn(db, payload.vh_trn)
-        if existing:
-            raise ValueError(f"vh_trn '{payload.vh_trn}' already exists.")
-
         email_conflict = vihara_repo.get_by_email(db, payload.vh_email)
         if email_conflict:
             raise ValueError(f"vh_email '{payload.vh_email}' is already registered.")
 
-        self._validate_foreign_keys(db, payload)
-
         now = datetime.utcnow()
-        payload_dict = payload.model_dump()
+        payload_dict = payload.model_dump(exclude_unset=True)
+        payload_dict.pop("vh_trn", None)
+        payload_dict.pop("vh_id", None)
         payload_dict["vh_created_by"] = actor_id
         payload_dict["vh_updated_by"] = actor_id
         payload_dict.setdefault("vh_created_at", now)
         payload_dict.setdefault("vh_updated_at", now)
 
         enriched_payload = ViharaCreate(**payload_dict)
+        self._validate_foreign_keys(db, enriched_payload)
         return vihara_repo.create(db, data=enriched_payload)
 
     def list_viharas(
