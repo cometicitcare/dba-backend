@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Any, Optional
+from typing import Any, Dict, Optional
 
 from sqlalchemy import MetaData, Table, inspect, select
 from sqlalchemy.orm import Session
@@ -18,9 +18,14 @@ class ViharaService:
     def create_vihara(
         self, db: Session, *, payload: ViharaCreate, actor_id: Optional[str]
     ) -> ViharaData:
-        email_conflict = vihara_repo.get_by_email(db, payload.vh_email)
-        if email_conflict:
-            raise ValueError(f"vh_email '{payload.vh_email}' is already registered.")
+        contact_fields = (
+            ("vh_mobile", payload.vh_mobile, vihara_repo.get_by_mobile),
+            ("vh_whtapp", payload.vh_whtapp, vihara_repo.get_by_whtapp),
+            ("vh_email", payload.vh_email, vihara_repo.get_by_email),
+        )
+        for field_name, value, getter in contact_fields:
+            if value and getter(db, value):
+                raise ValueError(f"{field_name} '{value}' is already registered.")
 
         now = datetime.utcnow()
         payload_dict = payload.model_dump(exclude_unset=True)
@@ -31,10 +36,11 @@ class ViharaService:
         payload_dict["vh_updated_by"] = actor_id
         payload_dict.setdefault("vh_created_at", now)
         payload_dict.setdefault("vh_updated_at", now)
+        payload_dict.setdefault("vh_is_deleted", False)
         payload_dict["vh_version_number"] = 1
 
+        self._validate_foreign_keys(db, payload_dict)
         enriched_payload = ViharaCreate(**payload_dict)
-        self._validate_foreign_keys(db, enriched_payload)
         return vihara_repo.create(db, data=enriched_payload)
 
     def list_viharas(
@@ -71,13 +77,25 @@ class ViharaService:
             raise ValueError("Vihara record not found.")
 
         if payload.vh_trn and payload.vh_trn != entity.vh_trn:
-            duplicate = vihara_repo.get_by_trn(db, payload.vh_trn)
-            if duplicate:
-                raise ValueError(f"vh_trn '{payload.vh_trn}' already exists.")
+            raise ValueError("vh_trn cannot be modified once generated.")
+
+        if payload.vh_mobile and payload.vh_mobile != entity.vh_mobile:
+            conflict = vihara_repo.get_by_mobile(db, payload.vh_mobile)
+            if conflict and conflict.vh_id != entity.vh_id:
+                raise ValueError(
+                    f"vh_mobile '{payload.vh_mobile}' is already registered."
+                )
+
+        if payload.vh_whtapp and payload.vh_whtapp != entity.vh_whtapp:
+            conflict = vihara_repo.get_by_whtapp(db, payload.vh_whtapp)
+            if conflict and conflict.vh_id != entity.vh_id:
+                raise ValueError(
+                    f"vh_whtapp '{payload.vh_whtapp}' is already registered."
+                )
 
         if payload.vh_email and payload.vh_email != entity.vh_email:
-            email_conflict = vihara_repo.get_by_email(db, payload.vh_email)
-            if email_conflict:
+            conflict = vihara_repo.get_by_email(db, payload.vh_email)
+            if conflict and conflict.vh_id != entity.vh_id:
                 raise ValueError(
                     f"vh_email '{payload.vh_email}' is already registered."
                 )
@@ -86,6 +104,9 @@ class ViharaService:
         update_data.pop("vh_version_number", None)
         update_data["vh_updated_by"] = actor_id
         update_data["vh_updated_at"] = datetime.utcnow()
+
+        fk_values = self._build_fk_validation_payload(entity, update_data)
+        self._validate_foreign_keys(db, fk_values)
 
         patched_payload = ViharaUpdate(**update_data)
         return vihara_repo.update(db, entity=entity, data=patched_payload)
@@ -101,16 +122,19 @@ class ViharaService:
         entity.vh_updated_at = datetime.utcnow()
         return vihara_repo.soft_delete(db, entity=entity)
 
-    def _validate_foreign_keys(self, db: Session, payload: ViharaCreate) -> None:
+    def _validate_foreign_keys(self, db: Session, values: Dict[str, Any]) -> None:
         fk_targets = self._get_foreign_key_targets(db)
         fields_to_validate = {
-            "vh_gndiv": payload.vh_gndiv,
-            "vh_ownercd": payload.vh_ownercd,
-            "vh_parshawa": payload.vh_parshawa,
-            "vh_ssbmcode": payload.vh_ssbmcode,
+            "vh_gndiv": values.get("vh_gndiv"),
+            "vh_ownercd": values.get("vh_ownercd"),
+            "vh_parshawa": values.get("vh_parshawa"),
+            "vh_ssbmcode": values.get("vh_ssbmcode"),
+            "vh_created_by": values.get("vh_created_by"),
+            "vh_updated_by": values.get("vh_updated_by"),
         }
 
-        for field, value in fields_to_validate.items():
+        for field, raw_value in fields_to_validate.items():
+            value = raw_value
             if value is None:
                 continue
             if isinstance(value, str):
@@ -133,6 +157,25 @@ class ViharaService:
                 value=value,
             ):
                 raise ValueError(f"Invalid reference: {field} not found")
+
+    def _build_fk_validation_payload(
+        self, entity: ViharaData, update_values: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        fk_fields = [
+            "vh_gndiv",
+            "vh_ownercd",
+            "vh_parshawa",
+            "vh_ssbmcode",
+            "vh_created_by",
+            "vh_updated_by",
+        ]
+        payload: Dict[str, Any] = {}
+        for field in fk_fields:
+            if field in update_values:
+                payload[field] = update_values[field]
+            else:
+                payload[field] = getattr(entity, field, None)
+        return payload
 
     def _get_foreign_key_targets(
         self, db: Session

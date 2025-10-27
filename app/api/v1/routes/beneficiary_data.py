@@ -29,18 +29,19 @@ def manage_beneficiary_records(
     user_id = current_user.ua_user_id
 
     if action == CRUDAction.CREATE:
-        if not payload.data or not isinstance(payload.data, BeneficiaryCreate):
+        if not payload.data:
             raise validation_error(
-                [("payload.data", "Invalid data for CREATE action")]
+                [("payload.data", "data is required for CREATE action")]
             )
         try:
             created = beneficiary_service.create_beneficiary(
                 db, payload=payload.data, actor_id=user_id
             )
+            created_out = BeneficiaryOut.model_validate(created)
             return BeneficiaryManagementResponse(
                 status="success",
                 message="Beneficiary created successfully.",
-                data=created,
+                data=created_out,
             )
         except ValueError as exc:
             raise validation_error([(None, str(exc))]) from exc
@@ -64,10 +65,11 @@ def manage_beneficiary_records(
                 status_code=status.HTTP_404_NOT_FOUND, detail="Beneficiary not found"
             )
 
+        entity_out = BeneficiaryOut.model_validate(entity)
         return BeneficiaryManagementResponse(
             status="success",
             message="Beneficiary retrieved successfully.",
-            data=entity,
+            data=entity_out,
         )
 
     if action == CRUDAction.READ_ALL:
@@ -83,10 +85,11 @@ def manage_beneficiary_records(
         )
         total = beneficiary_service.count_beneficiaries(db, search=search)
 
+        records_out = [BeneficiaryOut.model_validate(item) for item in records]
         return BeneficiaryManagementResponse(
             status="success",
             message="Beneficiary records retrieved successfully.",
-            data=records,
+            data=records_out,
             totalRecords=total,
             page=page,
             limit=limit,
@@ -97,9 +100,9 @@ def manage_beneficiary_records(
             raise validation_error(
                 [("payload.bf_id", "bf_id is required for UPDATE action")]
             )
-        if not payload.data or not isinstance(payload.data, BeneficiaryUpdate):
+        if not payload.data:
             raise validation_error(
-                [("payload.data", "Invalid data for UPDATE action")]
+                [("payload.data", "data is required for UPDATE action")]
             )
         try:
             updated = beneficiary_service.update_beneficiary(
@@ -108,10 +111,11 @@ def manage_beneficiary_records(
                 payload=payload.data,
                 actor_id=user_id,
             )
+            updated_out = BeneficiaryOut.model_validate(updated)
             return BeneficiaryManagementResponse(
                 status="success",
                 message="Beneficiary updated successfully.",
-                data=updated,
+                data=updated_out,
             )
         except ValueError as exc:
             if "not found" in str(exc).lower():

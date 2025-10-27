@@ -6,7 +6,7 @@ from app.api.deps import get_db
 from app.api.auth_middleware import get_current_user
 from app.models.user import UserAccount
 from app.schemas import bhikku as schemas
-from app.repositories import bhikku_repo
+from app.services.bhikku_service import bhikku_service
 from app.utils.http_exceptions import validation_error
 
 router = APIRouter()
@@ -32,22 +32,21 @@ def manage_bhikku_records(
             raise validation_error(
                 [("payload.data", "Invalid data for CREATE action")]
             )
-        
-        db_bhikku_existing = bhikku_repo.get_by_regn(db, br_regn=payload.data.br_regn)
-        if db_bhikku_existing:
-            raise validation_error(
-                [
-                    (
-                        "payload.data.br_regn",
-                        f"Registration number '{payload.data.br_regn}' already exists.",
-                    )
-                ]
+
+        try:
+            created_bhikku = bhikku_service.create_bhikku(
+                db, payload=payload.data, actor_id=user_id
             )
-        
-        # Set the created_by field to current user ID (foreign key constraint)
-        payload.data.br_created_by = user_id
-        created_bhikku = bhikku_repo.create(db=db, bhikku=payload.data)
-        return {"status": "success", "message": "Bhikku created successfully.", "data": created_bhikku}
+        except ValueError as exc:
+            raise validation_error([(None, str(exc))]) from exc
+        except RuntimeError as exc:
+            raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+        return {
+            "status": "success",
+            "message": "Bhikku created successfully.",
+            "data": created_bhikku,
+        }
 
     elif action == schemas.CRUDAction.READ_ONE:
         if not payload.br_regn:
@@ -55,7 +54,7 @@ def manage_bhikku_records(
                 [("payload.br_regn", "br_regn is required for READ_ONE action")]
             )
         
-        db_bhikku = bhikku_repo.get_by_regn(db, br_regn=payload.br_regn)
+        db_bhikku = bhikku_service.get_bhikku(db, br_regn=payload.br_regn)
         if db_bhikku is None:
             raise HTTPException(status_code=404, detail="Bhikku not found")
         return {"status": "success", "message": "Bhikku retrieved successfully.", "data": db_bhikku}
@@ -75,10 +74,12 @@ def manage_bhikku_records(
         skip = max(0, skip)
         
         # Get paginated bhikku records with search
-        bhikkus = bhikku_repo.get_all(db, skip=skip, limit=limit, search_key=search_key)
+        bhikkus = bhikku_service.list_bhikkus(
+            db, skip=skip, limit=limit, search=search_key
+        )
         
         # Get total count for pagination
-        total_count = bhikku_repo.get_total_count(db, search_key=search_key)
+        total_count = bhikku_service.count_bhikkus(db, search=search_key)
         
         return {
             "status": "success",
@@ -104,12 +105,23 @@ def manage_bhikku_records(
         if update_errors:
             raise validation_error(update_errors)
 
-        # Set the updated_by field to current user ID
-        payload.data.br_updated_by = user_id
-        updated_bhikku = bhikku_repo.update(db=db, br_regn=payload.br_regn, bhikku_update=payload.data)
-        if updated_bhikku is None:
-            raise HTTPException(status_code=404, detail="Bhikku not found")
-        return {"status": "success", "message": "Bhikku updated successfully.", "data": updated_bhikku}
+        try:
+            updated_bhikku = bhikku_service.update_bhikku(
+                db, br_regn=payload.br_regn, payload=payload.data, actor_id=user_id
+            )
+        except ValueError as exc:
+            message = str(exc)
+            if "not found" in message.lower():
+                raise HTTPException(status_code=404, detail=message) from exc
+            raise validation_error([(None, message)]) from exc
+        except RuntimeError as exc:
+            raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+        return {
+            "status": "success",
+            "message": "Bhikku updated successfully.",
+            "data": updated_bhikku,
+        }
 
     elif action == schemas.CRUDAction.DELETE:
         if not payload.br_regn:
@@ -117,10 +129,23 @@ def manage_bhikku_records(
                 [("payload.br_regn", "br_regn is required for DELETE action")]
             )
         
-        deleted_bhikku = bhikku_repo.delete(db=db, br_regn=payload.br_regn)
-        if deleted_bhikku is None:
-            raise HTTPException(status_code=404, detail="Bhikku not found")
-        return {"status": "success", "message": "Bhikku deleted successfully.", "data": None}
+        try:
+            bhikku_service.delete_bhikku(
+                db, br_regn=payload.br_regn, actor_id=user_id
+            )
+        except ValueError as exc:
+            message = str(exc)
+            if "not found" in message.lower():
+                raise HTTPException(status_code=404, detail=message) from exc
+            raise validation_error([(None, message)]) from exc
+        except RuntimeError as exc:
+            raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+        return {
+            "status": "success",
+            "message": "Bhikku deleted successfully.",
+            "data": None,
+        }
 
     else:
         raise validation_error([("action", "Invalid action specified")])

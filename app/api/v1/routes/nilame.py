@@ -28,18 +28,11 @@ def manage_nilame_records(
                 [("payload.data", "Invalid data for CREATE action")]
             )
 
-        existing = nilame_repo.get_by_krn(db, payload.data.kr_krn)
-        if existing:
-            raise validation_error(
-                [
-                    (
-                        "payload.data.kr_krn",
-                        f"Registration number '{payload.data.kr_krn}' already exists.",
-                    )
-                ]
-            )
+        try:
+            created = nilame_repo.create(db, data=payload.data, actor_id=user_id)
+        except ValueError as exc:
+            raise validation_error([(None, str(exc))]) from exc
 
-        created = nilame_repo.create(db, data=payload.data, actor_id=user_id)
         return schemas.NilameManagementResponse(
             status="success",
             message="Nilame registration created successfully.",
@@ -104,21 +97,13 @@ def manage_nilame_records(
         if not entity:
             raise HTTPException(status_code=404, detail="Nilame registration not found")
 
-        if payload.data.kr_krn and payload.data.kr_krn != entity.kr_krn:
-            existing = nilame_repo.get_by_krn(db, payload.data.kr_krn)
-            if existing and existing.kr_id != entity.kr_id:
-                raise validation_error(
-                    [
-                        (
-                            "payload.data.kr_krn",
-                            f"Registration number '{payload.data.kr_krn}' already exists.",
-                        )
-                    ]
-                )
+        try:
+            updated = nilame_repo.update(
+                db, entity=entity, data=payload.data, actor_id=user_id
+            )
+        except ValueError as exc:
+            raise validation_error([(None, str(exc))]) from exc
 
-        updated = nilame_repo.update(
-            db, entity=entity, data=payload.data, actor_id=user_id
-        )
         return schemas.NilameManagementResponse(
             status="success",
             message="Nilame registration updated successfully.",

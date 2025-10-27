@@ -17,7 +17,6 @@ class CRUDAction(str, Enum):
 
 
 class BeneficiaryBase(BaseModel):
-    bf_bnn: Annotated[str, Field(min_length=1, max_length=10)]
     bf_bfname: Annotated[Optional[str], Field(default=None, max_length=200)]
     bf_bfaddrs: Annotated[Optional[str], Field(default=None, max_length=200)]
     bf_whatapp: Annotated[Optional[str], Field(default=None, min_length=10, max_length=10)]
@@ -31,7 +30,6 @@ class BeneficiaryBase(BaseModel):
     bf_version_number: Annotated[int, Field(ge=1)] = 1
 
     @field_validator(
-        "bf_bnn",
         "bf_bfname",
         "bf_bfaddrs",
         "bf_created_by",
@@ -65,7 +63,15 @@ class BeneficiaryBase(BaseModel):
 
 
 class BeneficiaryCreate(BeneficiaryBase):
-    pass
+    bf_bnn: Annotated[Optional[str], Field(default=None, min_length=1, max_length=10)] = None
+
+    @field_validator("bf_bnn", mode="before")
+    @classmethod
+    def _strip_bnn(cls, value: Optional[str]) -> Optional[str]:
+        if isinstance(value, str):
+            value = value.strip()
+            return value or None
+        return value
 
 
 class BeneficiaryUpdate(BaseModel):
@@ -81,7 +87,6 @@ class BeneficiaryUpdate(BaseModel):
     bf_updated_at: Optional[datetime] = None
 
     @field_validator(
-        "bf_bnn",
         "bf_bfname",
         "bf_bfaddrs",
         "bf_updated_by",
@@ -89,6 +94,14 @@ class BeneficiaryUpdate(BaseModel):
     )
     @classmethod
     def _strip_strings(cls, value: Optional[str]) -> Optional[str]:
+        if isinstance(value, str):
+            value = value.strip()
+            return value or None
+        return value
+
+    @field_validator("bf_bnn", mode="before")
+    @classmethod
+    def _strip_bnn(cls, value: Optional[str]) -> Optional[str]:
         if isinstance(value, str):
             value = value.strip()
             return value or None
@@ -115,6 +128,7 @@ class BeneficiaryUpdate(BaseModel):
 class BeneficiaryOut(BeneficiaryBase):
     model_config = ConfigDict(from_attributes=True)
 
+    bf_bnn: str
     bf_id: int
 
 

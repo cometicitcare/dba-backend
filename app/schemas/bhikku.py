@@ -125,6 +125,7 @@ class Bhikku(BhikkuBase):
 # --- Schemas for the Single Endpoint ---
 class BhikkuRequestPayload(BaseModel):
     # For READ_ONE, UPDATE, DELETE
+    br_id: Optional[int] = None
     br_regn: Optional[str] = None 
     # For READ_ALL - Enhanced with page number and search
     skip: Annotated[int, Field(ge=0)] = 0

@@ -17,7 +17,7 @@ class CRUDAction(str, Enum):
 class CertificateBase(BaseModel):
     model_config = ConfigDict(str_strip_whitespace=True, populate_by_name=True)
 
-    cd_code: str = Field(min_length=1, max_length=12)
+    cd_code: Optional[str] = Field(default=None, min_length=1, max_length=12)
     cd_stat: str = Field(min_length=1, max_length=5)
 
     cd_remarks: Optional[str] = Field(default=None, max_length=50)
@@ -48,6 +48,7 @@ class Certificate(CertificateBase):
         from_attributes=True, str_strip_whitespace=True, populate_by_name=True
     )
 
+    cd_code: str = Field(min_length=1, max_length=12)
     cd_id: int
     cd_version: datetime
     cd_is_deleted: bool
@@ -80,4 +81,3 @@ class CertificateManagementResponse(BaseModel):
     totalRecords: Optional[int] = None
     page: Optional[int] = None
     limit: Optional[int] = None
-

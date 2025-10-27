@@ -4,7 +4,7 @@ from decimal import Decimal
 from enum import Enum
 from typing import List, Optional, Union
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 
 class CRUDAction(str, Enum):
@@ -18,7 +18,6 @@ class CRUDAction(str, Enum):
 class BhikkuCertificationBase(BaseModel):
     model_config = ConfigDict(str_strip_whitespace=True, populate_by_name=True)
 
-    bc_regno: str = Field(min_length=1, max_length=12)
     bc_issuedate: date
     bc_paydate: date
     bc_payamount: Decimal = Field(gt=0, max_digits=6, decimal_places=2)
@@ -29,9 +28,25 @@ class BhikkuCertificationBase(BaseModel):
     bc_usr: Optional[str] = Field(default=None, max_length=10)
     bc_admnusr: Optional[str] = Field(default=None, max_length=10)
 
+    @model_validator(mode="after")
+    def validate_chronology(self) -> "BhikkuCertificationBase":
+        if self.bc_reqstdate and self.bc_issuedate and self.bc_reqstdate > self.bc_issuedate:
+            raise ValueError("bc_reqstdate cannot be after bc_issuedate.")
+        if self.bc_paydate and self.bc_issuedate and self.bc_paydate < self.bc_issuedate:
+            raise ValueError("bc_paydate cannot be before bc_issuedate.")
+        if (
+            self.bc_reqstdate
+            and self.bc_paydate
+            and self.bc_paydate < self.bc_reqstdate
+        ):
+            raise ValueError("bc_paydate cannot be before bc_reqstdate.")
+        return self
+
 
 class BhikkuCertificationCreate(BhikkuCertificationBase):
-    pass
+    bc_regno: Optional[str] = Field(
+        default=None, min_length=12, max_length=12
+    )
 
 
 class BhikkuCertificationUpdate(BaseModel):
@@ -47,6 +62,29 @@ class BhikkuCertificationUpdate(BaseModel):
     bc_prtoptn: Optional[str] = Field(default=None, max_length=5)
     bc_usr: Optional[str] = Field(default=None, max_length=10)
     bc_admnusr: Optional[str] = Field(default=None, max_length=10)
+    bc_updated_by: Optional[str] = Field(default=None, max_length=25)
+
+    @model_validator(mode="after")
+    def validate_chronology(self) -> "BhikkuCertificationUpdate":
+        if (
+            self.bc_reqstdate
+            and self.bc_issuedate
+            and self.bc_reqstdate > self.bc_issuedate
+        ):
+            raise ValueError("bc_reqstdate cannot be after bc_issuedate.")
+        if (
+            self.bc_paydate
+            and self.bc_issuedate
+            and self.bc_paydate < self.bc_issuedate
+        ):
+            raise ValueError("bc_paydate cannot be before bc_issuedate.")
+        if (
+            self.bc_reqstdate
+            and self.bc_paydate
+            and self.bc_paydate < self.bc_reqstdate
+        ):
+            raise ValueError("bc_paydate cannot be before bc_reqstdate.")
+        return self
 
 
 class BhikkuCertification(BhikkuCertificationBase):
@@ -55,6 +93,7 @@ class BhikkuCertification(BhikkuCertificationBase):
     )
 
     bc_id: int
+    bc_regno: str
     bc_version: datetime
     bc_is_deleted: bool
     bc_created_at: Optional[datetime] = None
@@ -86,4 +125,3 @@ class BhikkuCertificationManagementResponse(BaseModel):
     totalRecords: Optional[int] = None
     page: Optional[int] = None
     limit: Optional[int] = None
-

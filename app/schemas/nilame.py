@@ -17,7 +17,6 @@ class CRUDAction(str, Enum):
 class NilameBase(BaseModel):
     model_config = ConfigDict(str_strip_whitespace=True, populate_by_name=True)
 
-    kr_krn: str = Field(min_length=1, max_length=20)
     kr_kname: Optional[str] = Field(default=None, max_length=20)
     kr_nic: Optional[str] = Field(default=None, max_length=20)
     kr_nic_issue_date: Optional[date] = None
@@ -28,23 +27,15 @@ class NilameBase(BaseModel):
 
 
 class NilameCreate(NilameBase):
+    kr_krn: Optional[str] = Field(default=None, max_length=20)
+
+
+class NilameUpdate(NilameBase):
     pass
 
 
-class NilameUpdate(BaseModel):
-    model_config = ConfigDict(str_strip_whitespace=True, populate_by_name=True)
-
-    kr_krn: Optional[str] = Field(default=None, max_length=20)
-    kr_kname: Optional[str] = Field(default=None, max_length=20)
-    kr_nic: Optional[str] = Field(default=None, max_length=20)
-    kr_nic_issue_date: Optional[date] = None
-    kr_dofb: Optional[date] = None
-    kr_addrs: Optional[str] = Field(default=None, max_length=100)
-    kr_grndiv: Optional[str] = Field(default=None, max_length=10)
-    kr_trn: Optional[str] = Field(default=None, max_length=10)
-
-
 class Nilame(NilameBase):
+    kr_krn: str
     model_config = ConfigDict(
         from_attributes=True, str_strip_whitespace=True, populate_by_name=True
     )

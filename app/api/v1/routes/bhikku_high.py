@@ -5,8 +5,8 @@ from sqlalchemy.orm import Session
 from app.api.auth_middleware import get_current_user
 from app.api.deps import get_db
 from app.models.user import UserAccount
-from app.repositories.bhikku_high_repo import bhikku_high_repo
 from app.schemas import bhikku_high as schemas
+from app.services.bhikku_high_service import bhikku_high_service
 from app.utils.http_exceptions import validation_error
 
 router = APIRouter(tags=["Bhikku High"])
@@ -28,18 +28,15 @@ def manage_bhikku_high_records(
                 [("payload.data", "Invalid data for CREATE action")]
             )
 
-        existing = bhikku_high_repo.get_by_regn(db, payload.data.bhr_regn)
-        if existing:
-            raise validation_error(
-                [
-                    (
-                        "payload.data.bhr_regn",
-                        f"Registration number '{payload.data.bhr_regn}' already exists.",
-                    )
-                ]
+        try:
+            created = bhikku_high_service.create_bhikku_high(
+                db, payload=payload.data, actor_id=user_id
             )
+        except ValueError as exc:
+            raise validation_error([(None, str(exc))]) from exc
+        except RuntimeError as exc:
+            raise HTTPException(status_code=500, detail=str(exc)) from exc
 
-        created = bhikku_high_repo.create(db, data=payload.data, actor_id=user_id)
         return schemas.BhikkuHighManagementResponse(
             status="success",
             message="Higher bhikku registration created successfully.",
@@ -52,11 +49,14 @@ def manage_bhikku_high_records(
                 [("payload.bhr_id", "bhr_id or bhr_regn is required for READ_ONE action")]
             )
 
-        entity = None
         if payload.bhr_id is not None:
-            entity = bhikku_high_repo.get(db, payload.bhr_id)
+            entity = bhikku_high_service.get_bhikku_high(db, bhr_id=payload.bhr_id)
         elif payload.bhr_regn:
-            entity = bhikku_high_repo.get_by_regn(db, payload.bhr_regn)
+            entity = bhikku_high_service.get_bhikku_high_by_regn(
+                db, bhr_regn=payload.bhr_regn
+            )
+        else:
+            entity = None
 
         if not entity:
             raise HTTPException(status_code=404, detail="Higher bhikku registration not found")
@@ -78,8 +78,10 @@ def manage_bhikku_high_records(
         limit = max(1, min(limit, 200))
         skip = max(0, skip)
 
-        records = bhikku_high_repo.list(db, skip=skip, limit=limit, search=search)
-        total = bhikku_high_repo.count(db, search=search)
+        records = bhikku_high_service.list_bhikku_highs(
+            db, skip=skip, limit=limit, search=search
+        )
+        total = bhikku_high_service.count_bhikku_highs(db, search=search)
 
         return schemas.BhikkuHighManagementResponse(
             status="success",
@@ -100,25 +102,18 @@ def manage_bhikku_high_records(
                 [("payload.data", "Invalid data for UPDATE action")]
             )
 
-        entity = bhikku_high_repo.get(db, payload.bhr_id)
-        if not entity:
-            raise HTTPException(status_code=404, detail="Higher bhikku registration not found")
+        try:
+            updated = bhikku_high_service.update_bhikku_high(
+                db, bhr_id=payload.bhr_id, payload=payload.data, actor_id=user_id
+            )
+        except ValueError as exc:
+            message = str(exc)
+            if "not found" in message.lower():
+                raise HTTPException(status_code=404, detail=message) from exc
+            raise validation_error([(None, message)]) from exc
+        except RuntimeError as exc:
+            raise HTTPException(status_code=500, detail=str(exc)) from exc
 
-        if payload.data.bhr_regn and payload.data.bhr_regn != entity.bhr_regn:
-            existing = bhikku_high_repo.get_by_regn(db, payload.data.bhr_regn)
-            if existing and existing.bhr_id != entity.bhr_id:
-                raise validation_error(
-                    [
-                        (
-                            "payload.data.bhr_regn",
-                            f"Registration number '{payload.data.bhr_regn}' already exists.",
-                        )
-                    ]
-                )
-
-        updated = bhikku_high_repo.update(
-            db, entity=entity, data=payload.data, actor_id=user_id
-        )
         return schemas.BhikkuHighManagementResponse(
             status="success",
             message="Higher bhikku registration updated successfully.",
@@ -131,13 +126,18 @@ def manage_bhikku_high_records(
                 [("payload.bhr_id", "bhr_id is required for DELETE action")]
             )
 
-        entity = bhikku_high_repo.get(db, payload.bhr_id)
-        if not entity:
-            raise HTTPException(status_code=404, detail="Higher bhikku registration not found")
+        try:
+            bhikku_high_service.delete_bhikku_high(
+                db, bhr_id=payload.bhr_id, actor_id=user_id
+            )
+        except ValueError as exc:
+            message = str(exc)
+            if "not found" in message.lower():
+                raise HTTPException(status_code=404, detail=message) from exc
+            raise validation_error([(None, message)]) from exc
+        except RuntimeError as exc:
+            raise HTTPException(status_code=500, detail=str(exc)) from exc
 
-        bhikku_high_repo.soft_delete(
-            db, entity=entity, actor_id=user_id
-        )
         return schemas.BhikkuHighManagementResponse(
             status="success",
             message="Higher bhikku registration deleted successfully.",

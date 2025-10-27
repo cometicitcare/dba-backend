@@ -1,5 +1,6 @@
 # app/api/v1/routes/certificates.py
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, status
+from pydantic import ValidationError
 from sqlalchemy.orm import Session
 
 from app.api.auth_middleware import get_current_user
@@ -7,6 +8,7 @@ from app.api.deps import get_db
 from app.models.user import UserAccount
 from app.repositories.certificate_repo import certificate_repo
 from app.schemas import certificate as schemas
+from app.services.certificate_service import certificate_service
 from app.utils.http_exceptions import validation_error
 
 router = APIRouter(tags=["Certificates"])
@@ -23,27 +25,29 @@ def manage_certificate_records(
     user_id = current_user.ua_user_id
 
     if action == schemas.CRUDAction.CREATE:
-        if not payload.data or not isinstance(payload.data, schemas.CertificateCreate):
-            raise validation_error(
-                [("payload.data", "Invalid data for CREATE action")]
-            )
+        if not payload.data:
+            raise validation_error([("payload.data", "Invalid data for CREATE action")])
+        try:
+            create_payload = schemas.CertificateCreate.model_validate(payload.data)
+        except ValidationError as exc:
+            raise validation_error([(None, str(exc))]) from exc
 
-        existing = certificate_repo.get_by_code(db, payload.data.cd_code)
-        if existing:
-            raise validation_error(
-                [
-                    (
-                        "payload.data.cd_code",
-                        f"Certificate code '{payload.data.cd_code}' already exists.",
-                    )
-                ]
+        try:
+            created = certificate_service.create_certificate(
+                db, payload=create_payload, actor_id=user_id
             )
+        except ValueError as exc:
+            raise validation_error([(None, str(exc))]) from exc
+        except RuntimeError as exc:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(exc)
+            ) from exc
 
-        created = certificate_repo.create(db, data=payload.data, actor_id=user_id)
+        created_out = schemas.Certificate.model_validate(created)
         return schemas.CertificateManagementResponse(
             status="success",
             message="Certificate created successfully.",
-            data=created,
+            data=created_out,
         )
 
     if action == schemas.CRUDAction.READ_ONE:
@@ -61,10 +65,11 @@ def manage_certificate_records(
         if not entity:
             raise HTTPException(status_code=404, detail="Certificate not found")
 
+        entity_out = schemas.Certificate.model_validate(entity)
         return schemas.CertificateManagementResponse(
             status="success",
             message="Certificate retrieved successfully.",
-            data=entity,
+            data=entity_out,
         )
 
     if action == schemas.CRUDAction.READ_ALL:
@@ -81,10 +86,11 @@ def manage_certificate_records(
         records = certificate_repo.list(db, skip=skip, limit=limit, search=search)
         total = certificate_repo.count(db, search=search)
 
+        records_out = [schemas.Certificate.model_validate(item) for item in records]
         return schemas.CertificateManagementResponse(
             status="success",
             message="Certificates retrieved successfully.",
-            data=records,
+            data=records_out,
             totalRecords=total,
             page=page,
             limit=limit,
@@ -95,34 +101,32 @@ def manage_certificate_records(
             raise validation_error(
                 [("payload.cd_id", "cd_id is required for UPDATE action")]
             )
-        if not payload.data or not isinstance(payload.data, schemas.CertificateUpdate):
-            raise validation_error(
-                [("payload.data", "Invalid data for UPDATE action")]
+        if not payload.data:
+            raise validation_error([("payload.data", "Invalid data for UPDATE action")])
+        try:
+            update_payload = schemas.CertificateUpdate.model_validate(payload.data)
+        except ValidationError as exc:
+            raise validation_error([(None, str(exc))]) from exc
+
+        try:
+            updated = certificate_service.update_certificate(
+                db, cd_id=payload.cd_id, payload=update_payload, actor_id=user_id
             )
+        except ValueError as exc:
+            message = str(exc)
+            if "not found" in message.lower():
+                raise HTTPException(status_code=404, detail=message) from exc
+            raise validation_error([(None, message)]) from exc
+        except RuntimeError as exc:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(exc)
+            ) from exc
 
-        entity = certificate_repo.get(db, payload.cd_id)
-        if not entity:
-            raise HTTPException(status_code=404, detail="Certificate not found")
-
-        if payload.data.cd_code and payload.data.cd_code != entity.cd_code:
-            existing = certificate_repo.get_by_code(db, payload.data.cd_code)
-            if existing and existing.cd_id != entity.cd_id:
-                raise validation_error(
-                    [
-                        (
-                            "payload.data.cd_code",
-                            f"Certificate code '{payload.data.cd_code}' already exists.",
-                        )
-                    ]
-                )
-
-        updated = certificate_repo.update(
-            db, entity=entity, data=payload.data, actor_id=user_id
-        )
+        updated_out = schemas.Certificate.model_validate(updated)
         return schemas.CertificateManagementResponse(
             status="success",
             message="Certificate updated successfully.",
-            data=updated,
+            data=updated_out,
         )
 
     if action == schemas.CRUDAction.DELETE:
@@ -131,11 +135,17 @@ def manage_certificate_records(
                 [("payload.cd_id", "cd_id is required for DELETE action")]
             )
 
-        entity = certificate_repo.get(db, payload.cd_id)
-        if not entity:
-            raise HTTPException(status_code=404, detail="Certificate not found")
+        try:
+            certificate_service.delete_certificate(
+                db, cd_id=payload.cd_id, actor_id=user_id
+            )
+        except ValueError as exc:
+            raise HTTPException(status_code=404, detail=str(exc)) from exc
+        except RuntimeError as exc:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(exc)
+            ) from exc
 
-        certificate_repo.soft_delete(db, entity=entity, actor_id=user_id)
         return schemas.CertificateManagementResponse(
             status="success",
             message="Certificate deleted successfully.",
@@ -143,4 +153,3 @@ def manage_certificate_records(
         )
 
     raise validation_error([("action", "Invalid action specified")])
-
