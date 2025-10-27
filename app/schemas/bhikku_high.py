@@ -17,7 +17,7 @@ class CRUDAction(str, Enum):
 class BhikkuHighBase(BaseModel):
     model_config = ConfigDict(str_strip_whitespace=True, populate_by_name=True)
 
-    bhr_regn: str = Field(min_length=1, max_length=12)
+    bhr_regn: Optional[str] = Field(default=None, max_length=12)
     bhr_reqstdate: date
     bhr_currstat: str = Field(min_length=1, max_length=5)
     bhr_parshawaya: str = Field(min_length=1, max_length=10)
@@ -72,6 +72,7 @@ class BhikkuHigh(BhikkuHighBase):
         from_attributes=True, str_strip_whitespace=True, populate_by_name=True
     )
 
+    bhr_regn: str
     bhr_id: int
     bhr_version: datetime
     bhr_is_deleted: bool

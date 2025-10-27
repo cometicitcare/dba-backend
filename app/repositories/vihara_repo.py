@@ -1,6 +1,6 @@
-from typing import Optional
+from typing import Any, Optional
 
-from sqlalchemy import func, or_
+from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
 
 from app.models.vihara import ViharaData
@@ -9,6 +9,9 @@ from app.schemas.vihara import ViharaCreate, ViharaUpdate
 
 class ViharaRepository:
     """Data access helpers for vihara records."""
+
+    TRN_PREFIX = "TRN"
+    TRN_WIDTH = 7
 
     def get(self, db: Session, vh_id: int) -> Optional[ViharaData]:
         return (
@@ -29,6 +32,26 @@ class ViharaRepository:
             db.query(ViharaData)
             .filter(
                 ViharaData.vh_email == vh_email,
+                ViharaData.vh_is_deleted.is_(False),
+            )
+            .first()
+        )
+
+    def get_by_mobile(self, db: Session, vh_mobile: str) -> Optional[ViharaData]:
+        return (
+            db.query(ViharaData)
+            .filter(
+                ViharaData.vh_mobile == vh_mobile,
+                ViharaData.vh_is_deleted.is_(False),
+            )
+            .first()
+        )
+
+    def get_by_whtapp(self, db: Session, vh_whtapp: str) -> Optional[ViharaData]:
+        return (
+            db.query(ViharaData)
+            .filter(
+                ViharaData.vh_whtapp == vh_whtapp,
                 ViharaData.vh_is_deleted.is_(False),
             )
             .first()
@@ -85,33 +108,15 @@ class ViharaRepository:
 
         return query.scalar() or 0
 
-    def allocate_identifiers(self, db: Session) -> tuple[int, str]:
-        next_id = (db.query(func.max(ViharaData.vh_id)).scalar() or 0) + 1
-        next_trn = self._format_vh_trn(next_id)
-
-        while (
-            db.query(ViharaData)
-            .filter(or_(ViharaData.vh_id == next_id, ViharaData.vh_trn == next_trn))
-            .first()
-        ):
-            next_id += 1
-            next_trn = self._format_vh_trn(next_id)
-
-        return next_id, next_trn
-
-    @staticmethod
-    def _format_vh_trn(sequence: int) -> str:
-        return f"TRN{sequence:07d}"
-
     def create(self, db: Session, *, data: ViharaCreate) -> ViharaData:
-        payload = data.model_dump()
+        payload = self._strip_strings(data.model_dump(exclude_unset=True))
+        payload["vh_trn"] = self.generate_next_trn(db)
         payload.setdefault("vh_is_deleted", False)
-        payload["vh_version_number"] = 1
-        next_id, next_trn = self.allocate_identifiers(db)
-        payload["vh_id"] = next_id
-        payload["vh_trn"] = next_trn
+        payload.setdefault("vh_version_number", 1)
 
-        vihara = ViharaData(**payload)
+        self._ensure_unique_contact_fields(db, payload, current_id=None)
+
+        vihara = ViharaData(**self._filter_known_columns(payload))
         db.add(vihara)
         db.commit()
         db.refresh(vihara)
@@ -124,7 +129,17 @@ class ViharaRepository:
         entity: ViharaData,
         data: ViharaUpdate,
     ) -> ViharaData:
-        update_data = data.model_dump(exclude_unset=True)
+        update_data = self._strip_strings(data.model_dump(exclude_unset=True))
+
+        if "vh_trn" in update_data:
+            update_data.pop("vh_trn", None)
+
+        uniqueness_payload = {
+            "vh_mobile": update_data.get("vh_mobile", entity.vh_mobile),
+            "vh_whtapp": update_data.get("vh_whtapp", entity.vh_whtapp),
+            "vh_email": update_data.get("vh_email", entity.vh_email),
+        }
+        self._ensure_unique_contact_fields(db, uniqueness_payload, current_id=entity.vh_id)
 
         for key, value in update_data.items():
             setattr(entity, key, value)
@@ -141,6 +156,106 @@ class ViharaRepository:
         db.commit()
         db.refresh(entity)
         return entity
+
+    # ------------------------------------------------------------------
+    # Helpers
+    # ------------------------------------------------------------------
+    def generate_next_trn(self, db: Session) -> str:
+        prefix = self.TRN_PREFIX
+        width = self.TRN_WIDTH
+
+        stmt = (
+            select(ViharaData.vh_trn)
+            .order_by(ViharaData.vh_id.desc())
+            .limit(1)
+            .with_for_update()
+        )
+
+        try:
+            latest = db.execute(stmt).scalars().first()
+        except Exception:
+            latest_entity = (
+                db.query(ViharaData)
+                .order_by(ViharaData.vh_id.desc())
+                .first()
+            )
+            latest = latest_entity.vh_trn if latest_entity else None
+
+        next_number = 1
+        if latest:
+            suffix = latest[len(prefix) :] if latest.startswith(prefix) else latest
+            try:
+                next_number = int(suffix) + 1
+            except ValueError:
+                next_number = 1
+
+        return f"{prefix}{next_number:0{width}d}"
+
+    @staticmethod
+    def _strip_strings(payload: dict[str, Any]) -> dict[str, Any]:
+        for key, value in payload.items():
+            if isinstance(value, str):
+                payload[key] = value.strip()
+        return payload
+
+    @staticmethod
+    def _filter_known_columns(payload: dict[str, Any]) -> dict[str, Any]:
+        valid_keys = {column.key for column in ViharaData.__table__.columns}
+        return {key: value for key, value in payload.items() if key in valid_keys}
+
+    def _ensure_unique_contact_fields(
+        self,
+        db: Session,
+        payload: dict[str, Any],
+        *,
+        current_id: Optional[int],
+    ) -> None:
+        for field_name in ("vh_mobile", "vh_whtapp", "vh_email"):
+            value = payload.get(field_name)
+            self._ensure_unique_contact_field(
+                db,
+                field_name=field_name,
+                value=value,
+                current_id=current_id,
+            )
+
+    def _ensure_unique_contact_field(
+        self,
+        db: Session,
+        *,
+        field_name: str,
+        value: Optional[str],
+        current_id: Optional[int],
+    ) -> None:
+        display_value = value
+        normalized = self._normalize_string(value, lower=field_name == "vh_email")
+        if not normalized:
+            return
+
+        if not hasattr(ViharaData, field_name):
+            return
+
+        column = getattr(ViharaData, field_name)
+        query = db.query(ViharaData).filter(ViharaData.vh_is_deleted.is_(False))
+
+        if field_name == "vh_email":
+            query = query.filter(func.lower(column) == normalized)
+        else:
+            query = query.filter(column == normalized)
+
+        existing = query.first()
+
+        if existing and existing.vh_id != current_id:
+            raise ValueError(f"{field_name} '{display_value}' already exists.")
+
+    @staticmethod
+    def _normalize_string(value: Optional[str], *, lower: bool = False) -> Optional[str]:
+        if value is None:
+            return None
+        trimmed = value.strip()
+        if not trimmed:
+            return None
+        return trimmed.lower() if lower else trimmed
 
 
 vihara_repo = ViharaRepository()
