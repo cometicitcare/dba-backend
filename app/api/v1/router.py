@@ -6,6 +6,9 @@ from app.api.v1.routes import (
     banks,
     bank_branches,
     beneficiary_data,
+    bhikku_category,
+    district,
+    city,
     bhikkus,
     bhikku_regist,
     bhikku_high,
@@ -63,4 +66,9 @@ api_router.include_router(nilame.router, prefix="/nilame", tags=["Nilame"])
 api_router.include_router(auth.router, prefix="/auth", tags=["Authentication"])
 api_router.include_router(vihara_data.router, prefix="/vihara-data")
 api_router.include_router(beneficiary_data.router, prefix="/beneficiary-data")
+api_router.include_router(city.router, prefix="/city", tags=["City"])
+api_router.include_router(
+    bhikku_category.router, prefix="/bhikku-category", tags=["Bhikku Category"]
+)
+api_router.include_router(district.router, prefix="/district", tags=["District"])
 api_router.include_router(roles.router, prefix="/roles", tags=["Roles"])
