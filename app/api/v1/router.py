@@ -7,6 +7,8 @@ from app.api.v1.routes import (
     bank_branches,
     beneficiary_data,
     bhikku_category,
+    bhikku_nikaya_data,
+    bhikku_parshawa_data,
     district,
     city,
     bhikkus,
@@ -19,8 +21,10 @@ from app.api.v1.routes import (
     bhikku_summary,
     nilame,
     health,
+    payment_methods,
     roles,
     vihara_data,
+    audit_log,
 )
 
 api_router = APIRouter()
@@ -57,6 +61,11 @@ api_router.include_router(
     tags=["Bank Branches"],
 )
 api_router.include_router(
+    payment_methods.router,
+    prefix="/payment-methods",
+    tags=["Payment Methods"],
+)
+api_router.include_router(
     bhikku_summary.router,
     prefix="/bhikkus-summary",
     tags=["Bhikku Summary"],
@@ -66,9 +75,22 @@ api_router.include_router(nilame.router, prefix="/nilame", tags=["Nilame"])
 api_router.include_router(auth.router, prefix="/auth", tags=["Authentication"])
 api_router.include_router(vihara_data.router, prefix="/vihara-data")
 api_router.include_router(beneficiary_data.router, prefix="/beneficiary-data")
+api_router.include_router(
+    bhikku_parshawa_data.router,
+    prefix="/bhikku-parshawa-data",
+    tags=["Bhikku Parshawa Data"],
+)
+api_router.include_router(
+    bhikku_nikaya_data.router,
+    prefix="/bhikku-nikaya-data",
+    tags=["Bhikku Nikaya Data"],
+)
 api_router.include_router(city.router, prefix="/city", tags=["City"])
 api_router.include_router(
     bhikku_category.router, prefix="/bhikku-category", tags=["Bhikku Category"]
 )
 api_router.include_router(district.router, prefix="/district", tags=["District"])
 api_router.include_router(roles.router, prefix="/roles", tags=["Roles"])
+api_router.include_router(
+    audit_log.router, prefix="/audit-log", tags=["Audit Log"]
+)
