@@ -25,6 +25,7 @@ from app.api.v1.routes import (
     roles,
     vihara_data,
     audit_log,
+    religion,
 )
 
 api_router = APIRouter()
@@ -93,4 +94,7 @@ api_router.include_router(district.router, prefix="/district", tags=["District"]
 api_router.include_router(roles.router, prefix="/roles", tags=["Roles"])
 api_router.include_router(
     audit_log.router, prefix="/audit-log", tags=["Audit Log"]
+)
+api_router.include_router(
+    religion.router, prefix="/religion", tags=["Religion"]
 )
