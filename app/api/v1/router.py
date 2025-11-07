@@ -2,29 +2,31 @@
 from fastapi import APIRouter
 
 from app.api.v1.routes import (
+    audit_log,
     auth,
-    banks,
     bank_branches,
+    banks,
     beneficiary_data,
     bhikku_category,
+    bhikku_certification,
+    bhikku_high,
     bhikku_nikaya_data,
     bhikku_parshawa_data,
-    district,
-    city,
     bhikkus,
-    bhikku_high,
-    bhikku_certification,
-    certificates,
-    certificate_changes,
-    dashboard,
     bhikku_summary,
-    nilame,
+    certificate_changes,
+    certificates,
+    city,
+    dashboard,
+    district,
+    divisional_secretariat,
     health,
+    nilame,
     payment_methods,
+    province,
+    religion,
     roles,
     vihara_data,
-    audit_log,
-    religion,
 )
 
 api_router = APIRouter()
@@ -96,4 +98,10 @@ api_router.include_router(
 )
 api_router.include_router(
     religion.router, prefix="/religion", tags=["Religion"]
+)
+api_router.include_router(province.router, prefix="/province", tags=["Province"])
+api_router.include_router(
+    divisional_secretariat.router,
+    prefix="/divisional-secretariat",
+    tags=["Divisional Secretariat"],
 )

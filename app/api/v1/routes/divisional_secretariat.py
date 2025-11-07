@@ -5,23 +5,25 @@ from sqlalchemy.orm import Session
 from app.api.auth_middleware import get_current_user
 from app.api.deps import get_db
 from app.models.user import UserAccount
-from app.schemas.district import (
+from app.schemas.divisional_secretariat import (
     CRUDAction,
-    DistrictCreate,
-    DistrictManagementRequest,
-    DistrictManagementResponse,
-    DistrictOut,
-    DistrictUpdate,
+    DivisionalSecretariatCreate,
+    DivisionalSecretariatManagementRequest,
+    DivisionalSecretariatManagementResponse,
+    DivisionalSecretariatOut,
+    DivisionalSecretariatUpdate,
 )
-from app.services.district_service import district_service
+from app.services.divisional_secretariat_service import (
+    divisional_secretariat_service,
+)
 from app.utils.http_exceptions import validation_error
 
-router = APIRouter(tags=["District"])
+router = APIRouter(tags=["Divisional Secretariat"])
 
 
-@router.post("/manage", response_model=DistrictManagementResponse)
-def manage_districts(
-    request: DistrictManagementRequest,
+@router.post("/manage", response_model=DivisionalSecretariatManagementResponse)
+def manage_divisional_secretariat_records(
+    request: DivisionalSecretariatManagementRequest,
     db: Session = Depends(get_db),
     current_user: UserAccount = Depends(get_current_user),
 ):
@@ -30,12 +32,12 @@ def manage_districts(
     user_id = current_user.ua_user_id
 
     if action == CRUDAction.CREATE:
-        if not payload.data or not isinstance(payload.data, DistrictCreate):
+        if not payload.data or not isinstance(payload.data, DivisionalSecretariatCreate):
             raise validation_error(
                 [("payload.data", "Invalid data for CREATE action")]
             )
         try:
-            created = district_service.create_district(
+            created = divisional_secretariat_service.create_divisional_secretariat(
                 db, payload=payload.data, actor_id=user_id
             )
         except ValueError as exc:
@@ -43,33 +45,42 @@ def manage_districts(
         except RuntimeError as exc:
             raise HTTPException(status_code=500, detail=str(exc)) from exc
 
-        return DistrictManagementResponse(
+        return DivisionalSecretariatManagementResponse(
             status="success",
-            message="District created successfully.",
-            data=DistrictOut.model_validate(created),
+            message="Divisional secretariat created successfully.",
+            data=DivisionalSecretariatOut.model_validate(created),
         )
 
     if action == CRUDAction.READ_ONE:
-        if payload.dd_id is None and not payload.dd_dcode:
+        if payload.dv_id is None and not payload.dv_dvcode:
             raise validation_error(
-                [("payload.dd_id", "dd_id or dd_dcode is required for READ_ONE action")]
+                [
+                    (
+                        "payload.dv_id",
+                        "dv_id or dv_dvcode is required for READ_ONE action",
+                    )
+                ]
             )
 
         entity = None
-        if payload.dd_id is not None:
-            entity = district_service.get_district(db, dd_id=payload.dd_id)
-        elif payload.dd_dcode:
-            entity = district_service.get_district_by_code(
-                db, dd_dcode=payload.dd_dcode
+        if payload.dv_id is not None:
+            entity = divisional_secretariat_service.get_divisional_secretariat(
+                db, dv_id=payload.dv_id
+            )
+        elif payload.dv_dvcode:
+            entity = (
+                divisional_secretariat_service.get_divisional_secretariat_by_code(
+                    db, dv_dvcode=payload.dv_dvcode
+                )
             )
 
         if not entity:
-            raise HTTPException(status_code=404, detail="District not found")
+            raise HTTPException(status_code=404, detail="Divisional secretariat not found")
 
-        return DistrictManagementResponse(
+        return DivisionalSecretariatManagementResponse(
             status="success",
-            message="District retrieved successfully.",
-            data=DistrictOut.model_validate(entity),
+            message="Divisional secretariat retrieved successfully.",
+            data=DivisionalSecretariatOut.model_validate(entity),
         )
 
     if action == CRUDAction.READ_ALL:
@@ -83,15 +94,17 @@ def manage_districts(
         limit = max(1, min(limit, 200))
         skip = max(0, skip)
 
-        records = district_service.list_districts(
+        records = divisional_secretariat_service.list_divisional_secretariats(
             db, skip=skip, limit=limit, search=search
         )
-        total = district_service.count_districts(db, search=search)
-        records_out = [DistrictOut.model_validate(item) for item in records]
+        total = divisional_secretariat_service.count_divisional_secretariats(
+            db, search=search
+        )
+        records_out = [DivisionalSecretariatOut.model_validate(item) for item in records]
 
-        return DistrictManagementResponse(
+        return DivisionalSecretariatManagementResponse(
             status="success",
-            message="Districts retrieved successfully.",
+            message="Divisional secretariats retrieved successfully.",
             data=records_out,
             totalRecords=total,
             page=page,
@@ -99,17 +112,17 @@ def manage_districts(
         )
 
     if action == CRUDAction.UPDATE:
-        if payload.dd_id is None:
+        if payload.dv_id is None:
             raise validation_error(
-                [("payload.dd_id", "dd_id is required for UPDATE action")]
+                [("payload.dv_id", "dv_id is required for UPDATE action")]
             )
         if not payload.data:
             raise validation_error(
                 [("payload.data", "Invalid data for UPDATE action")]
             )
 
-        update_payload: DistrictUpdate
-        if isinstance(payload.data, DistrictUpdate):
+        update_payload: DivisionalSecretariatUpdate
+        if isinstance(payload.data, DivisionalSecretariatUpdate):
             update_payload = payload.data
         else:
             raw_data = (
@@ -118,7 +131,7 @@ def manage_districts(
                 else payload.data
             )
             try:
-                update_payload = DistrictUpdate(**raw_data)
+                update_payload = DivisionalSecretariatUpdate(**raw_data)
             except ValidationError as exc:
                 formatted_errors = []
                 for error in exc.errors():
@@ -129,8 +142,8 @@ def manage_districts(
                 raise validation_error(formatted_errors) from exc
 
         try:
-            updated = district_service.update_district(
-                db, dd_id=payload.dd_id, payload=update_payload, actor_id=user_id
+            updated = divisional_secretariat_service.update_divisional_secretariat(
+                db, dv_id=payload.dv_id, payload=update_payload, actor_id=user_id
             )
         except ValueError as exc:
             message = str(exc)
@@ -140,29 +153,31 @@ def manage_districts(
         except RuntimeError as exc:
             raise HTTPException(status_code=500, detail=str(exc)) from exc
 
-        return DistrictManagementResponse(
+        return DivisionalSecretariatManagementResponse(
             status="success",
-            message="District updated successfully.",
-            data=DistrictOut.model_validate(updated),
+            message="Divisional secretariat updated successfully.",
+            data=DivisionalSecretariatOut.model_validate(updated),
         )
 
     if action == CRUDAction.DELETE:
-        if payload.dd_id is None:
+        if payload.dv_id is None:
             raise validation_error(
-                [("payload.dd_id", "dd_id is required for DELETE action")]
+                [("payload.dv_id", "dv_id is required for DELETE action")]
             )
 
         try:
-            district_service.delete_district(db, dd_id=payload.dd_id, actor_id=user_id)
+            divisional_secretariat_service.delete_divisional_secretariat(
+                db, dv_id=payload.dv_id, actor_id=user_id
+            )
         except ValueError as exc:
             message = str(exc)
             if "not found" in message.lower():
                 raise HTTPException(status_code=404, detail=message) from exc
             raise validation_error([(None, message)]) from exc
 
-        return DistrictManagementResponse(
+        return DivisionalSecretariatManagementResponse(
             status="success",
-            message="District deleted successfully.",
+            message="Divisional secretariat deleted successfully.",
             data=None,
         )
 
