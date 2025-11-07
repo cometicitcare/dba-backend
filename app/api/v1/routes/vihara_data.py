@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, status
+from pydantic import BaseModel, ValidationError
 from sqlalchemy.orm import Session
 
 from app.api.auth_middleware import get_current_user
@@ -29,13 +30,14 @@ def manage_vihara_records(
     user_id = current_user.ua_user_id
 
     if action == CRUDAction.CREATE:
-        if not payload.data or not isinstance(payload.data, ViharaCreate):
-            raise validation_error(
-                [("payload.data", "Invalid data for CREATE action")]
-            )
+        create_payload = _coerce_payload(
+            payload.data,
+            target=ViharaCreate,
+            prefix="payload.data",
+        )
         try:
             created = vihara_service.create_vihara(
-                db, payload=payload.data, actor_id=user_id
+                db, payload=create_payload, actor_id=user_id
             )
             return ViharaManagementResponse(
                 status="success",
@@ -96,16 +98,17 @@ def manage_vihara_records(
             raise validation_error(
                 [("payload.vh_id", "vh_id is required for UPDATE action")]
             )
-        if not payload.data or not isinstance(payload.data, ViharaUpdate):
-            raise validation_error(
-                [("payload.data", "Invalid data for UPDATE action")]
-            )
+        update_payload = _coerce_payload(
+            payload.data,
+            target=ViharaUpdate,
+            prefix="payload.data",
+        )
 
         try:
             updated = vihara_service.update_vihara(
                 db,
                 vh_id=payload.vh_id,
-                payload=payload.data,
+                payload=update_payload,
                 actor_id=user_id,
             )
             return ViharaManagementResponse(
@@ -142,3 +145,46 @@ def manage_vihara_records(
             ) from exc
 
     raise validation_error([("action", "Invalid action specified")])
+
+
+def _build_pydantic_errors(
+    exc: ValidationError,
+    *,
+    prefix: str | None = None,
+) -> list[tuple[str | None, str]]:
+    errors: list[tuple[str | None, str]] = []
+    for err in exc.errors():
+        loc = err.get("loc") or ()
+        msg = err.get("msg") or "Invalid value"
+        field_parts = [str(part) for part in loc if part != "__root__"]
+        field = ".".join(field_parts) if field_parts else None
+        if prefix:
+            field = f"{prefix}.{field}" if field else prefix
+        errors.append((field, msg))
+    return errors or [(prefix, "Invalid payload") if prefix else (None, "Invalid payload")]
+
+
+def _coerce_payload(
+    raw_payload: object,
+    *,
+    target: type[BaseModel],
+    prefix: str,
+) -> BaseModel:
+    if raw_payload is None:
+        raise validation_error([(prefix, "Payload is required")])
+
+    if isinstance(raw_payload, target):
+        return raw_payload
+
+    if isinstance(raw_payload, BaseModel):
+        raw_payload = raw_payload.model_dump(exclude_unset=True)
+
+    if isinstance(raw_payload, dict):
+        try:
+            return target.model_validate(raw_payload)
+        except ValidationError as exc:
+            raise validation_error(_build_pydantic_errors(exc, prefix=prefix)) from exc
+
+    raise validation_error(
+        [(prefix, f"Expected object compatible with {target.__name__}")],
+    )

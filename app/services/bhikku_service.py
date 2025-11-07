@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from datetime import datetime
 from typing import Any, Dict, Optional, Tuple
 
@@ -25,6 +26,8 @@ class BhikkuService:
         "br_cat": ("public", "cmm_cat", "cc_code"),
     }
 
+    MOBILE_PATTERN = re.compile(r"^0\d{9}$")
+
     def __init__(self) -> None:
         self._table_cache: Dict[Tuple[Optional[str], str], Table] = {}
 
@@ -38,6 +41,8 @@ class BhikkuService:
         payload_dict["br_created_by"] = actor_id
         payload_dict["br_updated_by"] = actor_id
         payload_dict = self._strip_strings(payload_dict)
+        payload_dict = self._normalize_contact_fields(payload_dict)
+        self._validate_contact_formats(payload_dict)
 
         explicit_regn = payload_dict.get("br_regn")
         if explicit_regn:
@@ -54,6 +59,7 @@ class BhikkuService:
             db,
             br_mobile=payload_dict.get("br_mobile"),
             br_email=payload_dict.get("br_email"),
+            br_fathrsmobile=payload_dict.get("br_fathrsmobile"),
             current_regn=None,
         )
 
@@ -97,6 +103,8 @@ class BhikkuService:
 
         update_data = payload.model_dump(exclude_unset=True)
         update_data = self._strip_strings(update_data)
+        update_data = self._normalize_contact_fields(update_data)
+        self._validate_contact_formats(update_data)
 
         if "br_regn" in update_data and update_data["br_regn"]:
             new_regn = update_data["br_regn"]
@@ -109,6 +117,7 @@ class BhikkuService:
             db,
             br_mobile=update_data.get("br_mobile"),
             br_email=update_data.get("br_email"),
+            br_fathrsmobile=update_data.get("br_fathrsmobile"),
             current_regn=br_regn,
         )
 
@@ -145,6 +154,7 @@ class BhikkuService:
         *,
         br_mobile: Optional[str],
         br_email: Optional[str],
+        br_fathrsmobile: Optional[str],
         current_regn: Optional[str],
     ) -> None:
         if self._has_meaningful_value(br_mobile):
@@ -160,6 +170,32 @@ class BhikkuService:
                 raise ValueError(
                     f"br_email '{br_email}' is already associated with another bhikku."
                 )
+
+        if self._has_meaningful_value(br_fathrsmobile):
+            existing_father_mobile = bhikku_repo.get_by_fathrsmobile(
+                db, br_fathrsmobile
+            )
+            if existing_father_mobile and existing_father_mobile.br_regn != current_regn:
+                raise ValueError(
+                    f"br_fathrsmobile '{br_fathrsmobile}' is already associated with another bhikku."
+                )
+
+    def _validate_contact_formats(self, payload: Dict[str, Any]) -> None:
+        for field in ("br_mobile", "br_fathrsmobile"):
+            value = payload.get(field)
+            if not self._has_meaningful_value(value):
+                continue
+            if not isinstance(value, str) or not self.MOBILE_PATTERN.match(value):
+                raise ValueError(
+                    f"{field} '{value}' is not a valid mobile number. Expected 10 digits starting with 0."
+                )
+
+    @staticmethod
+    def _normalize_contact_fields(data: Dict[str, Any]) -> Dict[str, Any]:
+        normalized = dict(data)
+        if "br_email" in normalized and isinstance(normalized["br_email"], str):
+            normalized["br_email"] = normalized["br_email"].lower()
+        return normalized
 
     def _validate_foreign_keys(
         self,

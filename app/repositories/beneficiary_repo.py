@@ -44,6 +44,28 @@ class BeneficiaryRepository:
             .first()
         )
 
+    def get_by_mobile(self, db: Session, bf_mobile: str) -> Optional[BeneficiaryData]:
+        return (
+            db.query(BeneficiaryData)
+            .filter(
+                BeneficiaryData.bf_mobile == bf_mobile,
+                BeneficiaryData.bf_is_deleted.is_(False),
+            )
+            .first()
+        )
+
+    def get_by_whatsapp(
+        self, db: Session, bf_whatapp: str
+    ) -> Optional[BeneficiaryData]:
+        return (
+            db.query(BeneficiaryData)
+            .filter(
+                BeneficiaryData.bf_whatapp == bf_whatapp,
+                BeneficiaryData.bf_is_deleted.is_(False),
+            )
+            .first()
+        )
+
     def list(
         self,
         db: Session,
@@ -118,6 +140,24 @@ class BeneficiaryRepository:
         if duplicate:
             raise ValueError(f"bf_bnn '{payload['bf_bnn']}' already exists.")
 
+        email = payload.get("bf_email")
+        if email:
+            email_conflict = self.get_by_email(db, email)
+            if email_conflict:
+                raise ValueError(f"bf_email '{email}' is already registered.")
+
+        mobile = payload.get("bf_mobile")
+        if mobile:
+            mobile_conflict = self.get_by_mobile(db, mobile)
+            if mobile_conflict:
+                raise ValueError(f"bf_mobile '{mobile}' is already registered.")
+
+        whatsapp = payload.get("bf_whatapp")
+        if whatsapp:
+            whatsapp_conflict = self.get_by_whatsapp(db, whatsapp)
+            if whatsapp_conflict:
+                raise ValueError(f"bf_whatapp '{whatsapp}' is already registered.")
+
         creator_id = payload.get("bf_created_by")
         if creator_id:
             self._assert_user_exists(db, creator_id)
@@ -142,6 +182,41 @@ class BeneficiaryRepository:
         update_data = data.model_dump(exclude_unset=True)
         update_data.pop("bf_version_number", None)
         update_data.pop("bf_id", None)
+
+        bnn = update_data.get("bf_bnn")
+        if bnn:
+            normalized_bnn = bnn.upper()
+            if normalized_bnn != entity.bf_bnn:
+                bnn_conflict = (
+                    db.query(BeneficiaryData)
+                    .filter(
+                        BeneficiaryData.bf_bnn == normalized_bnn,
+                        BeneficiaryData.bf_is_deleted.is_(False),
+                        BeneficiaryData.bf_id != entity.bf_id,
+                    )
+                    .first()
+                )
+                if bnn_conflict:
+                    raise ValueError(f"bf_bnn '{normalized_bnn}' already exists.")
+            update_data["bf_bnn"] = normalized_bnn
+
+        email = update_data.get("bf_email")
+        if email and email != entity.bf_email:
+            email_conflict = self.get_by_email(db, email)
+            if email_conflict and email_conflict.bf_id != entity.bf_id:
+                raise ValueError(f"bf_email '{email}' is already registered.")
+
+        mobile = update_data.get("bf_mobile")
+        if mobile and mobile != entity.bf_mobile:
+            mobile_conflict = self.get_by_mobile(db, mobile)
+            if mobile_conflict and mobile_conflict.bf_id != entity.bf_id:
+                raise ValueError(f"bf_mobile '{mobile}' is already registered.")
+
+        whatsapp = update_data.get("bf_whatapp")
+        if whatsapp and whatsapp != entity.bf_whatapp:
+            whatsapp_conflict = self.get_by_whatsapp(db, whatsapp)
+            if whatsapp_conflict and whatsapp_conflict.bf_id != entity.bf_id:
+                raise ValueError(f"bf_whatapp '{whatsapp}' is already registered.")
 
         updater_id = update_data.get("bf_updated_by")
         if updater_id:

@@ -2,6 +2,7 @@ from datetime import datetime
 from typing import Any, Dict, Optional
 
 from sqlalchemy import MetaData, Table, inspect, select
+from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import Session
 
 from app.models.vihara import ViharaData
@@ -123,7 +124,12 @@ class ViharaService:
         return vihara_repo.soft_delete(db, entity=entity)
 
     def _validate_foreign_keys(self, db: Session, values: Dict[str, Any]) -> None:
-        fk_targets = self._get_foreign_key_targets(db)
+        try:
+            fk_targets = self._get_foreign_key_targets(db)
+        except OperationalError as exc:
+            raise ValueError(
+                "Unable to verify references due to temporary database connectivity issues."
+            ) from exc
         fields_to_validate = {
             "vh_gndiv": values.get("vh_gndiv"),
             "vh_ownercd": values.get("vh_ownercd"),
@@ -149,13 +155,20 @@ class ViharaService:
                 )
 
             schema, table_name, column_name = target
-            if not self._reference_exists(
-                db,
-                schema=schema,
-                table_name=table_name,
-                column_name=column_name,
-                value=value,
-            ):
+            try:
+                exists = self._reference_exists(
+                    db,
+                    schema=schema,
+                    table_name=table_name,
+                    column_name=column_name,
+                    value=value,
+                )
+            except OperationalError as exc:
+                raise ValueError(
+                    "Unable to verify references due to temporary database connectivity issues."
+                ) from exc
+
+            if not exists:
                 raise ValueError(f"Invalid reference: {field} not found")
 
     def _build_fk_validation_payload(

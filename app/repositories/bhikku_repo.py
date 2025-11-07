@@ -180,6 +180,16 @@ class BhikkuRepository:
             .first()
         )
 
+    def get_by_fathrsmobile(self, db: Session, br_fathrsmobile: str):
+        return (
+            db.query(models.Bhikku)
+            .filter(
+                models.Bhikku.br_fathrsmobile == br_fathrsmobile,
+                models.Bhikku.br_is_deleted.is_(False),
+            )
+            .first()
+        )
+
     def create(self, db: Session, bhikku: schemas.BhikkuCreate):
         # Auto-generate br_regn if not provided or empty.
         if not bhikku.br_regn or bhikku.br_regn.strip() == "":
@@ -280,3 +290,7 @@ def get_by_mobile(db: Session, br_mobile: str):
 
 def get_by_email(db: Session, br_email: str):
     return bhikku_repo.get_by_email(db, br_email)
+
+
+def get_by_fathrsmobile(db: Session, br_fathrsmobile: str):
+    return bhikku_repo.get_by_fathrsmobile(db, br_fathrsmobile)
