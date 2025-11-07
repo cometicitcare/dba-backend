@@ -20,6 +20,7 @@ from app.api.v1.routes import (
     dashboard,
     district,
     divisional_secretariat,
+    gramasewaka,
     health,
     nilame,
     payment_methods,
@@ -88,6 +89,9 @@ api_router.include_router(
     tags=["Bhikku Nikaya Data"],
 )
 api_router.include_router(city.router, prefix="/city", tags=["City"])
+api_router.include_router(
+    gramasewaka.router, prefix="/gramasewaka", tags=["Gramasewaka Management"]
+)
 api_router.include_router(
     bhikku_category.router, prefix="/bhikku-category", tags=["Bhikku Category"]
 )
