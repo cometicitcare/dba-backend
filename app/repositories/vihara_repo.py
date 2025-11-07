@@ -1,6 +1,7 @@
 from typing import Any, Optional
 
-from sqlalchemy import func, or_, select
+from sqlalchemy import func, or_, select, text
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.models.vihara import ViharaData
@@ -12,6 +13,10 @@ class ViharaRepository:
 
     TRN_PREFIX = "TRN"
     TRN_WIDTH = 7
+    VH_ID_SEQUENCE = "vihaddata_vh_id_seq"
+    PRIMARY_KEY_CONSTRAINT = "vihaddata_pkey"
+    TRN_UNIQUE_CONSTRAINT = "vihaddata_vh_trn_key"
+    EMAIL_UNIQUE_CONSTRAINT = "vihaddata_vh_email_key"
 
     def get(self, db: Session, vh_id: int) -> Optional[ViharaData]:
         return (
@@ -109,18 +114,57 @@ class ViharaRepository:
         return query.scalar() or 0
 
     def create(self, db: Session, *, data: ViharaCreate) -> ViharaData:
-        payload = self._strip_strings(data.model_dump(exclude_unset=True))
-        payload["vh_trn"] = self.generate_next_trn(db)
-        payload.setdefault("vh_is_deleted", False)
-        payload.setdefault("vh_version_number", 1)
+        base_payload = self._strip_strings(data.model_dump(exclude_unset=True))
+        base_payload.setdefault("vh_is_deleted", False)
+        base_payload.setdefault("vh_version_number", 1)
 
-        self._ensure_unique_contact_fields(db, payload, current_id=None)
+        attempts_remaining = 3
+        trn_floor: Optional[int] = None
+        while attempts_remaining:
+            attempts_remaining -= 1
+            payload = dict(base_payload)
 
-        vihara = ViharaData(**self._filter_known_columns(payload))
-        db.add(vihara)
-        db.commit()
-        db.refresh(vihara)
-        return vihara
+            self._ensure_unique_contact_fields(db, payload, current_id=None)
+            self._sync_vh_id_sequence(db)
+            payload["vh_trn"] = self.generate_next_trn(db, minimum=trn_floor)
+
+            vihara = ViharaData(**self._filter_known_columns(payload))
+            db.add(vihara)
+            try:
+                db.commit()
+            except IntegrityError as exc:
+                db.rollback()
+                constraint = self._constraint_from_integrity_error(exc)
+
+                if (
+                    constraint == self.PRIMARY_KEY_CONSTRAINT
+                    and attempts_remaining > 0
+                ):
+                    self._sync_vh_id_sequence(db, force=True)
+                    continue
+
+                if (
+                    constraint == self.TRN_UNIQUE_CONSTRAINT
+                    and attempts_remaining > 0
+                ):
+                    candidates = [
+                        value
+                        for value in (
+                            trn_floor,
+                            self._extract_trn_number(payload.get("vh_trn")),
+                            self._get_latest_trn_number(db),
+                        )
+                        if value is not None
+                    ]
+                    trn_floor = max(candidates) if candidates else trn_floor
+                    continue
+
+                raise ValueError(self._translate_integrity_error(exc)) from exc
+
+            db.refresh(vihara)
+            return vihara
+
+        raise ValueError("Failed to create vihara record after retries.")
 
     def update(
         self,
@@ -160,35 +204,14 @@ class ViharaRepository:
     # ------------------------------------------------------------------
     # Helpers
     # ------------------------------------------------------------------
-    def generate_next_trn(self, db: Session) -> str:
+    def generate_next_trn(self, db: Session, *, minimum: Optional[int] = None) -> str:
         prefix = self.TRN_PREFIX
         width = self.TRN_WIDTH
 
-        stmt = (
-            select(ViharaData.vh_trn)
-            .order_by(ViharaData.vh_id.desc())
-            .limit(1)
-            .with_for_update()
-        )
-
-        try:
-            latest = db.execute(stmt).scalars().first()
-        except Exception:
-            latest_entity = (
-                db.query(ViharaData)
-                .order_by(ViharaData.vh_id.desc())
-                .first()
-            )
-            latest = latest_entity.vh_trn if latest_entity else None
-
-        next_number = 1
-        if latest:
-            suffix = latest[len(prefix) :] if latest.startswith(prefix) else latest
-            try:
-                next_number = int(suffix) + 1
-            except ValueError:
-                next_number = 1
-
+        current_max = self._get_latest_trn_number(db)
+        if minimum is not None:
+            current_max = max(current_max, minimum)
+        next_number = current_max + 1
         return f"{prefix}{next_number:0{width}d}"
 
     @staticmethod
@@ -256,6 +279,88 @@ class ViharaRepository:
         if not trimmed:
             return None
         return trimmed.lower() if lower else trimmed
+
+    def _get_latest_trn_number(self, db: Session) -> int:
+        stmt = select(func.max(ViharaData.vh_trn))
+        latest = db.execute(stmt).scalar()
+        return self._extract_trn_number(latest)
+
+    def _extract_trn_number(self, value: Optional[str]) -> int:
+        if not value:
+            return 0
+        prefix = self.TRN_PREFIX
+        suffix = value[len(prefix):] if value.startswith(prefix) else value
+        try:
+            return int(suffix)
+        except (TypeError, ValueError):
+            return 0
+
+    def _sync_vh_id_sequence(self, db: Session, *, force: bool = False) -> None:
+        bind = db.get_bind()
+        if bind is None or bind.dialect.name != "postgresql":
+            return
+
+        seq_name = self.VH_ID_SEQUENCE
+        max_id = db.query(func.max(ViharaData.vh_id)).scalar()
+
+        if not force:
+            seq_state = db.execute(
+                text(
+                    f"SELECT last_value, is_called FROM {seq_name}"
+                )
+            ).first()
+            mapping = seq_state._mapping if seq_state else None
+
+            if max_id is None:
+                if (
+                    mapping
+                    and mapping.get("last_value") == 1
+                    and mapping.get("is_called") is False
+                ):
+                    return
+                db.execute(text(f"SELECT setval('{seq_name}', 1, false)"))
+                return
+
+            if mapping:
+                last_value = mapping.get("last_value")
+                is_called = mapping.get("is_called")
+                if last_value is not None:
+                    if last_value > max_id:
+                        return
+                    if last_value == max_id and is_called:
+                        return
+
+        if max_id is None:
+            db.execute(text(f"SELECT setval('{seq_name}', 1, false)"))
+        else:
+            db.execute(text(f"SELECT setval('{seq_name}', :value)"), {"value": max_id})
+
+    @staticmethod
+    def _constraint_from_integrity_error(error: IntegrityError) -> Optional[str]:
+        origin = getattr(error, "orig", None)
+        diag = getattr(origin, "diag", None) if origin else None
+        constraint = getattr(diag, "constraint_name", None) if diag else None
+        if constraint:
+            return constraint
+
+        message = str(origin or error).lower()
+        if "vihaddata_pkey" in message:
+            return "vihaddata_pkey"
+        if "vihaddata_vh_trn_key" in message:
+            return "vihaddata_vh_trn_key"
+        if "vihaddata_vh_email_key" in message:
+            return "vihaddata_vh_email_key"
+        return None
+
+    def _translate_integrity_error(self, error: IntegrityError) -> str:
+        constraint = self._constraint_from_integrity_error(error)
+        if constraint == self.PRIMARY_KEY_CONSTRAINT:
+            return "Unable to assign a new vihara id. Please retry."
+        if constraint == self.TRN_UNIQUE_CONSTRAINT:
+            return "vh_trn already exists. Please retry."
+        if constraint == self.EMAIL_UNIQUE_CONSTRAINT:
+            return "vh_email already exists."
+        return "Failed to persist vihara record due to a database constraint violation."
 
 
 vihara_repo = ViharaRepository()

@@ -9,7 +9,7 @@ def set_auth_cookies(response: Response, *, access_token: str, refresh_token: st
         httponly=True,
         secure=settings.COOKIE_SECURE,
         samesite=settings.COOKIE_SAMESITE,
-        max_age=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+        max_age=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 1800,
         domain=settings.COOKIE_DOMAIN,
         path=settings.COOKIE_PATH,
     )

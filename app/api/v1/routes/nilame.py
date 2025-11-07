@@ -7,7 +7,9 @@ from app.api.deps import get_db
 from app.models.user import UserAccount
 from app.repositories.nilame_repo import nilame_repo
 from app.schemas import nilame as schemas
+from app.services.nilame_service import nilame_service
 from app.utils.http_exceptions import validation_error
+from pydantic import ValidationError
 
 router = APIRouter(tags=["Nilame"])
 
@@ -23,15 +25,39 @@ def manage_nilame_records(
     user_id = current_user.ua_user_id
 
     if action == schemas.CRUDAction.CREATE:
-        if not payload.data or not isinstance(payload.data, schemas.NilameCreate):
+        if not payload.data:
             raise validation_error(
-                [("payload.data", "Invalid data for CREATE action")]
+                [("payload.data", "data is required for CREATE action")]
             )
 
+        create_payload: schemas.NilameCreate
+        if isinstance(payload.data, schemas.NilameCreate):
+            create_payload = payload.data
+        else:
+            raw_data = (
+                payload.data.model_dump()
+                if hasattr(payload.data, "model_dump")
+                else payload.data
+            )
+            try:
+                create_payload = schemas.NilameCreate(**raw_data)
+            except ValidationError as exc:
+                formatted_errors = []
+                for error in exc.errors():
+                    loc = ".".join(str(part) for part in error.get("loc", []))
+                    formatted_errors.append(
+                        (loc or None, error.get("msg", "Invalid data"))
+                    )
+                raise validation_error(formatted_errors) from exc
+
         try:
-            created = nilame_repo.create(db, data=payload.data, actor_id=user_id)
+            created = nilame_service.create_nilame(
+                db, payload=create_payload, actor_id=user_id
+            )
         except ValueError as exc:
             raise validation_error([(None, str(exc))]) from exc
+        except RuntimeError as exc:
+            raise HTTPException(status_code=500, detail=str(exc)) from exc
 
         return schemas.NilameManagementResponse(
             status="success",
@@ -88,21 +114,42 @@ def manage_nilame_records(
             raise validation_error(
                 [("payload.kr_id", "kr_id is required for UPDATE action")]
             )
-        if not payload.data or not isinstance(payload.data, schemas.NilameUpdate):
+        if not payload.data:
             raise validation_error(
-                [("payload.data", "Invalid data for UPDATE action")]
+                [("payload.data", "data is required for UPDATE action")]
             )
 
-        entity = nilame_repo.get(db, payload.kr_id)
-        if not entity:
-            raise HTTPException(status_code=404, detail="Nilame registration not found")
+        update_payload: schemas.NilameUpdate
+        if isinstance(payload.data, schemas.NilameUpdate):
+            update_payload = payload.data
+        else:
+            raw_data = (
+                payload.data.model_dump()
+                if hasattr(payload.data, "model_dump")
+                else payload.data
+            )
+            try:
+                update_payload = schemas.NilameUpdate(**raw_data)
+            except ValidationError as exc:
+                formatted_errors = []
+                for error in exc.errors():
+                    loc = ".".join(str(part) for part in error.get("loc", []))
+                    formatted_errors.append(
+                        (loc or None, error.get("msg", "Invalid data"))
+                    )
+                raise validation_error(formatted_errors) from exc
 
         try:
-            updated = nilame_repo.update(
-                db, entity=entity, data=payload.data, actor_id=user_id
+            updated = nilame_service.update_nilame(
+                db, kr_id=payload.kr_id, payload=update_payload, actor_id=user_id
             )
         except ValueError as exc:
-            raise validation_error([(None, str(exc))]) from exc
+            message = str(exc)
+            if "not found" in message.lower():
+                raise HTTPException(status_code=404, detail=message) from exc
+            raise validation_error([(None, message)]) from exc
+        except RuntimeError as exc:
+            raise HTTPException(status_code=500, detail=str(exc)) from exc
 
         return schemas.NilameManagementResponse(
             status="success",

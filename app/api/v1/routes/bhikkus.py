@@ -8,6 +8,7 @@ from app.models.user import UserAccount
 from app.schemas import bhikku as schemas
 from app.services.bhikku_service import bhikku_service
 from app.utils.http_exceptions import validation_error
+from pydantic import ValidationError
 
 router = APIRouter()
 
@@ -28,14 +29,34 @@ def manage_bhikku_records(
     user_id = current_user.ua_user_id
 
     if action == schemas.CRUDAction.CREATE:
-        if not payload.data or not isinstance(payload.data, schemas.BhikkuCreate):
+        if not payload.data:
             raise validation_error(
-                [("payload.data", "Invalid data for CREATE action")]
+                [("payload.data", "data is required for CREATE action")]
             )
+
+        create_payload: schemas.BhikkuCreate
+        if isinstance(payload.data, schemas.BhikkuCreate):
+            create_payload = payload.data
+        else:
+            raw_data = (
+                payload.data.model_dump()
+                if hasattr(payload.data, "model_dump")
+                else payload.data
+            )
+            try:
+                create_payload = schemas.BhikkuCreate(**raw_data)
+            except ValidationError as exc:
+                formatted_errors = []
+                for error in exc.errors():
+                    loc = ".".join(str(part) for part in error.get("loc", []))
+                    formatted_errors.append(
+                        (loc or None, error.get("msg", "Invalid data"))
+                    )
+                raise validation_error(formatted_errors) from exc
 
         try:
             created_bhikku = bhikku_service.create_bhikku(
-                db, payload=payload.data, actor_id=user_id
+                db, payload=create_payload, actor_id=user_id
             )
         except ValueError as exc:
             raise validation_error([(None, str(exc))]) from exc
@@ -91,23 +112,38 @@ def manage_bhikku_records(
         }
 
     elif action == schemas.CRUDAction.UPDATE:
-        update_errors = []
         if not payload.br_regn:
-            update_errors.append(
-                ("payload.br_regn", "br_regn is required for UPDATE action")
+            raise validation_error(
+                [("payload.br_regn", "br_regn is required for UPDATE action")]
             )
         if not payload.data:
-            update_errors.append(("payload.data", "data is required for UPDATE action"))
-        elif not isinstance(payload.data, schemas.BhikkuUpdate):
-            update_errors.append(
-                ("payload.data", "Invalid data payload for UPDATE action")
+            raise validation_error(
+                [("payload.data", "data is required for UPDATE action")]
             )
-        if update_errors:
-            raise validation_error(update_errors)
+
+        update_payload: schemas.BhikkuUpdate
+        if isinstance(payload.data, schemas.BhikkuUpdate):
+            update_payload = payload.data
+        else:
+            raw_data = (
+                payload.data.model_dump()
+                if hasattr(payload.data, "model_dump")
+                else payload.data
+            )
+            try:
+                update_payload = schemas.BhikkuUpdate(**raw_data)
+            except ValidationError as exc:
+                formatted_errors = []
+                for error in exc.errors():
+                    loc = ".".join(str(part) for part in error.get("loc", []))
+                    formatted_errors.append(
+                        (loc or None, error.get("msg", "Invalid data"))
+                    )
+                raise validation_error(formatted_errors) from exc
 
         try:
             updated_bhikku = bhikku_service.update_bhikku(
-                db, br_regn=payload.br_regn, payload=payload.data, actor_id=user_id
+                db, br_regn=payload.br_regn, payload=update_payload, actor_id=user_id
             )
         except ValueError as exc:
             message = str(exc)
