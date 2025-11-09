@@ -17,6 +17,7 @@ from app.services.divisional_secretariat_service import (
     divisional_secretariat_service,
 )
 from app.utils.http_exceptions import validation_error
+from app.utils.authorization import ensure_crud_permission
 
 router = APIRouter(tags=["Divisional Secretariat"])
 
@@ -30,6 +31,7 @@ def manage_divisional_secretariat_records(
     action = request.action
     payload = request.payload
     user_id = current_user.ua_user_id
+    ensure_crud_permission(db, user_id, "divisional_secretariat", action)
 
     if action == CRUDAction.CREATE:
         if not payload.data or not isinstance(payload.data, DivisionalSecretariatCreate):

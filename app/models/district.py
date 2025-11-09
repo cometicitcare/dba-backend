@@ -16,6 +16,7 @@ class District(Base):
 
     dd_id = Column(Integer, primary_key=True, index=True)
     dd_dcode = Column(String(10), nullable=False, index=True, unique=True)
+    dd_cpcode = Column(String(10), nullable=False, index=True)
     dd_dname = Column(String(200))
     dd_version = Column(
         DateTime(timezone=True), nullable=False, server_default=func.now(), onupdate=func.now()

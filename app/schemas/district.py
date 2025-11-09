@@ -17,6 +17,7 @@ class DistrictBase(BaseModel):
     model_config = ConfigDict(str_strip_whitespace=True)
 
     dd_dcode: str = Field(..., max_length=10)
+    dd_cpcode: str = Field(..., max_length=10)
     dd_dname: Optional[str] = Field(default=None, max_length=200)
 
 
@@ -29,6 +30,7 @@ class DistrictUpdate(BaseModel):
     model_config = ConfigDict(str_strip_whitespace=True)
 
     dd_dcode: Optional[str] = Field(default=None, max_length=10)
+    dd_cpcode: Optional[str] = Field(default=None, max_length=10)
     dd_dname: Optional[str] = Field(default=None, max_length=200)
     dd_updated_by: Optional[str] = Field(default=None, max_length=25)
 
@@ -49,6 +51,7 @@ class DistrictOut(DistrictBase):
 class DistrictRequestPayload(BaseModel):
     dd_id: Optional[int] = None
     dd_dcode: Optional[str] = Field(default=None, max_length=10)
+    dd_cpcode: Optional[str] = Field(default=None, max_length=10)
     skip: Annotated[int, Field(ge=0)] = 0
     limit: Annotated[int, Field(ge=1, le=200)] = 10
     page: Annotated[Optional[int], Field(ge=1)] = 1

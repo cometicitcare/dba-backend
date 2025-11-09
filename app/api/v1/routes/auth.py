@@ -3,7 +3,7 @@ from fastapi import APIRouter, Depends, HTTPException, status, Request
 from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 from app.api.deps import get_db
-from app.schemas.user import UserCreate, UserLogin, UserResponse
+from app.schemas.user import LoginResponse, UserCreate, UserLogin, UserResponse
 from app.repositories import auth_repo
 from app.core.security import create_access_token
 from app.services.auth_service import auth_service
@@ -68,19 +68,24 @@ def login(
 ):
     """Login user, set http-only cookies with access/refresh tokens, and return user info"""
     access, refresh, user = auth_service.authenticate(db, form_data.ua_username, form_data.ua_password)
+    session_id = f"login-{user.ua_user_id}"
 
     # Create login history for observability (store token hash if needed, but skip here)
     auth_repo.create_login_history(
         db,
         user_id=user.ua_user_id,
-        session_id=f"login-{user.ua_user_id}",
+        session_id=session_id,
         ip_address=request.client.host if request.client else None,
         user_agent=request.headers.get("user-agent"),
         success=True,
     )
     auth_repo.update_user_last_login(db, user_id=user.ua_user_id)
 
-    response = JSONResponse(content={"user": user.ua_username})
+    login_payload = LoginResponse(
+        session_id=session_id,
+        user=UserResponse.model_validate(user, from_attributes=True),
+    )
+    response = JSONResponse(content=login_payload.model_dump())
     set_auth_cookies(response, access_token=access, refresh_token=refresh)
     return response
 

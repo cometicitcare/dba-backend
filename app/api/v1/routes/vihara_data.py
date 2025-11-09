@@ -15,6 +15,7 @@ from app.schemas.vihara import (
 )
 from app.services.vihara_service import vihara_service
 from app.utils.http_exceptions import validation_error
+from app.utils.authorization import ensure_crud_permission
 
 router = APIRouter(tags=["Vihara Data"])
 
@@ -28,6 +29,7 @@ def manage_vihara_records(
     action = request.action
     payload = request.payload
     user_id = current_user.ua_user_id
+    ensure_crud_permission(db, user_id, "vihara_data", action)
 
     if action == CRUDAction.CREATE:
         create_payload = _coerce_payload(

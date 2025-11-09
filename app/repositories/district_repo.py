@@ -38,8 +38,12 @@ class DistrictRepository:
         skip: int = 0,
         limit: int = 100,
         search: Optional[str] = None,
+        province_code: Optional[str] = None,
     ) -> list[District]:
         query = db.query(District).filter(District.dd_is_deleted.is_(False))
+
+        if province_code:
+            query = query.filter(District.dd_cpcode == province_code.strip())
 
         if search:
             pattern = f"%{search.strip()}%"
@@ -57,10 +61,19 @@ class DistrictRepository:
             .all()
         )
 
-    def count(self, db: Session, *, search: Optional[str] = None) -> int:
+    def count(
+        self,
+        db: Session,
+        *,
+        search: Optional[str] = None,
+        province_code: Optional[str] = None,
+    ) -> int:
         query = db.query(func.count(District.dd_id)).filter(
             District.dd_is_deleted.is_(False)
         )
+
+        if province_code:
+            query = query.filter(District.dd_cpcode == province_code.strip())
 
         if search:
             pattern = f"%{search.strip()}%"

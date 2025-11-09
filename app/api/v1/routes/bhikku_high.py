@@ -8,6 +8,7 @@ from app.models.user import UserAccount
 from app.schemas import bhikku_high as schemas
 from app.services.bhikku_high_service import bhikku_high_service
 from app.utils.http_exceptions import validation_error
+from app.utils.authorization import ensure_crud_permission
 from pydantic import ValidationError
 
 router = APIRouter(tags=["Bhikku High"])
@@ -22,6 +23,7 @@ def manage_bhikku_high_records(
     action = request.action
     payload = request.payload
     user_id = current_user.ua_user_id
+    ensure_crud_permission(db, user_id, "bhikku_high", action)
 
     if action == schemas.CRUDAction.CREATE:
         if not payload.data:
