@@ -14,7 +14,6 @@ from app.schemas.city import (
 )
 from app.services.city_service import city_service
 from app.utils.http_exceptions import validation_error
-from app.utils.authorization import ensure_crud_permission
 
 router = APIRouter(tags=["City"])
 
@@ -28,7 +27,6 @@ def manage_city_records(
     action = request.action
     payload = request.payload
     user_id = current_user.ua_user_id
-    ensure_crud_permission(db, user_id, "city", action)
 
     if action == CRUDAction.CREATE:
         if not payload.data or not isinstance(payload.data, CityCreate):

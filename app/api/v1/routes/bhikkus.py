@@ -7,9 +7,7 @@ from app.api.auth_middleware import get_current_user
 from app.models.user import UserAccount
 from app.schemas import bhikku as schemas
 from app.services.bhikku_service import bhikku_service
-from app.services.bhikku_workflow_service import bhikku_workflow_service
 from app.utils.http_exceptions import validation_error
-from app.utils.authorization import ensure_crud_permission
 from pydantic import ValidationError
 
 router = APIRouter()
@@ -29,7 +27,6 @@ def manage_bhikku_records(
 
     # Get user identifier for audit trail
     user_id = current_user.ua_user_id
-    ensure_crud_permission(db, user_id, "bhikkus", action)
 
     if action == schemas.CRUDAction.CREATE:
         if not payload.data:
@@ -66,17 +63,10 @@ def manage_bhikku_records(
         except RuntimeError as exc:
             raise HTTPException(status_code=500, detail=str(exc)) from exc
 
-        workflow = bhikku_workflow_service.build_registration_flow(
-            bhikku=created_bhikku
-        )
-
         return {
             "status": "success",
             "message": "Bhikku created successfully.",
-            "data": {
-                "bhikku": created_bhikku,
-                "workflow": workflow,
-            },
+            "data": created_bhikku,
         }
 
     elif action == schemas.CRUDAction.READ_ONE:

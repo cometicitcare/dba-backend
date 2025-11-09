@@ -17,7 +17,6 @@ from app.services.divisional_secretariat_service import (
     divisional_secretariat_service,
 )
 from app.utils.http_exceptions import validation_error
-from app.utils.authorization import ensure_crud_permission
 
 router = APIRouter(tags=["Divisional Secretariat"])
 
@@ -31,7 +30,6 @@ def manage_divisional_secretariat_records(
     action = request.action
     payload = request.payload
     user_id = current_user.ua_user_id
-    ensure_crud_permission(db, user_id, "divisional_secretariat", action)
 
     if action == CRUDAction.CREATE:
         if not payload.data or not isinstance(payload.data, DivisionalSecretariatCreate):
@@ -92,15 +90,20 @@ def manage_divisional_secretariat_records(
         if search == "":
             search = None
         skip = payload.skip if payload.page is None else (page - 1) * limit
+        district_code = payload.dv_distrcd
 
         limit = max(1, min(limit, 200))
         skip = max(0, skip)
 
         records = divisional_secretariat_service.list_divisional_secretariats(
-            db, skip=skip, limit=limit, search=search
+            db,
+            skip=skip,
+            limit=limit,
+            search=search,
+            district_code=district_code,
         )
         total = divisional_secretariat_service.count_divisional_secretariats(
-            db, search=search
+            db, search=search, district_code=district_code
         )
         records_out = [DivisionalSecretariatOut.model_validate(item) for item in records]
 

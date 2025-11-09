@@ -46,15 +46,28 @@ class DivisionalSecretariatService:
         skip: int = 0,
         limit: int = 100,
         search: Optional[str] = None,
+        district_code: Optional[str] = None,
     ) -> list[DivisionalSecretariat]:
         limit = max(1, min(limit, 200))
         skip = max(0, skip)
-        return divisional_secretariat_repo.list(db, skip=skip, limit=limit, search=search)
+        return divisional_secretariat_repo.list(
+            db,
+            skip=skip,
+            limit=limit,
+            search=search,
+            district_code=district_code,
+        )
 
     def count_divisional_secretariats(
-        self, db: Session, *, search: Optional[str] = None
+        self,
+        db: Session,
+        *,
+        search: Optional[str] = None,
+        district_code: Optional[str] = None,
     ) -> int:
-        return divisional_secretariat_repo.count(db, search=search)
+        return divisional_secretariat_repo.count(
+            db, search=search, district_code=district_code
+        )
 
     def get_divisional_secretariat(
         self, db: Session, *, dv_id: int

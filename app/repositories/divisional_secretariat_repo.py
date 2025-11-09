@@ -43,10 +43,14 @@ class DivisionalSecretariatRepository:
         skip: int = 0,
         limit: int = 100,
         search: Optional[str] = None,
+        district_code: Optional[str] = None,
     ) -> list[DivisionalSecretariat]:
         query = db.query(DivisionalSecretariat).filter(
             DivisionalSecretariat.dv_is_deleted.is_(False)
         )
+
+        if district_code:
+            query = query.filter(DivisionalSecretariat.dv_distrcd == district_code)
 
         if search:
             pattern = f"%{search.strip()}%"
@@ -65,10 +69,19 @@ class DivisionalSecretariatRepository:
             .all()
         )
 
-    def count(self, db: Session, *, search: Optional[str] = None) -> int:
+    def count(
+        self,
+        db: Session,
+        *,
+        search: Optional[str] = None,
+        district_code: Optional[str] = None,
+    ) -> int:
         query = db.query(func.count(DivisionalSecretariat.dv_id)).filter(
             DivisionalSecretariat.dv_is_deleted.is_(False)
         )
+
+        if district_code:
+            query = query.filter(DivisionalSecretariat.dv_distrcd == district_code)
 
         if search:
             pattern = f"%{search.strip()}%"

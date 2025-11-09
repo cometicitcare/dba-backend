@@ -52,14 +52,34 @@ class GramasewakaService:
         return gramasewaka_repo.create(db, data=create_payload)
 
     def list_gramasewaka(
-        self, db: Session, *, skip: int = 0, limit: int = 100, search: Optional[str] = None
+        self,
+        db: Session,
+        *,
+        skip: int = 0,
+        limit: int = 100,
+        search: Optional[str] = None,
+        divisional_code: Optional[str] = None,
     ) -> list[Gramasewaka]:
         limit = max(1, min(limit, 200))
         skip = max(0, skip)
-        return gramasewaka_repo.list(db, skip=skip, limit=limit, search=search)
+        return gramasewaka_repo.list(
+            db,
+            skip=skip,
+            limit=limit,
+            search=search,
+            divisional_code=divisional_code,
+        )
 
-    def count_gramasewaka(self, db: Session, *, search: Optional[str] = None) -> int:
-        return gramasewaka_repo.count(db, search=search)
+    def count_gramasewaka(
+        self,
+        db: Session,
+        *,
+        search: Optional[str] = None,
+        divisional_code: Optional[str] = None,
+    ) -> int:
+        return gramasewaka_repo.count(
+            db, search=search, divisional_code=divisional_code
+        )
 
     def get_gramasewaka(self, db: Session, *, gn_id: int) -> Optional[Gramasewaka]:
         return gramasewaka_repo.get(db, gn_id)

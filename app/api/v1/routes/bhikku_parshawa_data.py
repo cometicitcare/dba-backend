@@ -15,7 +15,6 @@ from app.schemas.parshawadata import (
 )
 from app.services.parshawadata_service import parshawa_service
 from app.utils.http_exceptions import validation_error
-from app.utils.authorization import ensure_crud_permission
 
 router = APIRouter(tags=["Bhikku Parshawa Data"])
 
@@ -29,7 +28,6 @@ def manage_parshawa_records(
     action = request.action
     payload = request.payload
     user_id = current_user.ua_user_id
-    ensure_crud_permission(db, user_id, "bhikku_parshawa_data", action)
 
     if action == CRUDAction.CREATE:
         if not payload.data or not isinstance(payload.data, ParshawaCreate):

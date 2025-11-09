@@ -1,0 +1,2727 @@
+{
+	"info": {
+		"_postman_id": "b1a32018-7055-4b64-be5c-39ba8ca0958b",
+		"name": "DBA Backend API",
+		"description": "Collection covering health, auth, user, bhikku, vihara, and beneficiary endpoints for the DBA backend.\n\nMost secured endpoints expect an `access_token` HTTP-only cookie that you obtain through the **Login** request. Execute **Auth ▸ Login** first, then replay the protected requests in the same Postman session so the cookie is reused automatically.",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "30102257",
+		"_collection_link": "https://galactic-desert-161188.postman.co/workspace/My-Workspace~d61e2918-d31a-4037-821e-9c8b42aa8095/collection/30102257-b1a32018-7055-4b64-be5c-39ba8ca0958b?action=share&source=collection_link&creator=30102257"
+	},
+	"item": [
+		{
+			"name": "Health",
+			"item": [
+				{
+					"name": "Health Check",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/health",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"health"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Auth",
+			"item": [
+				{
+					"name": "Get Roles",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/auth/roles",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"auth",
+								"roles"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Register User",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"ua_username\": \"newuser{{$timestamp}}\",\n  \"ua_password\": \"Pass@1234\",\n  \"ua_email\": \"newuser{{$timestamp}}@example.com\",\n  \"ua_first_name\": \"New\",\n  \"ua_last_name\": \"User\",\n  \"ua_phone\": \"0771234567\",\n  \"ro_role_id\": \"{{role_id}}\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/auth/register",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"auth",
+								"register"
+							]
+						},
+						"description": "Registers a new user via the auth service. Ensure `ro_role_id` matches an existing role."
+					},
+					"response": []
+				},
+				{
+					"name": "Login",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"pm.test(\"Login successful\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"ua_username\": \"{{auth_username}}\",\n  \"ua_password\": \"{{auth_password}}\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/auth/login",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"auth",
+								"login"
+							]
+						},
+						"description": "Authenticates using username/password. The response sets `access_token` and `refresh_token` cookies used by protected routes."
+					},
+					"response": []
+				},
+				{
+					"name": "Refresh Token",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/auth/refresh",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"auth",
+								"refresh"
+							]
+						},
+						"description": "Refreshes the access token using the `refresh_token` cookie."
+					},
+					"response": []
+				},
+				{
+					"name": "Logout",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/auth/logout",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"auth",
+								"logout"
+							]
+						},
+						"description": "Clears authentication cookies."
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Dashboard",
+			"item": [
+				{
+					"name": "Check Login Status",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/dashboard/session",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"dashboard",
+								"session"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Bhikku Management",
+			"item": [
+				{
+					"name": "Create Bhikku",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"action\": \"CREATE\",\n  \"payload\": {\n    \"data\": {\n      \"br_reqstdate\": \"2024-01-15\",\n      \"br_birthpls\": \"Kandy\",\n      \"br_province\": \"Central\",\n      \"br_district\": \"Kandy\",\n      \"br_korale\": \"Udunuwara\",\n      \"br_pattu\": \"Harispattuwa\",\n      \"br_division\": \"Peradeniya\",\n      \"br_vilage\": \"Mahakanda\",\n      \"br_gndiv\": \"GN010\",\n      \"br_gihiname\": \"Mahinda Perera\",\n      \"br_dofb\": \"1990-07-20\",\n      \"br_fathrname\": \"Sunil Perera\",\n      \"br_remarks\": \"Transferred from another temple\",\n      \"br_currstat\": \"ST03\",\n      \"br_effctdate\": \"2024-01-15\",\n      \"br_parshawaya\": \"PR001\",\n      \"br_livtemple\": \"TRN0000008\",\n      \"br_mahanatemple\": \"TRN0000008\",\n      \"br_mahanaacharyacd\": \"BH2025000006\",\n      \"br_multi_mahanaacharyacd\": \"ACH-002\",\n      \"br_mahananame\": \"Ven. Rathana Thero\",\n      \"br_mahanadate\": \"2015-05-20\",\n      \"br_cat\": \"CAT01\",\n      \"br_mobile\": \"0701234567\",\n      \"br_email\": \"mahinda.perera@example.com\",\n      \"br_fathrsaddrs\": \"123 Temple Road, Kandy\",\n      \"br_fathrsmobile\": \"0719876593\",\n      \"br_upasampada_serial_no\": \"UPS2025001\"\n    }\n  }\n}\n"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/bhikkus/manage",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"bhikkus",
+								"manage"
+							]
+						},
+						"description": "Creates a bhikku record. `br_regn` will be auto-generated when null."
+					},
+					"response": []
+				},
+				{
+					"name": "Get Bhikku (READ_ONE)",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"action\": \"READ_ONE\",\n  \"payload\": {\n    \"br_regn\": \"BH2025000027\"\n  }\n}\n"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/bhikkus/manage",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"bhikkus",
+								"manage"
+							]
+						},
+						"description": "Retrieves a single bhikku by registration number. Replace `{{bhikku_regn}}` with an existing value."
+					},
+					"response": []
+				},
+				{
+					"name": "List Bhikkus (READ_ALL)",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"action\": \"READ_ALL\",\n  \"payload\": {\n    \"skip\": 0,\n    \"limit\": 20,\n    \"page\": 1,\n    \"search_key\": \"\"\n  }\n}\n"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/bhikkus/manage",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"bhikkus",
+								"manage"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Update Bhikku",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"action\": \"UPDATE\",\n  \"payload\": {\n    \"br_regn\": \"BH2025000027\",\n    \"data\": {\n      \"br_reqstdate\": \"2024-02-01\",\n      \"br_birthpls\": \"Colombo\",\n      \"br_province\": \"Western\",\n      \"br_district\": \"Colombo\",\n      \"br_korale\": \"Colombo\",\n      \"br_pattu\": \"Colombo\",\n      \"br_division\": \"Kollupitiya\",\n      \"br_vilage\": \"Kollupitiya\",\n      \"br_gndiv\": \"GN005\",\n      \"br_gihiname\": \"Mahinda Perera\",\n      \"br_dofb\": \"1990-07-20\",\n      \"br_fathrname\": \"Sunil Perera\",\n      \"br_remarks\": \"Profile refreshed with latest records\",\n      \"br_currstat\": \"ST03\",\n      \"br_effctdate\": \"2024-02-05\",\n      \"br_parshawaya\": \"PR002\",\n      \"br_livtemple\": \"TRN0000008\",\n      \"br_mahanatemple\": \"TRN0000029\",\n      \"br_mahanaacharyacd\": \"BH2025000006\",\n      \"br_multi_mahanaacharyacd\": \"ACH-002,ACH-004\",\n      \"br_mahananame\": \"Ven. Rathana Thero\",\n      \"br_mahanadate\": \"2015-05-20\",\n      \"br_cat\": \"CAT02\",\n      \"br_mobile\": \"0701234599\",\n      \"br_email\": \"mahinda.perera.updated@example.com\",\n      \"br_fathrsaddrs\": \"456 Temple Lane, Colombo\",\n      \"br_fathrsmobile\": \"0719876590\",\n      \"br_upasampada_serial_no\": \"UPS2025001\"\n    }\n  }\n}\n"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/bhikkus/manage",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"bhikkus",
+								"manage"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Delete Bhikku",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"action\": \"DELETE\",\n  \"payload\": {\n    \"br_regn\": \"{{bhikku_regn}}\"\n  }\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/bhikkus/manage",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"bhikkus",
+								"manage"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Vihara Management",
+			"item": [
+				{
+					"name": "Create Vihara",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"action\": \"CREATE\",\n  \"payload\": {\n    \"data\": {\n      \"vh_vname\": \"Sample Vihara\",\n      \"vh_addrs\": \"123 Temple Road\",\n      \"vh_mobile\": \"0711234611\",\n      \"vh_whtapp\": \"0711364567\",\n      \"vh_email\": \"vihara1@example.com\",\n      \"vh_typ\": \"MAIN\",\n      \"vh_gndiv\": \"GN001\",\n      \"vh_fmlycnt\": 10,\n      \"vh_bgndate\": \"2023-01-01\",\n      \"vh_ownercd\": \"BH2025000003\",\n      \"vh_parshawa\": \"PR001\",\n      \"vh_ssbmcode\": \"SB003\",\n      \"vh_syojakarmakrs\": \"Committee Name\",\n      \"vh_syojakarmdate\": \"2023-02-01\",\n      \"vh_landownrship\": \"Temple Trust\",\n      \"vh_pralename\": \"Registrar Name\",\n      \"vh_pralesigdate\": \"2023-03-01\",\n      \"vh_bacgrecmn\": \"Recommendation Note\",\n      \"vh_bacgrcmdate\": \"2023-04-01\",\n      \"vh_minissecrsigdate\": \"2023-05-01\",\n      \"vh_minissecrmrks\": \"Secretary remarks\",\n      \"vh_ssbmsigdate\": \"2023-06-01\"\n    }\n  }\n}\n"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/vihara-data/manage",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"vihara-data",
+								"manage"
+							]
+						},
+						"description": "Creates a vihara record. Ensure `vh_ownercd` references an existing bhikku/user as required by the database."
+					},
+					"response": []
+				},
+				{
+					"name": "Get Vihara (READ_ONE)",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"action\": \"READ_ONE\",\n  \"payload\": {\n    \"vh_id\": {{vihara_id}}\n  }\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/vihara-data/manage",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"vihara-data",
+								"manage"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "List Viharas (READ_ALL)",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"action\": \"READ_ALL\",\n  \"payload\": {\n    \"skip\": 0,\n    \"limit\": 10,\n    \"page\": 1,\n    \"search_key\": \"\"\n  }\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/vihara-data/manage",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"vihara-data",
+								"manage"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Update Vihara",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"action\": \"UPDATE\",\n  \"payload\": {\n    \"vh_id\": 41,\n    \"data\": {\n      \"vh_vname\": \"Updated Sample Vihara\",\n      \"vh_addrs\": \"456 New Temple Lane\",\n      \"vh_mobile\": \"0711234611\",\n      \"vh_whtapp\": \"0711364567\",\n      \"vh_email\": \"vihara1@example.com\",\n      \"vh_typ\": \"MAIN\",\n      \"vh_gndiv\": \"GN001\",\n      \"vh_fmlycnt\": 15,\n      \"vh_bgndate\": \"2023-01-01\",\n      \"vh_ownercd\": \"BH2025000003\",\n      \"vh_parshawa\": \"PR002\",\n      \"vh_ssbmcode\": \"SB002\",\n      \"vh_syojakarmakrs\": \"Updated Committee Name\",\n      \"vh_syojakarmdate\": \"2023-07-01\",\n      \"vh_landownrship\": \"Temple Trust\",\n      \"vh_pralename\": \"Updated Registrar\",\n      \"vh_pralesigdate\": \"2023-08-01\",\n      \"vh_bacgrecmn\": \"Updated Recommendation\",\n      \"vh_bacgrcmdate\": \"2023-09-01\",\n      \"vh_minissecrsigdate\": \"2023-10-01\",\n      \"vh_minissecrmrks\": \"Updated secretary remarks\",\n      \"vh_ssbmsigdate\": \"2023-11-01\"\n    }\n  }\n}\n"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/vihara-data/manage",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"vihara-data",
+								"manage"
+							]
+						},
+						"description": "Updates the specified vihara. Replace `{{vihara_id}}` with the numeric identifier returned by create/list."
+					},
+					"response": []
+				},
+				{
+					"name": "Delete Vihara",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"action\": \"DELETE\",\n  \"payload\": {\n    \"vh_id\": {{vihara_id}}\n  }\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/vihara-data/manage",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"vihara-data",
+								"manage"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Beneficiary Management",
+			"item": [
+				{
+					"name": "Create Beneficiary",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"action\": \"CREATE\",\n  \"payload\": {\n    \"data\": {\n      \"bf_bfname\": \"Sumanadasa Perera\",\n      \"bf_bfaddrs\": \"42 Temple Lane, Kandy\",\n      \"bf_mobile\": \"0711234590\",\n      \"bf_whatapp\": \"0711234590\",\n      \"bf_email\": \"sumanadasa.perera1@example.com\"\n    }\n  }\n}\n"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/beneficiary-data/manage",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"beneficiary-data",
+								"manage"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Beneficiary (READ_ONE)",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"action\": \"READ_ONE\",\n  \"payload\": {\n    \"bf_id\": {{beneficiary_id}}\n  }\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/beneficiary-data/manage",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"beneficiary-data",
+								"manage"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "List Beneficiaries (READ_ALL)",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"action\": \"READ_ALL\",\n  \"payload\": {\n    \"skip\": 0,\n    \"limit\": 10,\n    \"page\": 1,\n    \"search_key\": \"\"\n  }\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/beneficiary-data/manage",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"beneficiary-data",
+								"manage"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Update Beneficiary",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"action\": \"UPDATE\",\n  \"payload\": {\n    \"bf_id\": 15,\n    \"data\": {\n      \"bf_bfname\": \"Sumanadasa R. Perera\",\n      \"bf_bfaddrs\": \"88 River View, Kandy\",\n      \"bf_mobile\": \"0759876543\",\n      \"bf_whatapp\": \"0759876543\",\n      \"bf_email\": \"sumanadasa.perera+updated@example.com\"\n    }\n  }\n}\n"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/beneficiary-data/manage",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"beneficiary-data",
+								"manage"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Delete Beneficiary",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"action\": \"DELETE\",\n  \"payload\": {\n    \"bf_id\": {{beneficiary_id}}\n  }\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/beneficiary-data/manage",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"beneficiary-data",
+								"manage"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "High Bhikku Management",
+			"item": [
+				{
+					"name": "Create High Bhikku",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"action\": \"CREATE\",\n  \"payload\": {\n    \"data\": {\n      \"bhr_reqstdate\": \"2024-05-16\",\n      \"bhr_currstat\": \"ACT\",\n      \"bhr_parshawaya\": \"SYAM\",\n      \"bhr_livtemple\": \"VIH001\",\n      \"bhr_samanera_serial_no\": \"BH2025000008\",\n      \"bhr_mahanaacharyacd\": \"BH2025000003\",\n      \"bhr_multi_mahanaacharyacd\": \"BR2023008,BR2023009\",\n      \"bhr_karmacharya\": \"BH2025000004\",\n      \"bhr_multi_karmacharya\": \"BR2023010,BR2023011\",\n      \"bhr_ordination_temple\": \"TRN0000008\",\n      \"bhr_mahanadate\": \"2010-06-12\",\n      \"bhr_effctdate\": \"2010-06-15\",\n      \"bhr_gndiv\": \"GN003\",\n      \"bhr_remarks\": \"Ordained at the main temple.\",\n      \"bhr_mahananame\": \"Ven. Maha Sthavira\",\n      \"bhr_cat\": \"CAT1\",\n      \"bhr_mobile\": \"0711234567\",\n      \"bhr_email\": \"ven.maha@example.com\"\n    }\n  }\n}\n",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/bhikkus-high/manage",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"bhikkus-high",
+								"manage"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get High Bhikku (READ_ONE)",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"action\": \"READ_ONE\",\n  \"payload\": {\n    \"bhr_regn\": \"UPS2025006\"\n  }\n}\n",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/bhikkus-high/manage",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"bhikkus-high",
+								"manage"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "List High Bhikkus (READ_ALL)",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"action\": \"READ_ALL\",\n  \"payload\": {\n    \"page\": 1,\n    \"limit\": 50,\n    \"search_key\": \"\"\n  }\n}\n",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/bhikkus-high/manage",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"bhikkus-high",
+								"manage"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Update High Bhikku",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"action\": \"UPDATE\",\n  \"payload\": {\n    \"bhr_id\": 8,\n    \"data\": {\n      \"bhr_reqstdate\": \"2024-06-01\",\n      \"bhr_currstat\": \"AC02\",\n      \"bhr_parshawaya\": \"SYAM\",\n      \"bhr_livtemple\": \"VIH015\",\n      \"bhr_samanera_serial_no\": \"BH2025000008\",\n      \"bhr_mahanaacharyacd\": \"BH2025000003\",\n      \"bhr_multi_mahanaacharyacd\": \"BR2023008,BR2023012\",\n      \"bhr_karmacharya\": \"BH2025000004\",\n      \"bhr_multi_karmacharya\": \"BR2023010,BR2023013\",\n      \"bhr_ordination_temple\": \"TRN0000008\",\n      \"bhr_mahanadate\": \"2010-06-12\",\n      \"bhr_effctdate\": \"2024-06-05\",\n      \"bhr_gndiv\": \"GN004\",\n      \"bhr_remarks\": \"Transferred to the training temple in June 2024.\",\n      \"bhr_mahananame\": \"Ven. Maha Sthavira\",\n      \"bhr_cat\": \"CAT2\",\n      \"bhr_mobile\": \"0717654321\",\n      \"bhr_email\": \"ven.maha.sthavira@example.com\"\n    }\n  }\n}\n",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/bhikkus-high/manage",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"bhikkus-high",
+								"manage"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Delete High Bhikku",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"action\": \"DELETE\",\n  \"payload\": {\n    \"bhr_id\": 8\n  }\n}\n",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/bhikkus-high/manage",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"bhikkus-high",
+								"manage"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Bhikku Certification Management",
+			"item": [
+				{
+					"name": "Create Bhikku Certification",
+					"request": {
+						"method": "POST",
+						"header": []
+					},
+					"response": []
+				},
+				{
+					"name": "Get One Bhikku Certification",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"action\": \"READ_ONE\",\n  \"payload\": {\n    \"bc_id\": 3\n  }\n}\n",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/bhikkus-certifications/manage",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"bhikkus-certifications",
+								"manage"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get All Bhikku Certification",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"action\": \"READ_ALL\",\n  \"payload\": {\n    \"page\": 1,\n    \"limit\": 20,\n    \"search_key\": \"\"\n  }\n}\n",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/bhikkus-certifications/manage",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"bhikkus-certifications",
+								"manage"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Update Bhikku Certification",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"action\": \"UPDATE\",\n  \"payload\": {\n    \"bc_id\": 3,\n    \"data\": {\n      \"bc_payamount\": 800,\n      \"bc_paydate\": \"2024-01-25\",\n      \"bc_admnusr\": \"US003\",\n      \"bc_adminautho\": \"දිස්ත්‍රික් ලේකම්\",\n      \"bc_prtoptn\": \"PRT01\"\n    }\n  }\n}\n",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/bhikkus-certifications/manage",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"bhikkus-certifications",
+								"manage"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Delete Bhikku Certification",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"action\": \"DELETE\",\n  \"payload\": {\n    \"bc_id\": 4\n  }\n}\n",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/bhikkus-certifications/manage",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"bhikkus-certifications",
+								"manage"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Nilame Management",
+			"item": [
+				{
+					"name": "Create Nilame",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"action\": \"CREATE\",\n  \"payload\": {\n    \"data\": {\n      \"kr_kname\": \"Kandyan Nilame\",\n      \"kr_nic\": \"902345678V\",\n      \"kr_nic_issue_date\": \"2010-08-12\",\n      \"kr_dofb\": \"1990-04-22\",\n      \"kr_addrs\": \"123 Temple Road, Kandy\",\n      \"kr_grndiv\": \"GN006\",\n      \"kr_trn\": \"TRN0000008\"\n    }\n  }\n}\n",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/nilame/manage",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"nilame",
+								"manage"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Nilame (READ_ONE)",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"action\": \"READ_ONE\",\n  \"payload\": {\n    \"kr_id\": 12\n  }\n}\n",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/nilame/manage",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"nilame",
+								"manage"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "List Nilame (READ_ALL)",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"action\": \"READ_ALL\",\n  \"payload\": {\n    \"page\": 1,\n    \"limit\": 10,\n    \"search_key\": \"\"\n  }\n}\n",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/nilame/manage",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"nilame",
+								"manage"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Update Nilame",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/nilame/manage",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"nilame",
+								"manage"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Delete Nilame Certification",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"action\": \"DELETE\",\n  \"payload\": {\n    \"kr_id\": 12\n  }\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/nilame/manage",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"nilame",
+								"manage"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Certificates Data Management",
+			"item": [
+				{
+					"name": "Create Cetificates Data",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/certificates/manage",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"certificates",
+								"manage"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get One Cetificates Data",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/certificates/manage",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"certificates",
+								"manage"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get All Cetificates Data",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/certificates/manage",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"certificates",
+								"manage"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Update Cetificates Data",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/certificates/manage",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"certificates",
+								"manage"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Delete Cetificates Data",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/certificates/manage",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"certificates",
+								"manage"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Bhikku Summary Management",
+			"item": [
+				{
+					"name": "Create Bhikku Summary",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"action\": \"CREATE\",\n  \"payload\": {\n    \"bs_regn\": \"BH2025000011\",\n    \"skip\": 0,\n    \"limit\": 10,\n    \"page\": 1,\n    \"search_key\": \"\",\n    \"data\": {\n      \"bs_regn\": \"BH2025000011\",\n      \"bs_mahananame\": \"Ven. Mahanama Thero\",\n      \"bs_birthpls\": \"Kandy\",\n      \"bs_gihiname\": \"Nimal Perera\",\n      \"bs_dofb\": \"1980-05-10\",\n      \"bs_fathrname\": \"Sarath Perera\",\n      \"bs_mahanadate\": \"2000-06-15\",\n      \"bs_teacher\": \"Ven. Rathana Thero\",\n      \"bs_teachadrs\": \"Maha Viharaya, Colombo\",\n      \"bs_mhanavh\": \"TRN0000004\",\n      \"bs_livetemple\": \"TRN0000004\",\n      \"bs_viharadipathi\": \"Ven. Sumanasiri Thero\",\n      \"bs_pname\": \"Ven. Piyananda Thero\",\n      \"bs_nname\": \"Piyananda\",\n      \"bs_nikayanayaka\": \"Ven. Ananda Thero\",\n      \"bs_effctdate\": \"2025-10-21\",\n      \"bs_curstatus\": \"ST01\",\n      \"bs_catogry\": \"CAT01\",\n      \"bs_vadescrdtls\": \"Serves as assistant head monk of Maha Viharaya\",\n      \"bs_qualifications\": \"BA in Buddhist Studies, University of Kelaniya\"\n    }\n  }\n}\n",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/bhikkus-summary/manage",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"bhikkus-summary",
+								"manage"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get One Bhikku Summary",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"action\": \"READ_ONE\",\n  \"payload\": {\n    \"bs_regn\": \"BH2025000010\"\n  }\n}\n",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/bhikkus-summary/manage",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"bhikkus-summary",
+								"manage"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get All Bhikku Summary",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"action\": \"READ_ALL\",\n  \"payload\": {\n    \"skip\": 0,\n    \"limit\": 10,\n    \"page\": 1,\n    \"search_key\": \"\"\n  }\n}\n",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/bhikkus-summary/manage",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"bhikkus-summary",
+								"manage"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Update Bhikku Summary",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"action\": \"UPDATE\",\n  \"payload\": {\n    \"bs_regn\": \"BH2025000010\",\n    \"data\": {\n      \"bs_mahananame\": \"Ven. Mahanama Thero Updated\",\n      \"bs_curstatus\": \"ST02\",\n      \"bs_catogry\": \"CAT02\",\n      \"bs_qualifications\": \"Updated qualification details\",\n      \"bs_vadescrdtls\": \"Now serving as the head monk of the main temple\"\n    }\n  }\n}\n",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/bhikkus-summary/manage",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"bhikkus-summary",
+								"manage"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Delete Bhikku Summary",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"action\": \"DELETE\",\n  \"payload\": {\n    \"bs_regn\": \"BH2025000010\"\n  }\n}\n",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/bhikkus-summary/manage",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"bhikkus-summary",
+								"manage"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Certificate Changes Management",
+			"item": [
+				{
+					"name": "New Request",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"action\": \"CREATE\",\n  \"payload\": {\n    \"data\": {\n      \"ch_dofchg\": \"2025-10-25\",\n      \"ch_prt\": \"PRT02\",\n      \"ch_regno\": \"BH2025000005\",\n      \"ch_autho\": \"Registrar\",\n      \"ch_admnusr\": \"US003\",\n      \"ch_dptusr\": \"US002\"\n    }\n  }\n}\n",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/certificate-changes/manage",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"certificate-changes",
+								"manage"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "New Request",
+					"request": {
+						"method": "GET",
+						"header": []
+					},
+					"response": []
+				},
+				{
+					"name": "New Request",
+					"request": {
+						"method": "GET",
+						"header": []
+					},
+					"response": []
+				},
+				{
+					"name": "New Request",
+					"request": {
+						"method": "GET",
+						"header": []
+					},
+					"response": []
+				},
+				{
+					"name": "New Request",
+					"request": {
+						"method": "GET",
+						"header": []
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Bhikku Nikaya Data Management",
+			"item": [
+				{
+					"name": "Create Nikaya",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"action\": \"CREATE\",\n  \"payload\": {\n    \"data\": {\n      \"nk_nname\": \"Siyam Nikaya\",\n      \"nk_nahimicd\": \"BH2025000002\",\n      \"nk_startdate\": \"2025-10-28\",\n      \"nk_rmakrs\": \"Main Theravada lineage in Sri Lanka\",\n      \"nk_nkn\": \"SN\"\n    }\n  }\n}\n"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/bhikku-nikaya-data/manage",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"bhikku-nikaya-data",
+								"manage"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get One Nikaya Data",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"action\": \"READ_ONE\",\n  \"payload\": {\n    \"nk_id\": 1\n  }\n}\n",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/bhikku-nikaya-data/manage",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"bhikku-nikaya-data",
+								"manage"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get All Nikaya Data",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"action\": \"READ_ALL\",\n  \"payload\": {\n    \"skip\": 0,\n    \"limit\": 10,\n    \"page\": 1,\n    \"search_key\": \"\"\n  }\n}\n",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/bhikku-nikaya-data/manage",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"bhikku-nikaya-data",
+								"manage"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Update Nikaya Data",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/bhikku-nikaya-data/manage",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"bhikku-nikaya-data",
+								"manage"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Delete Nikaya Data",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"action\": \"DELETE\",\n  \"payload\": {\n    \"nk_id\": 5\n  }\n}\n",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/bhikku-nikaya-data/manage",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"bhikku-nikaya-data",
+								"manage"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Bhikku Parshawa Data Management",
+			"item": [
+				{
+					"name": "Create Bhikku Parshawa Data",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"action\": \"CREATE\",\n  \"payload\": {\n    \"data\": {\n      \"pr_prn\": \"PRN-20250001\",\n      \"pr_pname\": \"Anuradhapura West Parshawa\",\n      \"pr_nayakahimi\": \"BH2025000003\",\n      \"pr_rmrks\": \"Established for the western province bhikkus.\",\n      \"pr_startdate\": \"2024-05-01\",\n      \"pr_nikayacd\": \"NK002\"\n    }\n  }\n}\n",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/bhikku-parshawa-data/manage",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"bhikku-parshawa-data",
+								"manage"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get One Bhikku Parshawa Data",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"action\": \"READ_ONE\",\n  \"payload\": {\n    \"pr_id\": 6\n  }\n}\n",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/bhikku-parshawa-data/manage",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"bhikku-parshawa-data",
+								"manage"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get All Bhikku Parshawa Data",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"action\": \"READ_ALL\",\n  \"payload\": {\n    \"page\": 1,\n    \"limit\": 20,\n    \"search_key\": \"\",\n    \"skip\": 0\n  }\n}\n",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/bhikku-parshawa-data/manage",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"bhikku-parshawa-data",
+								"manage"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Update Bhikku Parshawa Data",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"action\": \"UPDATE\",\n  \"payload\": {\n    \"pr_id\": 6,\n    \"data\": {\n      \"pr_prn\": \"PRN02\",\n      \"pr_pname\": \"Anuradhapura West Parshawa - Updated\",\n      \"pr_rmrks\": \"Updated remarks for the western province bhikkus.\",\n      \"pr_nayakahimi\": \"BH2025000003\",\n      \"pr_nikayacd\": \"NK002\"\n    }\n  }\n}\n",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/bhikku-parshawa-data/manage",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"bhikku-parshawa-data",
+								"manage"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Delete Bhikku Parshawa Data",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"action\": \"DELETE\",\n  \"payload\": {\n    \"pr_id\": 6\n  }\n}\n",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/bhikku-parshawa-data/manage",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"bhikku-parshawa-data",
+								"manage"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Payment Methods Management",
+			"item": [
+				{
+					"name": "Create Payment Methods",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"action\": \"CREATE\",\n  \"payload\": {\n    \"data\": {\n      \"pm_method_name\": \"Bank Transfer\",\n      \"pm_is_active\": true\n    }\n  }\n}\n",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/payment-methods/manage",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"payment-methods",
+								"manage"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Read One Payment Methods",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"action\": \"READ_ONE\",\n  \"payload\": {\n    \"pm_code\": \"PAY006\"\n  }\n}\n",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/payment-methods/manage",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"payment-methods",
+								"manage"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Read All Payment Methods",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"action\": \"READ_ALL\",\n  \"payload\": {\n    \"skip\": 0,\n    \"limit\": 10,\n    \"page\": 1,\n    \"search_key\": \"\"\n  }\n}\n",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/payment-methods/manage",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"payment-methods",
+								"manage"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Update Payment Methods",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"action\": \"UPDATE\",\n  \"payload\": {\n    \"pm_id\": 6,\n    \"data\": {\n      \"pm_method_name\": \"Bank Transfer (International)\",\n      \"pm_is_active\": false\n    }\n  }\n}\n",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/payment-methods/manage",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"payment-methods",
+								"manage"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Delete Payment Methods",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"action\": \"DELETE\",\n  \"payload\": {\n    \"pm_id\": 6\n  }\n}\n",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/payment-methods/manage",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"payment-methods",
+								"manage"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Religion Management",
+			"item": [
+				{
+					"name": "Create Religion",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/religion/manage",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"religion",
+								"manage"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get One Religion",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"action\": \"READ_ONE\",\n  \"payload\": {\n    \"rl_id\": 5\n  }\n}\n",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/religion/manage",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"religion",
+								"manage"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get All Religions",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/religion/manage",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"religion",
+								"manage"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Update Religion",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/religion/manage",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"religion",
+								"manage"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Delete Religion",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/religion/manage",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"religion",
+								"manage"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Province Management",
+			"item": [
+				{
+					"name": "Create Province",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"action\": \"CREATE\",\n  \"payload\": {\n    \"data\": {\n      \"cp_code\": \"WP\",\n      \"cp_name\": \"Western Province\"\n    }\n  }\n}\n"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/province/manage",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"province",
+								"manage"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get One Province",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"action\": \"READ_ONE\",\n  \"payload\": {\n    \"cp_code\": \"WP\"\n  }\n}\n",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/province/manage",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"province",
+								"manage"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get All Province",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"action\": \"READ_ALL\",\n  \"payload\": {\n    \"page\": 1,\n    \"limit\": 20,\n    \"search_key\": \"\"\n  }\n}\n",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/province/manage",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"province",
+								"manage"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Update Province",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"action\": \"UPDATE\",\n  \"payload\": {\n    \"cp_id\": 1,\n    \"data\": {\n      \"cp_name\": \"Western Province Updated\",\n      \"cp_code\": \"WP\"\n    }\n  }\n}\n",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/province/manage",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"province",
+								"manage"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Delete Province",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"action\": \"DELETE\",\n  \"payload\": {\n    \"cp_id\": 1\n  }\n}\n",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/province/manage",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"province",
+								"manage"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "District Management",
+			"item": [
+				{
+					"name": "Create District",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"action\": \"CREATE\",\n  \"payload\": {\n    \"data\": {\n      \"dd_dcode\": \"DC011\",\n      \"dd_dname\": \"Colombo\"\n    }\n  }\n}\n",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/district/manage",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"district",
+								"manage"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get One District",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"action\": \"READ_ONE\",\n  \"payload\": {\n    \"dd_id\": 11\n  }\n}\n",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/district/manage",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"district",
+								"manage"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get All District",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"action\": \"READ_ALL\",\n  \"payload\": {\n    \"page\": 1,\n    \"limit\": 10,\n    \"search_key\": \"\"\n  }\n}\n",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/district/manage",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"district",
+								"manage"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Update District",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"action\": \"DELETE\",\n  \"payload\": {\n    \"cp_id\": 1\n  }\n}\n"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/district/manage",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"district",
+								"manage"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Delete District",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"action\": \"DELETE\",\n  \"payload\": {\n    \"dd_id\": 11\n  }\n}\n",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/district/manage",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"district",
+								"manage"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Divisional Secretariat management",
+			"item": [
+				{
+					"name": "Create Divisional Secretariat",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"action\": \"CREATE\",\n  \"payload\": {\n    \"data\": {\n      \"dv_dvcode\": \"DV011\",\n      \"dv_distrcd\": \"DC003\",\n      \"dv_dvname\": \"Colombo Divisional Secretariat\"\n    }\n  }\n}\n",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/divisional-secretariat/manage",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"divisional-secretariat",
+								"manage"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get One Divisional Secretariat",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"action\": \"READ_ONE\",\n  \"payload\": {\n    \"dv_id\": 11\n  }\n}\n",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/divisional-secretariat/manage",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"divisional-secretariat",
+								"manage"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get All Divisional Secretariat",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"action\": \"READ_ALL\",\n  \"payload\": {\n    \"page\": 1,\n    \"limit\": 20,\n    \"search_key\": \"\"\n  }\n}\n",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/divisional-secretariat/manage",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"divisional-secretariat",
+								"manage"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Update Divisional Secretariat",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"action\": \"UPDATE\",\n  \"payload\": {\n    \"dv_id\": 11,\n    \"data\": {\n      \"dv_dvcode\": \"DV011\",\n      \"dv_distrcd\": \"DC003\",\n      \"dv_dvname\": \"Colombo Metropolitan Divisional Secretariat\"\n    }\n  }\n}\n",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/divisional-secretariat/manage",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"divisional-secretariat",
+								"manage"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Delete Divisional Secretariat",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"action\": \"DELETE\",\n  \"payload\": {\n    \"dv_id\": 11\n  }\n}\n",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/divisional-secretariat/manage",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"divisional-secretariat",
+								"manage"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Gramasewaka Management",
+			"item": [
+				{
+					"name": "Create Gramasewaka",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"action\": \"CREATE\",\n  \"payload\": {\n    \"data\": {\n      \"gn_gnc\": \"GN1203\",\n      \"gn_gnname\": \"Gampaha North\",\n      \"gn_mbile\": \"0712345678\",\n      \"gn_email\": \"gampaha.north@gov.lk\",\n      \"gn_dvcode\": \"DV009\"\n    }\n  }\n}\n",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/gramasewaka/manage",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"gramasewaka",
+								"manage"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get One Gramasewaka",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"action\": \"READ_ONE\",\n  \"payload\": {\n    \"gn_id\": 11\n  }\n}\n",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/gramasewaka/manage",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"gramasewaka",
+								"manage"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get All Gramasewaka",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"action\": \"READ_ALL\",\n  \"payload\": {\n    \"skip\": 0,\n    \"limit\": 10,\n    \"page\": 1,\n    \"search_key\": \"\"\n  }\n}\n",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/gramasewaka/manage",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"gramasewaka",
+								"manage"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Update Gramasewaka",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"action\": \"UPDATE\",\n  \"payload\": {\n    \"gn_id\": 11,\n    \"data\": {\n      \"gn_gnname\": \"Gampaha North Central\",\n      \"gn_mbile\": \"0776543210\",\n      \"gn_email\": \"gn-northcentral@gov.lk\"\n    }\n  }\n}\n",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/gramasewaka/manage",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"gramasewaka",
+								"manage"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Delete Gramasewaka",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"action\": \"DELETE\",\n  \"payload\": {\n    \"gn_id\": 11\n  }\n}\n",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/gramasewaka/manage",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"gramasewaka",
+								"manage"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Bhikku Category Management",
+			"item": [
+				{
+					"name": "Create Bhikku Category",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"action\": \"CREATE\",\n  \"payload\": {\n    \"cc_code\": \"THR01\",\n    \"data\": {\n      \"cc_code\": \"THR01\",\n      \"cc_catogry\": \"Theravada Senior\"\n    }\n  }\n}\n",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/bhikku-category/manage",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"bhikku-category",
+								"manage"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get One Bhikku Category",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"action\": \"READ_ONE\",\n  \"payload\": {\n    \"cc_id\": 6\n  }\n}\n",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/bhikku-category/manage",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"bhikku-category",
+								"manage"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get All Bhikku Category",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"action\": \"READ_ALL\",\n  \"payload\": {\n    \"page\": 1,\n    \"limit\": 20,\n    \"search_key\": \"Thera\"\n  }\n}\n",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/bhikku-category/manage",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"bhikku-category",
+								"manage"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Update Bhikku Category",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/bhikku-category/manage",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"bhikku-category",
+								"manage"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Delete Bhikku Category",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/bhikku-category/manage",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"bhikku-category",
+								"manage"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		}
+	],
+	"variable": [
+		{
+			"key": "baseUrl",
+			"value": "http://localhost:8000",
+			"type": "string"
+		},
+		{
+			"key": "role_id",
+			"value": "ADMIN",
+			"type": "string"
+		},
+		{
+			"key": "auth_username",
+			"value": "admin",
+			"type": "string"
+		},
+		{
+			"key": "auth_password",
+			"value": "Admin@123",
+			"type": "string"
+		},
+		{
+			"key": "bhikku_regn",
+			"value": "BH2025000010",
+			"type": "string"
+		},
+		{
+			"key": "vihara_id",
+			"value": "1",
+			"type": "string"
+		},
+		{
+			"key": "vihara_owner_id",
+			"value": "UA0000001",
+			"type": "string"
+		},
+		{
+			"key": "beneficiary_id",
+			"value": "1",
+			"type": "string"
+		}
+	]
+}

@@ -58,8 +58,12 @@ class GramasewakaRepository:
         skip: int = 0,
         limit: int = 100,
         search: Optional[str] = None,
+        divisional_code: Optional[str] = None,
     ) -> list[Gramasewaka]:
         query = db.query(Gramasewaka).filter(Gramasewaka.gn_is_deleted.is_(False))
+
+        if divisional_code:
+            query = query.filter(Gramasewaka.gn_dvcode == divisional_code)
 
         if search:
             pattern = f"%{search.strip()}%"
@@ -80,10 +84,19 @@ class GramasewakaRepository:
             .all()
         )
 
-    def count(self, db: Session, *, search: Optional[str] = None) -> int:
+    def count(
+        self,
+        db: Session,
+        *,
+        search: Optional[str] = None,
+        divisional_code: Optional[str] = None,
+    ) -> int:
         query = db.query(func.count(Gramasewaka.gn_id)).filter(
             Gramasewaka.gn_is_deleted.is_(False)
         )
+
+        if divisional_code:
+            query = query.filter(Gramasewaka.gn_dvcode == divisional_code)
 
         if search:
             pattern = f"%{search.strip()}%"

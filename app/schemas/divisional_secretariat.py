@@ -51,6 +51,7 @@ class DivisionalSecretariatOut(DivisionalSecretariatBase):
 class DivisionalSecretariatRequestPayload(BaseModel):
     dv_id: Optional[int] = None
     dv_dvcode: Optional[str] = Field(default=None, max_length=10)
+    dv_distrcd: Optional[str] = Field(default=None, max_length=10)
     skip: Annotated[int, Field(ge=0)] = 0
     limit: Annotated[int, Field(ge=1, le=200)] = 10
     page: Annotated[Optional[int], Field(ge=1)] = 1

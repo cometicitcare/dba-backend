@@ -1,14 +1,14 @@
 # app/api/v1/routes/dashboard.py
 from fastapi import APIRouter, Depends
 
-from app.api.auth_middleware import require_permission
+from app.api.auth_middleware import get_current_user
 from app.models.user import UserAccount
 
 router = APIRouter(tags=["Dashboard"])
 
 
 @router.get("/session")
-def session_status(current_user: UserAccount = Depends(require_permission("dashboard", "read"))):
+def session_status(current_user: UserAccount = Depends(get_current_user)):
     """Return session status for authenticated users."""
     return {
         "success": True,
@@ -18,3 +18,4 @@ def session_status(current_user: UserAccount = Depends(require_permission("dashb
             "username": current_user.ua_username,
         },
     }
+

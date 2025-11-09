@@ -15,9 +15,16 @@ from app.schemas.audit_log import (
     CRUDAction,
 )
 from app.utils.http_exceptions import validation_error
-from app.utils.authorization import ensure_crud_permission
 
 router = APIRouter(tags=["Audit Log"])
+
+
+def _is_system_user(user: UserAccount) -> bool:
+    try:
+        role = user.role
+        return bool(role and getattr(role, "ro_is_system_role", False))
+    except Exception:
+        return False
 
 
 @router.post("/manage", response_model=AuditLogManagementResponse)
@@ -28,8 +35,7 @@ def manage_audit_log(
 ) -> AuditLogManagementResponse:
     action = request.action
     payload = request.payload
-    user_id = current_user.ua_user_id
-    ensure_crud_permission(db, user_id, "audit_log", action)
+    is_admin = _is_system_user(current_user)
 
     if action == CRUDAction.READ_ONE:
         if not payload.al_id:
@@ -58,6 +64,12 @@ def manage_audit_log(
             totalRecords=total,
             page=page,
             limit=payload.limit,
+        )
+
+    if not is_admin:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You do not have permission to modify audit logs.",
         )
 
     if action == CRUDAction.DELETE:
@@ -108,3 +120,4 @@ def manage_audit_log(
         )
 
     raise validation_error([("action", "Invalid action specified")])
+

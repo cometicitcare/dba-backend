@@ -14,7 +14,6 @@ from app.schemas.nikaya import (
 )
 from app.services.nikaya_service import nikaya_service
 from app.utils.http_exceptions import validation_error
-from app.utils.authorization import ensure_crud_permission
 
 router = APIRouter(tags=["Bhikku Nikaya Data"])
 
@@ -28,7 +27,6 @@ def manage_bhikku_nikaya_data(
     action = request.action
     payload = request.payload
     actor_id = current_user.ua_user_id
-    ensure_crud_permission(db, actor_id, "bhikku_nikaya_data", action)
 
     if action == CRUDAction.CREATE:
         data = payload.data

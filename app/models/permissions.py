@@ -6,7 +6,6 @@ from app.models.mixins import AuditMixin
 
 class Permission(Base, AuditMixin):
     __tablename__ = "permissions"
-    __audit_field_prefix__ = "pe"
 
 
     pe_permission_id: Mapped[str] = mapped_column(String(10), primary_key=True)

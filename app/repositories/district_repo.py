@@ -43,7 +43,7 @@ class DistrictRepository:
         query = db.query(District).filter(District.dd_is_deleted.is_(False))
 
         if province_code:
-            query = query.filter(District.dd_cpcode == province_code.strip())
+            query = query.filter(District.dd_prcode == province_code)
 
         if search:
             pattern = f"%{search.strip()}%"
@@ -73,7 +73,7 @@ class DistrictRepository:
         )
 
         if province_code:
-            query = query.filter(District.dd_cpcode == province_code.strip())
+            query = query.filter(District.dd_prcode == province_code)
 
         if search:
             pattern = f"%{search.strip()}%"

@@ -6,7 +6,6 @@ from app.models.mixins import AuditMixin
 
 class RolePermission(Base, AuditMixin):
     __tablename__ = "role_permissions"
-    __audit_field_prefix__ = "rp"
 
 
     rp_id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
