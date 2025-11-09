@@ -102,6 +102,7 @@ class UserResponse(BaseModel):
     ua_phone: Optional[str]
     ua_status: str
     ro_role_id: str
+    role_ids: list[str] = []
     role: Optional[RoleBase] = None
 
     class Config:

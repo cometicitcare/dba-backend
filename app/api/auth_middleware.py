@@ -72,3 +72,24 @@ def get_optional_user(request: Request, db: Session = Depends(get_db)) -> Option
         return user
     except Exception:
         return None
+
+
+def require_permission(resource: str, action: str):
+    """
+    Dependency factory that ensures the current user has the given resource/action permission.
+    """
+
+    def dependency(
+        request: Request,
+        db: Session = Depends(get_db),
+        current_user: UserAccount = Depends(get_current_user),
+    ) -> UserAccount:
+        auth_service.require_permission(
+            db=db,
+            user_id=current_user.ua_user_id,
+            resource=resource,
+            action=action,
+        )
+        return current_user
+
+    return dependency

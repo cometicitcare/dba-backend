@@ -8,6 +8,7 @@ from app.models.user import UserAccount
 from app.repositories.bhikku_certification_repo import bhikku_certification_repo
 from app.schemas import bhikku_certification as schemas
 from app.utils.http_exceptions import validation_error
+from app.utils.authorization import ensure_crud_permission
 
 router = APIRouter(tags=["Bhikku Certification"])
 
@@ -21,6 +22,7 @@ def manage_bhikku_certification_records(
     action = request.action
     payload = request.payload
     user_id = current_user.ua_user_id
+    ensure_crud_permission(db, user_id, "bhikku_certifications", action)
 
     if action == schemas.CRUDAction.CREATE:
         if not payload.data or not isinstance(payload.data, schemas.BhikkuCertificationCreate):
@@ -124,4 +126,3 @@ def manage_bhikku_certification_records(
         )
 
     raise validation_error([("action", "Invalid action specified")])
-

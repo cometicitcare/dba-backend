@@ -9,6 +9,7 @@ from app.models.user import UserAccount
 from app.schemas import bank as schemas
 from app.services.bank_service import bank_service
 from app.utils.http_exceptions import validation_error
+from app.utils.authorization import ensure_crud_permission
 
 router = APIRouter(tags=["Banks"])
 
@@ -22,6 +23,7 @@ def manage_bank_records(
     action = request.action
     payload = request.payload
     user_id = current_user.ua_user_id
+    ensure_crud_permission(db, user_id, "banks", action)
 
     if action == schemas.CRUDAction.CREATE:
         if not payload.data:

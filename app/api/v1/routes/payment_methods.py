@@ -9,6 +9,7 @@ from app.models.user import UserAccount
 from app.schemas import payment_method as schemas
 from app.services.payment_method_service import payment_method_service
 from app.utils.http_exceptions import validation_error
+from app.utils.authorization import ensure_crud_permission
 
 router = APIRouter(tags=["Payment Methods"])
 
@@ -22,6 +23,7 @@ def manage_payment_methods(
     action = request.action
     payload = request.payload
     user_id = current_user.ua_user_id
+    ensure_crud_permission(db, user_id, "payment_methods", action)
 
     def _as_plain_dict(data: object, *, exclude_unset: bool = False) -> object:
         if isinstance(data, BaseModel):

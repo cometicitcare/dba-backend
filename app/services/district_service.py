@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 from app.models.district import District
 from app.models.user import UserAccount
 from app.repositories.district_repo import district_repo
+from app.repositories.province_repo import province_repo
 from app.schemas.district import DistrictCreate, DistrictUpdate
 
 
@@ -23,6 +24,7 @@ class DistrictService:
         self._validate_required_fields(payload_dict, require_all=True)
         self._validate_user_reference(db, payload_dict.get("dd_created_by"), "dd_created_by")
         self._validate_user_reference(db, payload_dict.get("dd_updated_by"), "dd_updated_by")
+        self._validate_province_reference(db, payload_dict.get("dd_cpcode"))
         self._ensure_unique_code(db, payload_dict["dd_dcode"])
 
         create_payload = DistrictCreate(**payload_dict)
@@ -35,13 +37,22 @@ class DistrictService:
         skip: int = 0,
         limit: int = 100,
         search: Optional[str] = None,
+        province_code: Optional[str] = None,
     ) -> list[District]:
         limit = max(1, min(limit, 200))
         skip = max(0, skip)
-        return district_repo.list(db, skip=skip, limit=limit, search=search)
+        return district_repo.list(
+            db, skip=skip, limit=limit, search=search, province_code=province_code
+        )
 
-    def count_districts(self, db: Session, *, search: Optional[str] = None) -> int:
-        return district_repo.count(db, search=search)
+    def count_districts(
+        self,
+        db: Session,
+        *,
+        search: Optional[str] = None,
+        province_code: Optional[str] = None,
+    ) -> int:
+        return district_repo.count(db, search=search, province_code=province_code)
 
     def get_district(self, db: Session, *, dd_id: int) -> Optional[District]:
         return district_repo.get(db, dd_id)
@@ -73,6 +84,11 @@ class DistrictService:
             if update_data["dd_dcode"] != entity.dd_dcode:
                 self._ensure_unique_code(db, update_data["dd_dcode"])
 
+        if "dd_cpcode" in update_data:
+            if not self._has_value(update_data["dd_cpcode"]):
+                raise ValueError("dd_cpcode cannot be empty.")
+            self._validate_province_reference(db, update_data["dd_cpcode"])
+
         update_data["dd_updated_by"] = actor_id
         self._validate_user_reference(db, update_data.get("dd_updated_by"), "dd_updated_by")
 
@@ -100,9 +116,13 @@ class DistrictService:
         self, payload: Dict[str, Any], *, require_all: bool
     ) -> None:
         code = payload.get("dd_dcode")
+        province_code = payload.get("dd_cpcode")
         if require_all or "dd_dcode" in payload:
             if not self._has_value(code):
                 raise ValueError("dd_dcode is required.")
+        if require_all or "dd_cpcode" in payload:
+            if not self._has_value(province_code):
+                raise ValueError("dd_cpcode is required.")
 
     def _validate_user_reference(
         self, db: Session, value: Optional[str], field_name: str
@@ -120,6 +140,15 @@ class DistrictService:
         )
         if not exists:
             raise ValueError(f"Invalid reference: {field_name} '{value}' not found.")
+
+    def _validate_province_reference(
+        self, db: Session, province_code: Optional[str]
+    ) -> None:
+        if not self._has_value(province_code):
+            return
+        province = province_repo.get_by_code(db, province_code)
+        if not province:
+            raise ValueError(f"Invalid reference: dd_cpcode '{province_code}' not found.")
 
     @staticmethod
     def _strip_strings(data: Dict[str, Any]) -> Dict[str, Any]:

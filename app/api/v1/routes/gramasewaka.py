@@ -7,6 +7,7 @@ from app.models.user import UserAccount
 from app.schemas import gramasewaka as schemas
 from app.services.gramasewaka_service import gramasewaka_service
 from app.utils.http_exceptions import validation_error
+from app.utils.authorization import ensure_crud_permission
 from pydantic import ValidationError
 
 router = APIRouter()
@@ -21,6 +22,7 @@ def manage_gramasewaka_records(
     action = request.action
     payload = request.payload
     user_id = current_user.ua_user_id
+    ensure_crud_permission(db, user_id, "gramasewaka", action)
 
     if action == schemas.CRUDAction.CREATE:
         if not payload.data:

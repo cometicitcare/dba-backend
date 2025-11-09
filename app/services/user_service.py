@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 
 from app.core.security import generate_salt, get_password_hash
 from app.models.user import Role, UserAccount
+from app.models.user_roles import UserRole
 from app.schemas.users import UserCreate
 
 
@@ -61,8 +62,14 @@ class UserService:
             ua_password_hash=password_hash,
             ua_salt=salt,
         )
+        user_role_link = UserRole(
+            ur_user_id=user.ua_user_id,
+            ur_role_id=payload.ro_role_id,
+            ur_assigned_date=datetime.utcnow(),
+        )
 
         db.add(user)
+        db.add(user_role_link)
         try:
             db.commit()
         except IntegrityError as exc:

@@ -15,6 +15,7 @@ from app.schemas.roles import (
     RoleUpdate,
 )
 from app.utils.http_exceptions import validation_error
+from app.utils.authorization import ensure_crud_permission
 
 router = APIRouter(tags=["Roles"])
 
@@ -28,6 +29,7 @@ def manage_roles(
     action = request.action
     payload = request.payload
     user_id = current_user.ua_user_id
+    ensure_crud_permission(db, user_id, "roles", action)
 
     if action == CRUDAction.CREATE:
         if not payload.data or not isinstance(payload.data, RoleCreate):
