@@ -22,6 +22,7 @@ from app.api.v1.routes import (
     divisional_secretariat,
     gramasewaka,
     health,
+    location_hierarchy,
     nilame,
     payment_methods,
     province,
@@ -108,4 +109,8 @@ api_router.include_router(
     divisional_secretariat.router,
     prefix="/divisional-secretariat",
     tags=["Divisional Secretariat"],
+)
+api_router.include_router(
+    location_hierarchy.router,
+    prefix="/locations",
 )
