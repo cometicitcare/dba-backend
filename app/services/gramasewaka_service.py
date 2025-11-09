@@ -81,6 +81,15 @@ class GramasewakaService:
             db, search=search, divisional_code=divisional_code
         )
 
+    def list_by_divisional_secretariat(
+        self, db: Session, *, divisional_code: str
+    ) -> list[Gramasewaka]:
+        if not divisional_code:
+            return []
+        return gramasewaka_repo.list_by_divisional_code(
+            db, divisional_code=divisional_code
+        )
+
     def get_gramasewaka(self, db: Session, *, gn_id: int) -> Optional[Gramasewaka]:
         return gramasewaka_repo.get(db, gn_id)
 

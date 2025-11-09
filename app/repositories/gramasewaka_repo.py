@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from datetime import datetime
 from typing import Optional
 
@@ -81,6 +83,22 @@ class GramasewakaRepository:
             query.order_by(Gramasewaka.gn_id)
             .offset(max(skip, 0))
             .limit(limit)
+            .all()
+        )
+
+    def list_by_divisional_code(
+        self,
+        db: Session,
+        *,
+        divisional_code: str,
+    ) -> list[Gramasewaka]:
+        return (
+            db.query(Gramasewaka)
+            .filter(
+                Gramasewaka.gn_is_deleted.is_(False),
+                Gramasewaka.gn_dvcode == divisional_code,
+            )
+            .order_by(Gramasewaka.gn_gnname, Gramasewaka.gn_gnc)
             .all()
         )
 
