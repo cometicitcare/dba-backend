@@ -55,6 +55,7 @@ class GramasewakaOut(GramasewakaBase):
 class GramasewakaRequestPayload(BaseModel):
     gn_id: Optional[int] = None
     gn_gnc: Optional[str] = Field(default=None, max_length=10)
+    gn_dvcode: Optional[str] = Field(default=None, max_length=10)
     skip: Annotated[int, Field(ge=0)] = 0
     limit: Annotated[int, Field(ge=1, le=200)] = 10
     page: Annotated[Optional[int], Field(ge=1)] = 1

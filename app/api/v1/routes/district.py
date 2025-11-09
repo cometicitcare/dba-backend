@@ -15,7 +15,6 @@ from app.schemas.district import (
 )
 from app.services.district_service import district_service
 from app.utils.http_exceptions import validation_error
-from app.utils.authorization import ensure_crud_permission
 
 router = APIRouter(tags=["District"])
 
@@ -29,7 +28,6 @@ def manage_districts(
     action = request.action
     payload = request.payload
     user_id = current_user.ua_user_id
-    ensure_crud_permission(db, user_id, "district", action)
 
     if action == CRUDAction.CREATE:
         if not payload.data or not isinstance(payload.data, DistrictCreate):
@@ -80,8 +78,8 @@ def manage_districts(
         search = payload.search_key.strip() if payload.search_key else None
         if search == "":
             search = None
-        province_code = payload.dd_cpcode.strip() if payload.dd_cpcode else None
         skip = payload.skip if payload.page is None else (page - 1) * limit
+        province_code = payload.dd_prcode
 
         limit = max(1, min(limit, 200))
         skip = max(0, skip)
@@ -89,7 +87,9 @@ def manage_districts(
         records = district_service.list_districts(
             db, skip=skip, limit=limit, search=search, province_code=province_code
         )
-        total = district_service.count_districts(db, search=search, province_code=province_code)
+        total = district_service.count_districts(
+            db, search=search, province_code=province_code
+        )
         records_out = [DistrictOut.model_validate(item) for item in records]
 
         return DistrictManagementResponse(

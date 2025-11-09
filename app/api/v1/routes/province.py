@@ -17,7 +17,6 @@ from app.schemas.province import (
 )
 from app.services.province_service import province_service
 from app.utils.http_exceptions import validation_error
-from app.utils.authorization import ensure_crud_permission
 
 router = APIRouter(tags=["Province"])
 
@@ -33,7 +32,6 @@ def manage_provinces(
     action = request.action
     payload = request.payload
     user_id = current_user.ua_user_id
-    ensure_crud_permission(db, user_id, "province", action)
 
     if action == CRUDAction.CREATE:
         if not payload.data:

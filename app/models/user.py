@@ -31,7 +31,6 @@ class Role(Base):
 
     # Relationship
     users = relationship("UserAccount", back_populates="role")
-    user_roles = relationship("UserRole", back_populates="role")
 
 
 class UserAccount(Base):
@@ -67,15 +66,6 @@ class UserAccount(Base):
 
     # Relationship
     role = relationship("Role", back_populates="users")
-    user_roles = relationship("UserRole", back_populates="user", cascade="all, delete-orphan")
-
-    @property
-    def role_ids(self) -> list[str]:
-        if getattr(self, "user_roles", None):
-            return [link.ur_role_id for link in self.user_roles]
-        if getattr(self, "ro_role_id", None):
-            return [self.ro_role_id]
-        return []
 
 
 class LoginHistory(Base):

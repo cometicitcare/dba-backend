@@ -1,13 +1,9 @@
 # app/repositories/auth_repo.py
 from sqlalchemy.orm import Session
 from app.models.user import UserAccount, LoginHistory, Role
-from app.models.user_roles import UserRole
-from app.models.role_permissions import RolePermission
-from app.models.permissions import Permission
 from app.schemas.user import UserCreate
 from app.core.security import get_password_hash, generate_salt
 from datetime import datetime
-from sqlalchemy import or_
 import uuid
 
 
@@ -30,10 +26,10 @@ def create_user(db: Session, user: UserCreate):
     role = get_role_by_id(db, user.ro_role_id)
     if not role:
         raise ValueError(f"Invalid role ID: {user.ro_role_id}")
-
+    
     salt = generate_salt()
     hashed_password = get_password_hash(user.ua_password + salt)
-
+    
     # Generate a unique string ID for the new user
     user_id = f"UA{str(uuid.uuid4().int)[:7]}"
 
@@ -69,13 +65,7 @@ def create_user(db: Session, user: UserCreate):
         ua_password_expires=None,
         ua_two_factor_secret=None,
     )
-    db_user_role = UserRole(
-        ur_user_id=user_id,
-        ur_role_id=user.ro_role_id,
-        ur_assigned_date=datetime.utcnow(),
-    )
     db.add(db_user)
-    db.add(db_user_role)
     db.commit()
     db.refresh(db_user)
     return db_user
@@ -113,25 +103,6 @@ def update_user_last_login(db: Session, user_id: str):
         db_user.ua_last_login = datetime.utcnow()
         db_user.ua_login_attempts = 0
         db.commit()
-
-
-def user_has_permission(db: Session, user_id: str, resource: str, action: str) -> bool:
-    """Check if a user has a granted permission for a given resource/action pair."""
-    now = datetime.utcnow()
-    match = (
-        db.query(RolePermission)
-        .join(UserRole, RolePermission.rp_role_id == UserRole.ur_role_id)
-        .join(Permission, RolePermission.rp_permission_id == Permission.pe_permission_id)
-        .filter(
-            UserRole.ur_user_id == user_id,
-            RolePermission.rp_granted.is_(True),
-            Permission.pe_resource == resource,
-            Permission.pe_action == action,
-            or_(UserRole.ur_expires_date.is_(None), UserRole.ur_expires_date > now),
-        )
-        .first()
-    )
-    return match is not None
 
 
 def get_login_history_by_session_id(db: Session, session_id: str):

@@ -7,7 +7,6 @@ from app.models.user import UserAccount
 from app.schemas import gramasewaka as schemas
 from app.services.gramasewaka_service import gramasewaka_service
 from app.utils.http_exceptions import validation_error
-from app.utils.authorization import ensure_crud_permission
 from pydantic import ValidationError
 
 router = APIRouter()
@@ -22,7 +21,6 @@ def manage_gramasewaka_records(
     action = request.action
     payload = request.payload
     user_id = current_user.ua_user_id
-    ensure_crud_permission(db, user_id, "gramasewaka", action)
 
     if action == schemas.CRUDAction.CREATE:
         if not payload.data:
@@ -102,11 +100,18 @@ def manage_gramasewaka_records(
         skip = payload.skip if payload.page is None else (page - 1) * limit
         skip = max(0, skip)
         limit = max(1, min(limit, 200))
+        divisional_code = payload.gn_dvcode
 
         records = gramasewaka_service.list_gramasewaka(
-            db, skip=skip, limit=limit, search=search
+            db,
+            skip=skip,
+            limit=limit,
+            search=search,
+            divisional_code=divisional_code,
         )
-        total = gramasewaka_service.count_gramasewaka(db, search=search)
+        total = gramasewaka_service.count_gramasewaka(
+            db, search=search, divisional_code=divisional_code
+        )
 
         return {
             "status": "success",

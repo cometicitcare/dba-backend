@@ -6,6 +6,8 @@ from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator, mo
 
 
 class RoleBase(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     ro_role_id: str
     ro_role_name: str
     ro_description: Optional[str] = None
@@ -102,7 +104,6 @@ class UserResponse(BaseModel):
     ua_phone: Optional[str]
     ua_status: str
     ro_role_id: str
-    role_ids: list[str] = []
     role: Optional[RoleBase] = None
 
     class Config:
