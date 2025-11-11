@@ -155,3 +155,366 @@ class BhikkuManagementResponse(BaseModel):
     totalRecords: Optional[int] = None
     page: Optional[int] = None
     limit: Optional[int] = None
+
+
+class BhikkuMahanayakaListItem(BaseModel):
+    regn: str
+    mahananame: Optional[str] = None
+    currstat: Optional[str] = None
+    vname: Optional[str] = None
+    addrs: Optional[str] = None
+
+
+class BhikkuMahanayakaListResponse(BaseModel):
+    status: str
+    message: str
+    data: List[BhikkuMahanayakaListItem]
+
+
+class BhikkuNikayaListItem(BaseModel):
+    nkn: Optional[str] = None
+    nname: Optional[str] = None
+    prn: Optional[str] = None
+    pname: Optional[str] = None
+    regn: str
+
+
+class BhikkuNikayaListResponse(BaseModel):
+    status: str
+    message: str
+    data: List[BhikkuNikayaListItem]
+
+
+class BhikkuAcharyaListItem(BaseModel):
+    currstated: Optional[str] = None
+    mobile: Optional[str] = None
+    email: Optional[EmailStr] = None
+    mahanadate: Optional[date] = None
+    reqstdate: Optional[date] = None
+    regn: str
+
+
+class BhikkuAcharyaListResponse(BaseModel):
+    status: str
+    message: str
+    data: List[BhikkuAcharyaListItem]
+
+
+class BhikkuDetailsListItem(BaseModel):
+    regn: str
+    birthpls: Optional[str] = None
+    gihiname: Optional[str] = None
+    dofb: Optional[date] = None
+    fathrname: Optional[str] = None
+    mahanadate: Optional[date] = None
+    mahananame: Optional[str] = None
+    teacher: Optional[str] = None
+    teachadrs: Optional[str] = None
+    mhanavh: Optional[str] = None
+    livetemple: Optional[str] = None
+    viharadipathi: Optional[str] = None
+    pname: Optional[str] = None
+    nname: Optional[str] = None
+    nikayanayaka: Optional[str] = None
+    effctdate: Optional[date] = None
+    curstatus: Optional[str] = None
+    catogry: Optional[str] = None
+    vadescrdtls: Optional[str] = None
+
+
+class BhikkuDetailsListResponse(BaseModel):
+    status: str
+    message: str
+    data: List[BhikkuDetailsListItem]
+
+
+class BhikkuCertificationListItem(BaseModel):
+    regno: str
+    mahananame: Optional[str] = None
+    issuedate: Optional[date] = None
+    reqstdate: Optional[date] = None
+    adminautho: Optional[str] = None
+    prtoptn: Optional[str] = None
+    paydate: Optional[date] = None
+    payamount: Optional[float] = None
+    usname: Optional[str] = None
+    adminusr: Optional[str] = None
+
+
+class BhikkuCertificationListResponse(BaseModel):
+    status: str
+    message: str
+    data: List[BhikkuCertificationListItem]
+
+
+class BhikkuCertificationPrintListItem(BaseModel):
+    regno: str
+    mahananame: Optional[str] = None
+    issuedate: Optional[date] = None
+    reqstdate: Optional[date] = None
+    adminautho: Optional[str] = None
+    prtoptn: Optional[str] = None
+    paydate: Optional[date] = None
+    payamount: Optional[float] = None
+    usname: Optional[str] = None
+    adminusr: Optional[str] = None
+
+
+class BhikkuCertificationPrintListResponse(BaseModel):
+    status: str
+    message: str
+    data: List[BhikkuCertificationPrintListItem]
+
+
+class BhikkuCurrentStatusListItem(BaseModel):
+    statcd: str
+    descr: Optional[str] = None
+    regn: str
+
+
+class BhikkuCurrentStatusListResponse(BaseModel):
+    status: str
+    message: str
+    data: List[BhikkuCurrentStatusListItem]
+
+
+class BhikkuDistrictListItem(BaseModel):
+    dcode: str
+    dname: Optional[str] = None
+    regn: str
+
+
+class BhikkuDistrictListResponse(BaseModel):
+    status: str
+    message: str
+    data: List[BhikkuDistrictListItem]
+
+
+class BhikkuDivisionSecListItem(BaseModel):
+    dvcode: str
+    dvname: Optional[str] = None
+    regn: str
+
+
+class BhikkuDivisionSecListResponse(BaseModel):
+    status: str
+    message: str
+    data: List[BhikkuDivisionSecListItem]
+
+
+class BhikkuGNListItem(BaseModel):
+    gnc: str
+    gnname: Optional[str] = None
+    regn: str
+
+
+class BhikkuGNListResponse(BaseModel):
+    status: str
+    message: str
+    data: List[BhikkuGNListItem]
+
+
+class BhikkuHistoryStatusListItem(BaseModel):
+    descr: Optional[str] = None
+    prvdate: Optional[date] = None
+    chngdate: Optional[date] = None
+    regno: str
+
+
+class BhikkuHistoryStatusListResponse(BaseModel):
+    status: str
+    message: str
+    data: List[BhikkuHistoryStatusListItem]
+
+
+class BhikkuIDAllListItem(BaseModel):
+    idn: str
+    stat: Optional[str] = None
+    reqstdate: Optional[date] = None
+    printdate: Optional[date] = None
+    issuedate: Optional[date] = None
+    mahanaacharyacd: Optional[str] = None
+    archadrs: Optional[str] = None
+    achambl: Optional[str] = None
+    achamhndate: Optional[date] = None
+    acharegdt: Optional[date] = None
+    mahananame: Optional[str] = None
+    vname: Optional[str] = None
+    addrs: Optional[str] = None
+    regn: str
+    dofb: Optional[date] = None
+    mahanadate: Optional[date] = None
+    gihiname: Optional[str] = None
+    fathrdetails: Optional[str] = None
+
+
+class BhikkuIDAllListResponse(BaseModel):
+    status: str
+    message: str
+    data: List[BhikkuIDAllListItem]
+
+
+class BhikkuIDDistrictListItem(BaseModel):
+    dcode: str
+    dname: Optional[str] = None
+    idn: str
+
+
+class BhikkuIDDistrictListResponse(BaseModel):
+    status: str
+    message: str
+    data: List[BhikkuIDDistrictListItem]
+
+
+class BhikkuIDDvSecListItem(BaseModel):
+    dvcode: str
+    dvname: Optional[str] = None
+    idn: str
+
+
+class BhikkuIDDvSecListResponse(BaseModel):
+    status: str
+    message: str
+    data: List[BhikkuIDDvSecListItem]
+
+
+class BhikkuIDGNListItem(BaseModel):
+    gnname: Optional[str] = None
+    idn: str
+
+
+class BhikkuIDGNListResponse(BaseModel):
+    status: str
+    message: str
+    data: List[BhikkuIDGNListItem]
+
+
+class BhikkuNikayanayakaListItem(BaseModel):
+    regn: str
+    mahananame: Optional[str] = None
+    currstat: Optional[str] = None
+    vname: Optional[str] = None
+    addrs: Optional[str] = None
+
+
+class BhikkuNikayanayakaListResponse(BaseModel):
+    status: str
+    message: str
+    data: List[BhikkuNikayanayakaListItem]
+
+
+class BhikkuParshawaListItem(BaseModel):
+    prn: str
+    pname: Optional[str] = None
+    regn: str
+
+
+class BhikkuParshawaListResponse(BaseModel):
+    status: str
+    message: str
+    data: List[BhikkuParshawaListItem]
+
+
+class BhikkuStatusHistoryCompositeItem(BaseModel):
+    regno: str
+    vadescrdtls: Optional[str] = None
+
+
+class BhikkuStatusHistoryCompositeResponse(BaseModel):
+    status: str
+    message: str
+    data: List[BhikkuStatusHistoryCompositeItem]
+
+
+class BhikkuStatusHistoryListItem(BaseModel):
+    regno: str
+    prvdate: Optional[date] = None
+    chngdate: Optional[date] = None
+    descr: Optional[str] = None
+
+
+class BhikkuStatusHistoryListResponse(BaseModel):
+    status: str
+    message: str
+    data: List[BhikkuStatusHistoryListItem]
+
+
+class BhikkuStatusHistoryList2Item(BaseModel):
+    regno: str
+    statchgdescr: Optional[str] = None
+
+
+class BhikkuStatusHistoryList2Response(BaseModel):
+    status: str
+    message: str
+    data: List[BhikkuStatusHistoryList2Item]
+
+
+class BhikkuViharadipathiListItem(BaseModel):
+    regn: str
+    mahananame: Optional[str] = None
+
+
+class BhikkuViharadipathiListResponse(BaseModel):
+    status: str
+    message: str
+    data: List[BhikkuViharadipathiListItem]
+
+
+class BhikkuCurrentStatusSummaryItem(BaseModel):
+    statcd: str
+    descr: Optional[str] = None
+    statcnt: int
+
+
+class BhikkuCurrentStatusSummaryResponse(BaseModel):
+    status: str
+    message: str
+    data: List[BhikkuCurrentStatusSummaryItem]
+
+
+class BhikkuDistrictSummaryItem(BaseModel):
+    dcode: str
+    dname: Optional[str] = None
+    totalbikku: int
+
+
+class BhikkuDistrictSummaryResponse(BaseModel):
+    status: str
+    message: str
+    data: List[BhikkuDistrictSummaryItem]
+
+
+class BhikkuGNSummaryItem(BaseModel):
+    gnc: str
+    gnname: Optional[str] = None
+    bikkucnt: int
+
+
+class BhikkuGNSummaryResponse(BaseModel):
+    status: str
+    message: str
+    data: List[BhikkuGNSummaryItem]
+
+
+class BhikkuIDDistrictSummaryItem(BaseModel):
+    dcode: str
+    dname: Optional[str] = None
+    idcnt: int
+
+
+class BhikkuIDDistrictSummaryResponse(BaseModel):
+    status: str
+    message: str
+    data: List[BhikkuIDDistrictSummaryItem]
+
+
+class BhikkuIDGNSummaryItem(BaseModel):
+    gnname: Optional[str] = None
+    idcnt: int
+
+
+class BhikkuIDGNSummaryResponse(BaseModel):
+    status: str
+    message: str
+    data: List[BhikkuIDGNSummaryItem]

@@ -4,7 +4,7 @@ import re
 from datetime import datetime
 from typing import Any, Dict, Optional, Tuple
 
-from sqlalchemy import MetaData, Table, select
+from sqlalchemy import MetaData, Table, select, text
 from sqlalchemy.exc import NoSuchTableError, SQLAlchemyError
 from sqlalchemy.orm import Session
 
@@ -30,6 +30,169 @@ class BhikkuService:
 
     def __init__(self) -> None:
         self._table_cache: Dict[Tuple[Optional[str], str], Table] = {}
+        self._mahanayaka_view_query = text(
+            """
+            SELECT regn, mahananame, currstat, vname, addrs
+            FROM bikkudtls_mahanayakalist
+            """
+        )
+        self._nikaya_view_query = text(
+            """
+            SELECT nkn, nname, prn, pname, regn
+            FROM bikkudtls_nikaya_list
+            """
+        )
+        self._acharya_view_query = text(
+            """
+            SELECT currstated, mobile, email, mahanadate, reqstdate, regn
+            FROM bikkudtls_archarya_dtls
+            """
+        )
+        self._details_view_query = text(
+            """
+            SELECT regn, birthpls, gihiname, dofb, fathrname, mahanadate,
+                   mahananame, teacher, teachadrs, mhanavh, livetemple,
+                   viharadipathi, pname, nname, nikayanayaka, effctdate,
+                   curstatus, catogry, vadescrdtls
+            FROM bikkudtls_bikkullist
+            """
+        )
+        self._certification_view_query = text(
+            """
+            SELECT regno, mahananame, issuedate, reqstdate, adminautho,
+                   prtoptn, paydate, payamount, usname, adminusr
+            FROM bikkudtls_certification_data
+            """
+        )
+        self._certification_print_view_query = text(
+            """
+            SELECT regno, mahananame, issuedate, reqstdate, adminautho,
+                   prtoptn, paydate, payamount, usname, adminusr
+            FROM bikkudtls_certification_printnow
+            """
+        )
+        self._current_status_view_query = text(
+            """
+            SELECT statcd, descr, regn
+            FROM bikkudtls_currstatus_list
+            """
+        )
+        self._district_view_query = text(
+            """
+            SELECT dcode, dname, regn
+            FROM bikkudtls_districtlist
+            """
+        )
+        self._division_sec_view_query = text(
+            """
+            SELECT dvcode, dvname, regn
+            FROM bikkudtls_divisionsec_dtls
+            """
+        )
+        self._gn_view_query = text(
+            """
+            SELECT gnc, gnname, regn
+            FROM bikkudtls_gn_dtls
+            """
+        )
+        self._history_status_view_query = text(
+            """
+            SELECT descr, prvdate, chngdate, regno
+            FROM bikkudtls_histtystatus_list
+            """
+        )
+        self._id_all_view_query = text(
+            """
+            SELECT idn, stat, reqstdate, printdate, issuedate, mahanaacharyacd,
+                   archadrs, achambl, achamhndate, acharegdt, mahananame, vname,
+                   addrs, regn, dofb, mahanadate, gihiname, fathrdetails
+            FROM bikkudtls_id_alllist
+            """
+        )
+        self._id_district_view_query = text(
+            """
+            SELECT dcode, dname, idn
+            FROM bikkudtls_iddistrict_list
+            """
+        )
+        self._id_division_sec_view_query = text(
+            """
+            SELECT dvcode, dvname, idn
+            FROM bikkudtls_iddvsec_list
+            """
+        )
+        self._id_gn_view_query = text(
+            """
+            SELECT gnname, idn
+            FROM bikkudtls_idgn_list
+            """
+        )
+        self._nikayanayaka_view_query = text(
+            """
+            SELECT regn, mahananame, currstat, vname, addrs
+            FROM bikkudtls_nikayanayaka_list
+            """
+        )
+        self._parshawa_view_query = text(
+            """
+            SELECT prn, pname, regn
+            FROM bikkudtls_parshawa_list
+            """
+        )
+        self._status_history_composite_query = text(
+            """
+            SELECT regno, vadescrdtls
+            FROM bikkudtls_statushystry_composit
+            """
+        )
+        self._status_history_list_query = text(
+            """
+            SELECT regno, prvdate, chngdate, descr
+            FROM bikkudtls_statushystry_list
+            """
+        )
+        self._status_history_list2_query = text(
+            """
+            SELECT regno, statchgdescr
+            FROM bikkudtls_statushystry_list2
+            """
+        )
+        self._viharadipathi_view_query = text(
+            """
+            SELECT regn, mahananame
+            FROM bikkudtls_viharadipathi_list
+            """
+        )
+        self._current_status_summary_query = text(
+            """
+            SELECT statcd, descr, statcnt
+            FROM bikkusumm_currstatus_list
+            """
+        )
+        self._district_summary_query = text(
+            """
+            SELECT dcode, dname, totalbikku
+            FROM bikkusumm_district_list
+            """
+        )
+        self._gn_summary_query = text(
+            """
+            SELECT gnc, gnname, bikkucnt
+            FROM bikkusumm_gn_list
+            """
+        )
+        self._id_district_summary_query = text(
+            """
+            SELECT dcode, dname, idcnt
+            FROM bikkusumm_iddistrict_list
+            """
+        )
+        self._id_gn_summary_query = text(
+            """
+            SELECT gnname, idcnt
+            FROM bikkusumm_idgn_list
+            """
+        )
 
     # --------------------------------------------------------------------- #
     # Public API
@@ -82,6 +245,136 @@ class BhikkuService:
     def count_bhikkus(self, db: Session, *, search: Optional[str] = None) -> int:
         total = bhikku_repo.get_total_count(db, search_key=search)
         return int(total or 0)
+
+    def list_mahanayaka_view(self, db: Session) -> list[dict[str, Any]]:
+        """Return records from the bikkudtls_mahanayakalist view."""
+        result = db.execute(self._mahanayaka_view_query).mappings().all()
+        return [dict(row) for row in result]
+
+    def list_nikaya_view(self, db: Session) -> list[dict[str, Any]]:
+        """Return records from the bikkudtls_nikaya_list view."""
+        result = db.execute(self._nikaya_view_query).mappings().all()
+        return [dict(row) for row in result]
+
+    def list_acharya_view(self, db: Session) -> list[dict[str, Any]]:
+        """Return records from the bikkudtls_archarya_dtls view."""
+        result = db.execute(self._acharya_view_query).mappings().all()
+        return [dict(row) for row in result]
+
+    def list_bhikku_details_view(self, db: Session) -> list[dict[str, Any]]:
+        """Return records from the bikkudtls_bikkullist view."""
+        result = db.execute(self._details_view_query).mappings().all()
+        return [dict(row) for row in result]
+
+    def list_certification_view(self, db: Session) -> list[dict[str, Any]]:
+        """Return records from the bikkudtls_certification_data view."""
+        result = db.execute(self._certification_view_query).mappings().all()
+        return [dict(row) for row in result]
+
+    def list_certification_print_view(self, db: Session) -> list[dict[str, Any]]:
+        """Return records from the bikkudtls_certification_printnow view."""
+        result = db.execute(self._certification_print_view_query).mappings().all()
+        return [dict(row) for row in result]
+
+    def list_current_status_view(self, db: Session) -> list[dict[str, Any]]:
+        """Return records from the bikkudtls_currstatus_list view."""
+        result = db.execute(self._current_status_view_query).mappings().all()
+        return [dict(row) for row in result]
+
+    def list_district_view(self, db: Session) -> list[dict[str, Any]]:
+        """Return records from the bikkudtls_districtlist view."""
+        result = db.execute(self._district_view_query).mappings().all()
+        return [dict(row) for row in result]
+
+    def list_division_sec_view(self, db: Session) -> list[dict[str, Any]]:
+        """Return records from the bikkudtls_divisionsec_dtls view."""
+        result = db.execute(self._division_sec_view_query).mappings().all()
+        return [dict(row) for row in result]
+
+    def list_gn_view(self, db: Session) -> list[dict[str, Any]]:
+        """Return records from the bikkudtls_gn_dtls view."""
+        result = db.execute(self._gn_view_query).mappings().all()
+        return [dict(row) for row in result]
+
+    def list_history_status_view(self, db: Session) -> list[dict[str, Any]]:
+        """Return records from the bikkudtls_histtystatus_list view."""
+        result = db.execute(self._history_status_view_query).mappings().all()
+        return [dict(row) for row in result]
+
+    def list_id_all_view(self, db: Session) -> list[dict[str, Any]]:
+        """Return records from the bikkudtls_id_alllist view."""
+        result = db.execute(self._id_all_view_query).mappings().all()
+        return [dict(row) for row in result]
+
+    def list_id_district_view(self, db: Session) -> list[dict[str, Any]]:
+        """Return records from the bikkudtls_iddistrict_list view."""
+        result = db.execute(self._id_district_view_query).mappings().all()
+        return [dict(row) for row in result]
+
+    def list_id_division_sec_view(self, db: Session) -> list[dict[str, Any]]:
+        """Return records from the bikkudtls_iddvsec_list view."""
+        result = db.execute(self._id_division_sec_view_query).mappings().all()
+        return [dict(row) for row in result]
+
+    def list_id_gn_view(self, db: Session) -> list[dict[str, Any]]:
+        """Return records from the bikkudtls_idgn_list view."""
+        result = db.execute(self._id_gn_view_query).mappings().all()
+        return [dict(row) for row in result]
+
+    def list_nikayanayaka_view(self, db: Session) -> list[dict[str, Any]]:
+        """Return records from the bikkudtls_nikayanayaka_list view."""
+        result = db.execute(self._nikayanayaka_view_query).mappings().all()
+        return [dict(row) for row in result]
+
+    def list_parshawa_view(self, db: Session) -> list[dict[str, Any]]:
+        """Return records from the bikkudtls_parshawa_list view."""
+        result = db.execute(self._parshawa_view_query).mappings().all()
+        return [dict(row) for row in result]
+
+    def list_status_history_composite(self, db: Session) -> list[dict[str, Any]]:
+        """Return records from the bikkudtls_statushystry_composit view."""
+        result = db.execute(self._status_history_composite_query).mappings().all()
+        return [dict(row) for row in result]
+
+    def list_status_history_list(self, db: Session) -> list[dict[str, Any]]:
+        """Return records from the bikkudtls_statushystry_list view."""
+        result = db.execute(self._status_history_list_query).mappings().all()
+        return [dict(row) for row in result]
+
+    def list_status_history_list2(self, db: Session) -> list[dict[str, Any]]:
+        """Return records from the bikkudtls_statushystry_list2 view."""
+        result = db.execute(self._status_history_list2_query).mappings().all()
+        return [dict(row) for row in result]
+
+    def list_viharadipathi_view(self, db: Session) -> list[dict[str, Any]]:
+        """Return records from the bikkudtls_viharadipathi_list view."""
+        result = db.execute(self._viharadipathi_view_query).mappings().all()
+        return [dict(row) for row in result]
+
+    def list_current_status_summary(self, db: Session) -> list[dict[str, Any]]:
+        """Return aggregated records from the bikkusumm_currstatus_list view."""
+        result = db.execute(self._current_status_summary_query).mappings().all()
+        return [dict(row) for row in result]
+
+    def list_district_summary(self, db: Session) -> list[dict[str, Any]]:
+        """Return aggregated records from the bikkusumm_district_list view."""
+        result = db.execute(self._district_summary_query).mappings().all()
+        return [dict(row) for row in result]
+
+    def list_gn_summary(self, db: Session) -> list[dict[str, Any]]:
+        """Return aggregated records from the bikkusumm_gn_list view."""
+        result = db.execute(self._gn_summary_query).mappings().all()
+        return [dict(row) for row in result]
+
+    def list_id_district_summary(self, db: Session) -> list[dict[str, Any]]:
+        """Return aggregated records from the bikkusumm_iddistrict_list view."""
+        result = db.execute(self._id_district_summary_query).mappings().all()
+        return [dict(row) for row in result]
+
+    def list_id_gn_summary(self, db: Session) -> list[dict[str, Any]]:
+        """Return aggregated records from the bikkusumm_idgn_list view."""
+        result = db.execute(self._id_gn_summary_query).mappings().all()
+        return [dict(row) for row in result]
 
     def get_bhikku(self, db: Session, *, br_regn: str) -> Optional[Bhikku]:
         return bhikku_repo.get_by_regn(db, br_regn)
