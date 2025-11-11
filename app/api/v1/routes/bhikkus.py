@@ -12,6 +12,501 @@ from pydantic import ValidationError
 
 router = APIRouter()
 
+
+@router.get(
+    "/mahanayaka-list",
+    response_model=schemas.BhikkuMahanayakaListResponse,
+)
+def list_mahanayaka_bhikkus(
+    db: Session = Depends(get_db),
+    current_user: UserAccount = Depends(get_current_user),
+):
+    """
+    Return rows from the `bikkudtls_mahanayakalist` database view.
+    """
+    records = bhikku_service.list_mahanayaka_view(db)
+    return {
+        "status": "success",
+        "message": "Mahanayaka bhikku list retrieved successfully.",
+        "data": records,
+    }
+
+
+@router.get(
+    "/nikaya-list",
+    response_model=schemas.BhikkuNikayaListResponse,
+)
+def list_nikaya_bhikkus(
+    db: Session = Depends(get_db),
+    current_user: UserAccount = Depends(get_current_user),
+):
+    """
+    Return rows from the `bikkudtls_nikaya_list` database view.
+    """
+    records = bhikku_service.list_nikaya_view(db)
+    return {
+        "status": "success",
+        "message": "Nikaya bhikku list retrieved successfully.",
+        "data": records,
+    }
+
+
+@router.get(
+    "/acharya-list",
+    response_model=schemas.BhikkuAcharyaListResponse,
+)
+def list_acharya_bhikkus(
+    db: Session = Depends(get_db),
+    current_user: UserAccount = Depends(get_current_user),
+):
+    """
+    Return rows from the `bikkudtls_archarya_dtls` database view.
+    """
+    records = bhikku_service.list_acharya_view(db)
+    return {
+        "status": "success",
+        "message": "Acharya bhikku list retrieved successfully.",
+        "data": records,
+    }
+
+
+@router.get(
+    "/details-list",
+    response_model=schemas.BhikkuDetailsListResponse,
+)
+def list_bhikku_details(
+    db: Session = Depends(get_db),
+    current_user: UserAccount = Depends(get_current_user),
+):
+    """
+    Return rows from the `bikkudtls_bikkullist` database view.
+    """
+    records = bhikku_service.list_bhikku_details_view(db)
+    return {
+        "status": "success",
+        "message": "Bhikku details list retrieved successfully.",
+        "data": records,
+    }
+
+
+@router.get(
+    "/certification-list",
+    response_model=schemas.BhikkuCertificationListResponse,
+)
+def list_certification_bhikkus(
+    db: Session = Depends(get_db),
+    current_user: UserAccount = Depends(get_current_user),
+):
+    """
+    Return rows from the `bikkudtls_certification_data` database view.
+    """
+    records = bhikku_service.list_certification_view(db)
+    return {
+        "status": "success",
+        "message": "Certification bhikku list retrieved successfully.",
+        "data": records,
+    }
+
+
+@router.get(
+    "/certification-printnow",
+    response_model=schemas.BhikkuCertificationPrintListResponse,
+)
+def list_certification_print_bhikkus(
+    db: Session = Depends(get_db),
+    current_user: UserAccount = Depends(get_current_user),
+):
+    """
+    Return rows from the `bikkudtls_certification_printnow` database view.
+    """
+    records = bhikku_service.list_certification_print_view(db)
+    return {
+        "status": "success",
+        "message": "Certification print list retrieved successfully.",
+        "data": records,
+    }
+
+
+@router.get(
+    "/current-status-list",
+    response_model=schemas.BhikkuCurrentStatusListResponse,
+)
+def list_current_status_bhikkus(
+    db: Session = Depends(get_db),
+    current_user: UserAccount = Depends(get_current_user),
+):
+    """
+    Return rows from the `bikkudtls_currstatus_list` database view.
+    """
+    records = bhikku_service.list_current_status_view(db)
+    return {
+        "status": "success",
+        "message": "Current status list retrieved successfully.",
+        "data": records,
+    }
+
+
+@router.get(
+    "/district-list",
+    response_model=schemas.BhikkuDistrictListResponse,
+)
+def list_district_bhikkus(
+    db: Session = Depends(get_db),
+    current_user: UserAccount = Depends(get_current_user),
+):
+    """
+    Return rows from the `bikkudtls_districtlist` database view.
+    """
+    records = bhikku_service.list_district_view(db)
+    return {
+        "status": "success",
+        "message": "District list retrieved successfully.",
+        "data": records,
+    }
+
+
+@router.get(
+    "/division-secretariat-list",
+    response_model=schemas.BhikkuDivisionSecListResponse,
+)
+def list_division_secretariat_bhikkus(
+    db: Session = Depends(get_db),
+    current_user: UserAccount = Depends(get_current_user),
+):
+    """
+    Return rows from the `bikkudtls_divisionsec_dtls` database view.
+    """
+    records = bhikku_service.list_division_sec_view(db)
+    return {
+        "status": "success",
+        "message": "Division secretariat list retrieved successfully.",
+        "data": records,
+    }
+
+
+@router.get(
+    "/gn-division-list",
+    response_model=schemas.BhikkuGNListResponse,
+)
+def list_gn_division_bhikkus(
+    db: Session = Depends(get_db),
+    current_user: UserAccount = Depends(get_current_user),
+):
+    """
+    Return rows from the `bikkudtls_gn_dtls` database view.
+    """
+    records = bhikku_service.list_gn_view(db)
+    return {
+        "status": "success",
+        "message": "GN division list retrieved successfully.",
+        "data": records,
+    }
+
+
+@router.get(
+    "/history-status-list",
+    response_model=schemas.BhikkuHistoryStatusListResponse,
+)
+def list_history_status_bhikkus(
+    db: Session = Depends(get_db),
+    current_user: UserAccount = Depends(get_current_user),
+):
+    """
+    Return rows from the `bikkudtls_histtystatus_list` database view.
+    """
+    records = bhikku_service.list_history_status_view(db)
+    return {
+        "status": "success",
+        "message": "History status list retrieved successfully.",
+        "data": records,
+    }
+
+
+@router.get(
+    "/id-all-list",
+    response_model=schemas.BhikkuIDAllListResponse,
+)
+def list_id_all_bhikkus(
+    db: Session = Depends(get_db),
+    current_user: UserAccount = Depends(get_current_user),
+):
+    """
+    Return rows from the `bikkudtls_id_alllist` database view.
+    """
+    records = bhikku_service.list_id_all_view(db)
+    return {
+        "status": "success",
+        "message": "ID all list retrieved successfully.",
+        "data": records,
+    }
+
+
+@router.get(
+    "/id-district-list",
+    response_model=schemas.BhikkuIDDistrictListResponse,
+)
+def list_id_district_bhikkus(
+    db: Session = Depends(get_db),
+    current_user: UserAccount = Depends(get_current_user),
+):
+    """
+    Return rows from the `bikkudtls_iddistrict_list` database view.
+    """
+    records = bhikku_service.list_id_district_view(db)
+    return {
+        "status": "success",
+        "message": "ID district list retrieved successfully.",
+        "data": records,
+    }
+
+
+@router.get(
+    "/id-division-secretariat-list",
+    response_model=schemas.BhikkuIDDvSecListResponse,
+)
+def list_id_division_secretariat_bhikkus(
+    db: Session = Depends(get_db),
+    current_user: UserAccount = Depends(get_current_user),
+):
+    """
+    Return rows from the `bikkudtls_iddvsec_list` database view.
+    """
+    records = bhikku_service.list_id_division_sec_view(db)
+    return {
+        "status": "success",
+        "message": "ID division secretariat list retrieved successfully.",
+        "data": records,
+    }
+
+
+@router.get(
+    "/id-gn-division-list",
+    response_model=schemas.BhikkuIDGNListResponse,
+)
+def list_id_gn_division_bhikkus(
+    db: Session = Depends(get_db),
+    current_user: UserAccount = Depends(get_current_user),
+):
+    """
+    Return rows from the `bikkudtls_idgn_list` database view.
+    """
+    records = bhikku_service.list_id_gn_view(db)
+    return {
+        "status": "success",
+        "message": "ID GN division list retrieved successfully.",
+        "data": records,
+    }
+
+
+@router.get(
+    "/nikayanayaka-list",
+    response_model=schemas.BhikkuNikayanayakaListResponse,
+)
+def list_nikayanayaka_bhikkus(
+    db: Session = Depends(get_db),
+    current_user: UserAccount = Depends(get_current_user),
+):
+    """
+    Return rows from the `bikkudtls_nikayanayaka_list` database view.
+    """
+    records = bhikku_service.list_nikayanayaka_view(db)
+    return {
+        "status": "success",
+        "message": "Nikayanayaka list retrieved successfully.",
+        "data": records,
+    }
+
+
+@router.get(
+    "/parshawa-list",
+    response_model=schemas.BhikkuParshawaListResponse,
+)
+def list_parshawa_bhikkus(
+    db: Session = Depends(get_db),
+    current_user: UserAccount = Depends(get_current_user),
+):
+    """
+    Return rows from the `bikkudtls_parshawa_list` database view.
+    """
+    records = bhikku_service.list_parshawa_view(db)
+    return {
+        "status": "success",
+        "message": "Parshawa list retrieved successfully.",
+        "data": records,
+    }
+
+
+@router.get(
+    "/status-history-composite",
+    response_model=schemas.BhikkuStatusHistoryCompositeResponse,
+)
+def list_status_history_composite(
+    db: Session = Depends(get_db),
+    current_user: UserAccount = Depends(get_current_user),
+):
+    """
+    Return rows from the `bikkudtls_statushystry_composit` database view.
+    """
+    records = bhikku_service.list_status_history_composite(db)
+    return {
+        "status": "success",
+        "message": "Status history composite retrieved successfully.",
+        "data": records,
+    }
+
+
+@router.get(
+    "/status-history-list",
+    response_model=schemas.BhikkuStatusHistoryListResponse,
+)
+def list_status_history(
+    db: Session = Depends(get_db),
+    current_user: UserAccount = Depends(get_current_user),
+):
+    """
+    Return rows from the `bikkudtls_statushystry_list` database view.
+    """
+    records = bhikku_service.list_status_history_list(db)
+    return {
+        "status": "success",
+        "message": "Status history list retrieved successfully.",
+        "data": records,
+    }
+
+
+@router.get(
+    "/status-history-list2",
+    response_model=schemas.BhikkuStatusHistoryList2Response,
+)
+def list_status_history_aggregated(
+    db: Session = Depends(get_db),
+    current_user: UserAccount = Depends(get_current_user),
+):
+    """
+    Return rows from the `bikkudtls_statushystry_list2` database view.
+    """
+    records = bhikku_service.list_status_history_list2(db)
+    return {
+        "status": "success",
+        "message": "Status history list 2 retrieved successfully.",
+        "data": records,
+    }
+
+
+@router.get(
+    "/viharadipathi-list",
+    response_model=schemas.BhikkuViharadipathiListResponse,
+)
+def list_viharadipathi_bhikkus(
+    db: Session = Depends(get_db),
+    current_user: UserAccount = Depends(get_current_user),
+):
+    """
+    Return rows from the `bikkudtls_viharadipathi_list` database view.
+    """
+    records = bhikku_service.list_viharadipathi_view(db)
+    return {
+        "status": "success",
+        "message": "Viharadipathi list retrieved successfully.",
+        "data": records,
+    }
+
+
+@router.get(
+    "/current-status-summary",
+    response_model=schemas.BhikkuCurrentStatusSummaryResponse,
+)
+def list_current_status_summary(
+    db: Session = Depends(get_db),
+    current_user: UserAccount = Depends(get_current_user),
+):
+    """
+    Return aggregated rows from the `bikkusumm_currstatus_list` database view.
+    """
+    records = bhikku_service.list_current_status_summary(db)
+    return {
+        "status": "success",
+        "message": "Current status summary retrieved successfully.",
+        "data": records,
+    }
+
+
+@router.get(
+    "/district-summary",
+    response_model=schemas.BhikkuDistrictSummaryResponse,
+)
+def list_district_summary(
+    db: Session = Depends(get_db),
+    current_user: UserAccount = Depends(get_current_user),
+):
+    """
+    Return aggregated rows from the `bikkusumm_district_list` database view.
+    """
+    records = bhikku_service.list_district_summary(db)
+    return {
+        "status": "success",
+        "message": "District summary retrieved successfully.",
+        "data": records,
+    }
+
+
+@router.get(
+    "/gn-summary",
+    response_model=schemas.BhikkuGNSummaryResponse,
+)
+def list_gn_summary(
+    db: Session = Depends(get_db),
+    current_user: UserAccount = Depends(get_current_user),
+):
+    """
+    Return aggregated rows from the `bikkusumm_gn_list` database view.
+    """
+    records = bhikku_service.list_gn_summary(db)
+    return {
+        "status": "success",
+        "message": "GN summary retrieved successfully.",
+        "data": records,
+    }
+
+
+@router.get(
+    "/id-district-summary",
+    response_model=schemas.BhikkuIDDistrictSummaryResponse,
+)
+def list_id_district_summary(
+    db: Session = Depends(get_db),
+    current_user: UserAccount = Depends(get_current_user),
+):
+    """
+    Return aggregated rows from the `bikkusumm_iddistrict_list` database view.
+    """
+    records = bhikku_service.list_id_district_summary(db)
+    return {
+        "status": "success",
+        "message": "ID district summary retrieved successfully.",
+        "data": records,
+    }
+
+
+@router.get(
+    "/id-gn-summary",
+    response_model=schemas.BhikkuIDGNSummaryResponse,
+)
+def list_id_gn_summary(
+    db: Session = Depends(get_db),
+    current_user: UserAccount = Depends(get_current_user),
+):
+    """
+    Return aggregated rows from the `bikkusumm_idgn_list` database view.
+    """
+    records = bhikku_service.list_id_gn_summary(db)
+    return {
+        "status": "success",
+        "message": "ID GN summary retrieved successfully.",
+        "data": records,
+    }
+
+
 @router.post("/manage", response_model=schemas.BhikkuManagementResponse)
 def manage_bhikku_records(
     request: schemas.BhikkuManagementRequest, 
