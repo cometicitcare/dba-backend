@@ -1,3 +1,5 @@
+from typing import Union
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, ValidationError
 from sqlalchemy.orm import Session
@@ -10,7 +12,9 @@ from app.schemas.vihara import (
     ViharaCreate,
     ViharaManagementRequest,
     ViharaManagementResponse,
+    ViharaManageReadAllResponse,
     ViharaOut,
+    ViharaReadAllResponsePayload,
     ViharaUpdate,
 )
 from app.services.vihara_service import vihara_service
@@ -19,7 +23,10 @@ from app.utils.http_exceptions import validation_error
 router = APIRouter(tags=["Vihara Data"])
 
 
-@router.post("/manage", response_model=ViharaManagementResponse)
+@router.post(
+    "/manage",
+    response_model=Union[ViharaManagementResponse, ViharaManageReadAllResponse],
+)
 def manage_vihara_records(
     request: ViharaManagementRequest,
     db: Session = Depends(get_db),
@@ -84,14 +91,16 @@ def manage_vihara_records(
             db, skip=skip, limit=limit, search=search
         )
         total = vihara_service.count_viharas(db, search=search)
-        return ViharaManagementResponse(
-            status="success",
-            message="Vihara records retrieved successfully.",
+        response_payload = ViharaReadAllResponsePayload(
+            skip=skip,
+            limit=limit,
+            page=page,
+            search_key=payload.search_key or "",
+            br_regn=payload.br_regn or "",
             data=records,
             totalRecords=total,
-            page=page,
-            limit=limit,
         )
+        return {"action": CRUDAction.READ_ALL, "payload": response_payload}
 
     if action == CRUDAction.UPDATE:
         if payload.vh_id is None:
