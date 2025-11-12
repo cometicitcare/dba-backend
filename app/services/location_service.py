@@ -6,16 +6,18 @@ from sqlalchemy.orm import Session
 
 from app.models.district import District
 from app.models.divisional_secretariat import DivisionalSecretariat
+from app.models.gramasewaka import Gramasewaka
 from app.models.province import Province
 from app.schemas.location import (
     DistrictNode,
     DivisionalSecretariatNode,
+    GnDivisionNode,
     ProvinceNode,
 )
 
 
 class LocationService:
-    """Helpers to build nested province → district → divisional secretariat data."""
+    """Helpers to build nested province → district → divisional secretariat → GN division data."""
 
     def get_location_hierarchy(self, db: Session) -> List[ProvinceNode]:
         provinces = (
@@ -36,6 +38,13 @@ class LocationService:
             db.query(DivisionalSecretariat)
             .filter(DivisionalSecretariat.dv_is_deleted.is_(False))
             .order_by(DivisionalSecretariat.dv_distrcd, DivisionalSecretariat.dv_dvname)
+            .all()
+        )
+
+        gn_divisions = (
+            db.query(Gramasewaka)
+            .filter(Gramasewaka.gn_is_deleted.is_(False))
+            .order_by(Gramasewaka.gn_dvcode, Gramasewaka.gn_gnname, Gramasewaka.gn_gnc)
             .all()
         )
 
@@ -65,17 +74,33 @@ class LocationService:
             province_node.districts.append(district_node)
             district_map[district.dd_dcode] = district_node
 
+        divisional_map: Dict[str, DivisionalSecretariatNode] = {}
         for division in divisional_secretariats:
             district_node = district_map.get(division.dv_distrcd)
             if not district_node:
                 continue
 
-            district_node.divisional_secretariats.append(
-                DivisionalSecretariatNode(
-                    dv_id=division.dv_id,
-                    dv_dvcode=division.dv_dvcode,
-                    dv_distrcd=division.dv_distrcd,
-                    dv_dvname=division.dv_dvname,
+            division_node = DivisionalSecretariatNode(
+                dv_id=division.dv_id,
+                dv_dvcode=division.dv_dvcode,
+                dv_distrcd=division.dv_distrcd,
+                dv_dvname=division.dv_dvname,
+                gn_divisions=[],
+            )
+            district_node.divisional_secretariats.append(division_node)
+            divisional_map[division.dv_dvcode] = division_node
+
+        for gn in gn_divisions:
+            division_node = divisional_map.get(gn.gn_dvcode)
+            if not division_node:
+                continue
+
+            division_node.gn_divisions.append(
+                GnDivisionNode(
+                    gn_id=gn.gn_id,
+                    gn_gnc=gn.gn_gnc,
+                    gn_gnname=gn.gn_gnname,
+                    gn_dvcode=gn.gn_dvcode,
                 )
             )
 

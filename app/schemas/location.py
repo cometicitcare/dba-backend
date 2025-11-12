@@ -5,6 +5,15 @@ from pydantic import BaseModel, ConfigDict, Field
 from app.schemas.gramasewaka import GramasewakaOut
 
 
+class GnDivisionNode(BaseModel):
+    model_config = ConfigDict(from_attributes=True, str_strip_whitespace=True)
+
+    gn_id: int
+    gn_gnc: str
+    gn_gnname: Optional[str] = None
+    gn_dvcode: str
+
+
 class DivisionalSecretariatNode(BaseModel):
     model_config = ConfigDict(from_attributes=True, str_strip_whitespace=True)
 
@@ -12,6 +21,7 @@ class DivisionalSecretariatNode(BaseModel):
     dv_dvcode: str
     dv_distrcd: str
     dv_dvname: Optional[str] = None
+    gn_divisions: List[GnDivisionNode] = Field(default_factory=list)
 
 
 class DistrictNode(BaseModel):
