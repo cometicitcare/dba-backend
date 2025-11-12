@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import re
+from collections import defaultdict
 from datetime import datetime
 from typing import Any, Dict, Optional, Tuple
 
@@ -10,6 +11,8 @@ from sqlalchemy.orm import Session
 
 from app.models.bhikku import Bhikku
 from app.models.bhikku_high import BhikkuHighRegist
+from app.models.nikaya import NikayaData
+from app.models.parshawadata import ParshawaData
 from app.models.user import UserAccount
 from app.models.vihara import ViharaData
 from app.repositories.bhikku_repo import bhikku_repo
@@ -325,6 +328,95 @@ class BhikkuService:
         """Return records from the bikkudtls_nikayanayaka_list view."""
         result = db.execute(self._nikayanayaka_view_query).mappings().all()
         return [dict(row) for row in result]
+
+    def list_nikaya_hierarchy(self, db: Session) -> list[dict[str, Any]]:
+        """
+        Return nikaya records enriched with their main bhikku and related parshawayas.
+        """
+        nikaya_rows = (
+            db.query(NikayaData)
+            .filter(NikayaData.nk_is_deleted.is_(False))
+            .order_by(NikayaData.nk_nkn)
+            .all()
+        )
+
+        if not nikaya_rows:
+            return []
+
+        parshawa_rows = (
+            db.query(ParshawaData)
+            .filter(ParshawaData.pr_is_deleted.is_(False))
+            .all()
+        )
+
+        parshawa_by_nikaya: dict[str, list[ParshawaData]] = defaultdict(list)
+        for parshawa in parshawa_rows:
+            if parshawa.pr_nikayacd:
+                parshawa_by_nikaya[parshawa.pr_nikayacd].append(parshawa)
+
+        main_regns = {row.nk_nahimicd for row in nikaya_rows if row.nk_nahimicd}
+        parshawa_regns = {row.pr_nayakahimi for row in parshawa_rows if row.pr_nayakahimi}
+        wanted_regns = {regn for regn in main_regns.union(parshawa_regns) if regn}
+
+        bhikku_map: dict[str, Bhikku] = {}
+        if wanted_regns:
+            bhikku_rows = (
+                db.query(Bhikku)
+                .filter(
+                    Bhikku.br_regn.in_(wanted_regns),
+                    Bhikku.br_is_deleted.is_(False),
+                )
+                .all()
+            )
+            bhikku_map = {row.br_regn: row for row in bhikku_rows}
+
+        def serialize_bhikku(entity: Optional[Bhikku]) -> Optional[dict[str, Any]]:
+            if not entity:
+                return None
+            return {
+                "regn": entity.br_regn,
+                "gihiname": entity.br_gihiname,
+                "mahananame": entity.br_mahananame,
+                "current_status": entity.br_currstat,
+                "parshawaya": entity.br_parshawaya,
+                "livtemple": entity.br_livtemple,
+                "mahanatemple": entity.br_mahanatemple,
+            }
+
+        hierarchy: list[dict[str, Any]] = []
+        for nikaya in nikaya_rows:
+            parshawa_items: list[dict[str, Any]] = []
+            for parshawa in sorted(
+                parshawa_by_nikaya.get(nikaya.nk_nkn, []),
+                key=lambda item: ((item.pr_pname or "").lower(), item.pr_prn or ""),
+            ):
+                parshawa_items.append(
+                    {
+                        "code": parshawa.pr_prn,
+                        "name": parshawa.pr_pname,
+                        "remarks": parshawa.pr_rmrks,
+                        "start_date": parshawa.pr_startdate,
+                        "nayaka_regn": parshawa.pr_nayakahimi,
+                        "nayaka": serialize_bhikku(
+                            bhikku_map.get(parshawa.pr_nayakahimi)
+                        ),
+                    }
+                )
+
+            hierarchy.append(
+                {
+                    "nikaya": {
+                        "code": nikaya.nk_nkn,
+                        "name": nikaya.nk_nname,
+                    },
+                    "main_bhikku": serialize_bhikku(
+                        bhikku_map.get(nikaya.nk_nahimicd)
+                    ),
+                    "parshawayas": parshawa_items,
+                }
+            )
+
+        return hierarchy
 
     def list_parshawa_view(self, db: Session) -> list[dict[str, Any]]:
         """Return records from the bikkudtls_parshawa_list view."""
