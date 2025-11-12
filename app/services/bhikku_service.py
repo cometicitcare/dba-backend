@@ -547,28 +547,8 @@ class BhikkuService:
         br_fathrsmobile: Optional[str],
         current_regn: Optional[str],
     ) -> None:
-        if self._has_meaningful_value(br_mobile):
-            existing_mobile = bhikku_repo.get_by_mobile(db, br_mobile)
-            if existing_mobile and existing_mobile.br_regn != current_regn:
-                raise ValueError(
-                    f"br_mobile '{br_mobile}' is already associated with another bhikku."
-                )
-
-        if self._has_meaningful_value(br_email):
-            existing_email = bhikku_repo.get_by_email(db, br_email)
-            if existing_email and existing_email.br_regn != current_regn:
-                raise ValueError(
-                    f"br_email '{br_email}' is already associated with another bhikku."
-                )
-
-        if self._has_meaningful_value(br_fathrsmobile):
-            existing_father_mobile = bhikku_repo.get_by_fathrsmobile(
-                db, br_fathrsmobile
-            )
-            if existing_father_mobile and existing_father_mobile.br_regn != current_regn:
-                raise ValueError(
-                    f"br_fathrsmobile '{br_fathrsmobile}' is already associated with another bhikku."
-                )
+        # Duplicate contact details are permitted, so no uniqueness validation is required.
+        return
 
     def _validate_contact_formats(self, payload: Dict[str, Any]) -> None:
         for field in ("br_mobile", "br_fathrsmobile"):
