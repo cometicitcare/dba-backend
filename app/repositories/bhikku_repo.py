@@ -81,9 +81,13 @@ class BhikkuRepository:
         skip: int = 0,
         limit: int = 100,
         search_key: Optional[str] = None,
+        vh_trn: Optional[str] = None,
     ):
         """Get paginated bhikkus with optional search functionality across all text fields."""
         query = db.query(models.Bhikku).filter(models.Bhikku.br_is_deleted.is_(False))
+
+        if vh_trn and vh_trn.strip():
+            query = query.filter(models.Bhikku.br_livtemple == vh_trn.strip())
 
         if search_key and search_key.strip():
             search_pattern = f"%{search_key.strip()}%"
@@ -122,11 +126,16 @@ class BhikkuRepository:
             .all()
         )
 
-    def get_total_count(self, db: Session, search_key: Optional[str] = None):
+    def get_total_count(
+        self, db: Session, search_key: Optional[str] = None, vh_trn: Optional[str] = None
+    ):
         """Get total count of non-deleted bhikkus for pagination with optional search."""
         query = db.query(func.count(models.Bhikku.br_id)).filter(
             models.Bhikku.br_is_deleted.is_(False)
         )
+
+        if vh_trn and vh_trn.strip():
+            query = query.filter(models.Bhikku.br_livtemple == vh_trn.strip())
 
         if search_key and search_key.strip():
             search_pattern = f"%{search_key.strip()}%"

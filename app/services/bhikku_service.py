@@ -240,13 +240,18 @@ class BhikkuService:
         skip: int = 0,
         limit: int = 100,
         search: Optional[str] = None,
+        vh_trn: Optional[str] = None,
     ) -> list[Bhikku]:
         limit = max(1, min(limit, 200))
         skip = max(0, skip)
-        return bhikku_repo.get_all(db, skip=skip, limit=limit, search_key=search)
+        return bhikku_repo.get_all(
+            db, skip=skip, limit=limit, search_key=search, vh_trn=vh_trn
+        )
 
-    def count_bhikkus(self, db: Session, *, search: Optional[str] = None) -> int:
-        total = bhikku_repo.get_total_count(db, search_key=search)
+    def count_bhikkus(
+        self, db: Session, *, search: Optional[str] = None, vh_trn: Optional[str] = None
+    ) -> int:
+        total = bhikku_repo.get_total_count(db, search_key=search, vh_trn=vh_trn)
         return int(total or 0)
 
     def list_mahanayaka_view(self, db: Session) -> list[dict[str, Any]]:
