@@ -28,6 +28,7 @@ from app.api.v1.routes import (
     province,
     religion,
     roles,
+    status,
     vihara_data,
 )
 
@@ -103,6 +104,9 @@ api_router.include_router(
 )
 api_router.include_router(
     religion.router, prefix="/religion", tags=["Religion"]
+)
+api_router.include_router(
+    status.router, prefix="/status", tags=["Status"]
 )
 api_router.include_router(province.router, prefix="/province", tags=["Province"])
 api_router.include_router(
