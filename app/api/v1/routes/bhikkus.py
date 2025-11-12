@@ -52,6 +52,25 @@ def list_nikaya_bhikkus(
 
 
 @router.get(
+    "/nikaya-hierarchy",
+    response_model=schemas.BhikkuNikayaHierarchyResponse,
+)
+def list_nikaya_hierarchy(
+    db: Session = Depends(get_db),
+    current_user: UserAccount = Depends(get_current_user),
+):
+    """
+    Return nikaya records with their main bhikku and related parshawayas.
+    """
+    records = bhikku_service.list_nikaya_hierarchy(db)
+    return {
+        "status": "success",
+        "message": "Nikaya hierarchy retrieved successfully.",
+        "data": records,
+    }
+
+
+@router.get(
     "/acharya-list",
     response_model=schemas.BhikkuAcharyaListResponse,
 )

@@ -185,6 +185,42 @@ class BhikkuNikayaListResponse(BaseModel):
     data: List[BhikkuNikayaListItem]
 
 
+class BhikkuNikayaHierarchyBhikku(BaseModel):
+    regn: str
+    gihiname: Optional[str] = None
+    mahananame: Optional[str] = None
+    current_status: Optional[str] = None
+    parshawaya: Optional[str] = None
+    livtemple: Optional[str] = None
+    mahanatemple: Optional[str] = None
+
+
+class BhikkuNikayaParshawaItem(BaseModel):
+    code: Optional[str] = None
+    name: Optional[str] = None
+    remarks: Optional[str] = None
+    start_date: Optional[date] = None
+    nayaka_regn: Optional[str] = None
+    nayaka: Optional[BhikkuNikayaHierarchyBhikku] = None
+
+
+class BhikkuNikayaHierarchyNikaya(BaseModel):
+    code: Optional[str] = None
+    name: Optional[str] = None
+
+
+class BhikkuNikayaHierarchyItem(BaseModel):
+    nikaya: BhikkuNikayaHierarchyNikaya
+    main_bhikku: Optional[BhikkuNikayaHierarchyBhikku] = None
+    parshawayas: List[BhikkuNikayaParshawaItem] = Field(default_factory=list)
+
+
+class BhikkuNikayaHierarchyResponse(BaseModel):
+    status: str
+    message: str
+    data: List[BhikkuNikayaHierarchyItem]
+
+
 class BhikkuAcharyaListItem(BaseModel):
     currstated: Optional[str] = None
     mobile: Optional[str] = None
