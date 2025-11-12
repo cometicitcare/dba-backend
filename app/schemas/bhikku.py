@@ -193,6 +193,7 @@ class BhikkuNikayaHierarchyBhikku(BaseModel):
     parshawaya: Optional[str] = None
     livtemple: Optional[str] = None
     mahanatemple: Optional[str] = None
+    address: Optional[str] = None
 
 
 class BhikkuNikayaParshawaItem(BaseModel):

@@ -359,6 +359,7 @@ class BhikkuService:
         wanted_regns = {regn for regn in main_regns.union(parshawa_regns) if regn}
 
         bhikku_map: dict[str, Bhikku] = {}
+        vihara_map: dict[str, ViharaData] = {}
         if wanted_regns:
             bhikku_rows = (
                 db.query(Bhikku)
@@ -370,9 +371,38 @@ class BhikkuService:
             )
             bhikku_map = {row.br_regn: row for row in bhikku_rows}
 
+            vihara_codes = {
+                row.br_livtemple for row in bhikku_rows if row.br_livtemple
+            }
+            if vihara_codes:
+                vihara_rows = (
+                    db.query(ViharaData)
+                    .filter(
+                        ViharaData.vh_trn.in_(vihara_codes),
+                        ViharaData.vh_is_deleted.is_(False),
+                    )
+                    .all()
+                )
+                vihara_map = {row.vh_trn: row for row in vihara_rows}
+
         def serialize_bhikku(entity: Optional[Bhikku]) -> Optional[dict[str, Any]]:
             if not entity:
                 return None
+            vihara = (
+                vihara_map.get(entity.br_livtemple)
+                if entity.br_livtemple
+                else None
+            )
+            address = (
+                (vihara.vh_addrs if vihara and vihara.vh_addrs else None)
+                or entity.br_fathrsaddrs
+                or self._build_address_string(
+                    entity.br_vilage,
+                    entity.br_division,
+                    entity.br_district,
+                    entity.br_province,
+                )
+            )
             return {
                 "regn": entity.br_regn,
                 "gihiname": entity.br_gihiname,
@@ -381,6 +411,7 @@ class BhikkuService:
                 "parshawaya": entity.br_parshawaya,
                 "livtemple": entity.br_livtemple,
                 "mahanatemple": entity.br_mahanatemple,
+                "address": address,
             }
 
         hierarchy: list[dict[str, Any]] = []
@@ -712,6 +743,17 @@ class BhikkuService:
             )
             self._table_cache[cache_key] = table
         return self._table_cache[cache_key]
+
+    @staticmethod
+    def _build_address_string(*parts: Optional[str]) -> Optional[str]:
+        meaningful = [
+            part.strip()
+            for part in parts
+            if isinstance(part, str) and part.strip()
+        ]
+        if not meaningful:
+            return None
+        return ", ".join(meaningful)
 
     @staticmethod
     def _strip_strings(data: Dict[str, Any]) -> Dict[str, Any]:
