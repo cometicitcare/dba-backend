@@ -1,6 +1,4 @@
 # app/api/v1/routes/bhikkus.py
-from typing import Union
-
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
@@ -528,12 +526,7 @@ def list_id_gn_summary(
     }
 
 
-@router.post(
-    "/manage",
-    response_model=Union[
-        schemas.BhikkuManagementResponse, schemas.BhikkuManageReadAllResponse
-    ],
-)
+@router.post("/manage", response_model=schemas.BhikkuManagementResponse)
 def manage_bhikku_records(
     request: schemas.BhikkuManagementRequest, 
     db: Session = Depends(get_db),
@@ -606,7 +599,6 @@ def manage_bhikku_records(
         page = payload.page if payload.page is not None else 1
         limit = payload.limit
         search_key = payload.search_key.strip() if payload.search_key else None
-        vh_trn = payload.vh_trn.strip() if payload.vh_trn else None
         
         # If search_key is empty string, treat as None
         if search_key == "":
@@ -618,27 +610,19 @@ def manage_bhikku_records(
         
         # Get paginated bhikku records with search
         bhikkus = bhikku_service.list_bhikkus(
-            db, skip=skip, limit=limit, search=search_key, vh_trn=vh_trn
+            db, skip=skip, limit=limit, search=search_key
         )
         
         # Get total count for pagination
-        total_count = bhikku_service.count_bhikkus(
-            db, search=search_key, vh_trn=vh_trn
-        )
-
-        response_payload = schemas.BhikkuReadAllResponsePayload(
-            skip=skip,
-            limit=limit,
-            page=page,
-            search_key=search_key or "",
-            vh_trn=payload.vh_trn or "",
-            data=bhikkus,
-            totalRecords=total_count,
-        )
-
+        total_count = bhikku_service.count_bhikkus(db, search=search_key)
+        
         return {
-            "action": schemas.CRUDAction.READ_ALL,
-            "payload": response_payload,
+            "status": "success",
+            "message": "Bhikkus retrieved successfully.",
+            "data": bhikkus,
+            "totalRecords": total_count,
+            "page": page,
+            "limit": limit
         }
 
     elif action == schemas.CRUDAction.UPDATE:

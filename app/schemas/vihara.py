@@ -1,7 +1,7 @@
 from datetime import date, datetime
 import re
 from enum import Enum
-from typing import Annotated, Optional, Union, List, Any, Literal
+from typing import Annotated, Optional, Union, List, Any
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
 
@@ -176,8 +176,7 @@ class ViharaRequestPayload(BaseModel):
     skip: Annotated[int, Field(ge=0)] = 0
     limit: Annotated[int, Field(ge=1, le=200)] = 10
     page: Annotated[Optional[int], Field(default=1, ge=1)] = 1
-    search_key: Annotated[Optional[str], Field(default="", max_length=200)] = ""
-    br_regn: Annotated[Optional[str], Field(default="", max_length=20)] = ""
+    search_key: Annotated[Optional[str], Field(default=None, max_length=200)] = None
     data: Optional[Union[ViharaCreate, ViharaUpdate]] = None
 
 
@@ -193,18 +192,3 @@ class ViharaManagementResponse(BaseModel):
     totalRecords: Optional[int] = None
     page: Optional[int] = None
     limit: Optional[int] = None
-
-
-class ViharaReadAllResponsePayload(BaseModel):
-    skip: int
-    limit: int
-    page: int
-    search_key: str
-    br_regn: str
-    data: List[ViharaOut]
-    totalRecords: int
-
-
-class ViharaManageReadAllResponse(BaseModel):
-    action: Literal[CRUDAction.READ_ALL]
-    payload: ViharaReadAllResponsePayload
