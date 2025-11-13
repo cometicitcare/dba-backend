@@ -36,26 +36,34 @@ class BhikkuBase(BaseModel):
     # Status Information
     br_currstat: str
     br_effctdate: Optional[date] = None
+    br_residence_at_declaration: Optional[str] = None
+    br_declaration_date: Optional[date] = None
     
     # Temple/Religious Information
     br_parshawaya: str
-    br_livtemple: str
+    br_nikaya: Optional[str] = None
+    br_livtemple: Optional[str] = None
     br_mahanatemple: str
     br_mahanaacharyacd: str
     br_multi_mahanaacharyacd: Optional[str] = None
     br_mahananame: Optional[str] = None
     br_mahanadate: Optional[date] = None
+    br_mahanayaka_name: Optional[str] = None
+    br_mahanayaka_address: Optional[str] = None
+    br_viharadhipathi: Optional[str] = None
     br_cat: Optional[str] = None
-    
+
     # Contact Information
     br_mobile: Optional[str] = Field(None, max_length=10)
     br_email: Optional[EmailStr] = None
     br_fathrsaddrs: Optional[str] = None
     br_fathrsmobile: Optional[str] = Field(None, max_length=10)
-    
+
     # Serial Number
     br_upasampada_serial_no: Optional[str] = None
-    
+    br_robing_tutor_residence: Optional[str] = None
+    br_robing_after_residence_temple: Optional[str] = None
+
     # Audit Fields
     br_created_by: Optional[str] = None
     br_updated_by: Optional[str] = None
@@ -88,15 +96,21 @@ class BhikkuUpdate(BaseModel):
     # Status Information
     br_currstat: Optional[str] = None
     br_effctdate: Optional[date] = None
+    br_residence_at_declaration: Optional[str] = None
+    br_declaration_date: Optional[date] = None
     
     # Temple/Religious Information
     br_parshawaya: Optional[str] = None
+    br_nikaya: Optional[str] = None
     br_livtemple: Optional[str] = None
     br_mahanatemple: Optional[str] = None
     br_mahanaacharyacd: Optional[str] = None
     br_multi_mahanaacharyacd: Optional[str] = None
     br_mahananame: Optional[str] = None
     br_mahanadate: Optional[date] = None
+    br_mahanayaka_name: Optional[str] = None
+    br_mahanayaka_address: Optional[str] = None
+    br_viharadhipathi: Optional[str] = None
     br_cat: Optional[str] = None
     
     # Contact Information
@@ -104,10 +118,13 @@ class BhikkuUpdate(BaseModel):
     br_email: Optional[EmailStr] = None
     br_fathrsaddrs: Optional[str] = None
     br_fathrsmobile: Optional[str] = Field(None, max_length=10)
-    
+
     # Serial Number
     br_upasampada_serial_no: Optional[str] = None
-    
+
+    br_robing_tutor_residence: Optional[str] = None
+    br_robing_after_residence_temple: Optional[str] = None
+
     # Audit Fields
     br_created_by: Optional[str] = None
     br_updated_by: Optional[str] = None

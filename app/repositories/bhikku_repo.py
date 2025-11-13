@@ -107,11 +107,18 @@ class BhikkuRepository:
                     models.Bhikku.br_fathrsaddrs.ilike(search_pattern),
                     models.Bhikku.br_fathrsmobile.ilike(search_pattern),
                     models.Bhikku.br_parshawaya.ilike(search_pattern),
+                    models.Bhikku.br_nikaya.ilike(search_pattern),
                     models.Bhikku.br_livtemple.ilike(search_pattern),
                     models.Bhikku.br_mahanatemple.ilike(search_pattern),
                     models.Bhikku.br_mahanaacharyacd.ilike(search_pattern),
                     models.Bhikku.br_currstat.ilike(search_pattern),
                     models.Bhikku.br_cat.ilike(search_pattern),
+                    models.Bhikku.br_mahanayaka_name.ilike(search_pattern),
+                    models.Bhikku.br_mahanayaka_address.ilike(search_pattern),
+                    models.Bhikku.br_viharadhipathi.ilike(search_pattern),
+                    models.Bhikku.br_residence_at_declaration.ilike(search_pattern),
+                    models.Bhikku.br_robing_tutor_residence.ilike(search_pattern),
+                    models.Bhikku.br_robing_after_residence_temple.ilike(search_pattern),
                 )
             )
 
@@ -150,11 +157,18 @@ class BhikkuRepository:
                     models.Bhikku.br_fathrsaddrs.ilike(search_pattern),
                     models.Bhikku.br_fathrsmobile.ilike(search_pattern),
                     models.Bhikku.br_parshawaya.ilike(search_pattern),
+                    models.Bhikku.br_nikaya.ilike(search_pattern),
                     models.Bhikku.br_livtemple.ilike(search_pattern),
                     models.Bhikku.br_mahanatemple.ilike(search_pattern),
                     models.Bhikku.br_mahanaacharyacd.ilike(search_pattern),
                     models.Bhikku.br_currstat.ilike(search_pattern),
                     models.Bhikku.br_cat.ilike(search_pattern),
+                    models.Bhikku.br_mahanayaka_name.ilike(search_pattern),
+                    models.Bhikku.br_mahanayaka_address.ilike(search_pattern),
+                    models.Bhikku.br_viharadhipathi.ilike(search_pattern),
+                    models.Bhikku.br_residence_at_declaration.ilike(search_pattern),
+                    models.Bhikku.br_robing_tutor_residence.ilike(search_pattern),
+                    models.Bhikku.br_robing_after_residence_temple.ilike(search_pattern),
                 )
             )
 

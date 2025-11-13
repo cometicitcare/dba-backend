@@ -27,6 +27,7 @@ class BhikkuService:
         "br_currstat": ("public", "statusdata", "st_statcd"),
         "br_parshawaya": ("public", "cmm_parshawadata", "pr_prn"),
         "br_cat": ("public", "cmm_cat", "cc_code"),
+        "br_nikaya": ("public", "cmm_nikayadata", "nk_nkn"),
     }
 
     MOBILE_PATTERN = re.compile(r"^0\d{9}$")
@@ -619,8 +620,26 @@ class BhikkuService:
             current_regn=current_regn,
         )
 
+        self._validate_bhikku_reference(
+            db,
+            payload.get("br_viharadhipathi"),
+            "br_viharadhipathi",
+            current_regn=current_regn,
+        )
+
         self._validate_bhikku_high_reference(
             db, payload.get("br_upasampada_serial_no"), "br_upasampada_serial_no"
+        )
+
+        self._validate_vihara_reference(
+            db,
+            payload.get("br_robing_tutor_residence"),
+            "br_robing_tutor_residence",
+        )
+        self._validate_vihara_reference(
+            db,
+            payload.get("br_robing_after_residence_temple"),
+            "br_robing_after_residence_temple",
         )
 
         for field, target in self.FK_TABLE_MAP.items():
