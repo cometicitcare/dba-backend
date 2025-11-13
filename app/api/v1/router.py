@@ -10,6 +10,7 @@ from app.api.v1.routes import (
     bhikku_category,
     bhikku_certification,
     bhikku_high,
+    bhikku_id,
     bhikku_nikaya_data,
     bhikku_parshawa_data,
     bhikkus,
@@ -29,6 +30,7 @@ from app.api.v1.routes import (
     religion,
     roles,
     status,
+    silmatha_id,
     vihara_data,
 )
 
@@ -36,6 +38,16 @@ api_router = APIRouter()
 
 api_router.include_router(health.router, tags=["Health"])
 api_router.include_router(bhikkus.router, prefix="/bhikkus", tags=["Bhikkus"])
+api_router.include_router(
+    bhikku_id.router,
+    prefix="/bhikku-id",
+    tags=["Bhikku ID"],
+)
+api_router.include_router(
+    silmatha_id.router,
+    prefix="/silmatha-id",
+    tags=["Silmatha ID"],
+)
 api_router.include_router(bhikku_high.router, prefix="/bhikkus-high", tags=["Bhikku High"])
 api_router.include_router(
     bhikku_certification.router,
