@@ -21,11 +21,16 @@ def check_permission(db: Session, user_id: str, permission_name: str):
 def manage_bhikku_high_records(
     request: schemas.BhikkuHighManagementRequest,
     db: Session = Depends(get_db),
-    current_user: UserAccount = Depends(get_current_user),
+    current_user: dict = Depends(get_current_user),  # Use get_current_user to get user info from JWT
 ):
     action = request.action
     payload = request.payload
-    user_id = current_user.ua_user_id
+    user_id = current_user["user_id"]  # Access user ID from the current_user dictionary
+    user_role = current_user["role"]   # Access user role from the current_user dictionary
+    user_group = current_user["group"]  # Access user group from the current_user dictionary
+
+    # You can now use `user_role` and `user_group` in your response
+    print(f"User Role: {user_role}, User Group: {user_group}")
 
     # Permission checks before CRUD actions
     if action == schemas.CRUDAction.CREATE:
@@ -91,6 +96,7 @@ def manage_bhikku_high_records(
             message="Higher bhikku registrations retrieved successfully.",
             data=records,
             totalRecords=total,
+            user_info={"role": user_role, "group": user_group},
             page=page,
             limit=limit,
         )

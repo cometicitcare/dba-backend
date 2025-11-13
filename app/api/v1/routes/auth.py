@@ -60,6 +60,31 @@ def register_user(user: UserCreate, db: Session = Depends(get_db)):
         raise validation_error([(None, str(e))])
 
 
+# @router.post("/login")
+# def login(
+#     request: Request,
+#     form_data: UserLogin,
+#     db: Session = Depends(get_db),
+# ):
+#     """Login user, set http-only cookies with access/refresh tokens, and return user info"""
+#     access, refresh, user = auth_service.authenticate(db, form_data.ua_username, form_data.ua_password)
+
+#     # Create login history for observability (store token hash if needed, but skip here)
+#     auth_repo.create_login_history(
+#         db,
+#         user_id=user.ua_user_id,
+#         session_id=f"login-{user.ua_user_id}",
+#         ip_address=request.client.host if request.client else None,
+#         user_agent=request.headers.get("user-agent"),
+#         success=True,
+#     )
+#     auth_repo.update_user_last_login(db, user_id=user.ua_user_id)
+#     user_payload = UserResponse.model_validate(user, from_attributes=True).model_dump()
+
+#     response = JSONResponse(content={"user": user_payload})
+#     set_auth_cookies(response, access_token=access, refresh_token=refresh)
+#     return response
+
 @router.post("/login")
 def login(
     request: Request,
@@ -67,9 +92,17 @@ def login(
     db: Session = Depends(get_db),
 ):
     """Login user, set http-only cookies with access/refresh tokens, and return user info"""
+    # Authenticate the user
     access, refresh, user = auth_service.authenticate(db, form_data.ua_username, form_data.ua_password)
 
-    # Create login history for observability (store token hash if needed, but skip here)
+    # Fetch user's role and group
+    user_role = db.query(auth_repo.Role).join(auth_repo.UserRole).filter(auth_repo.UserRole.user_id == user.ua_user_id).first()
+    user_group = db.query(auth_repo.Group).join(auth_repo.UserGroup).filter(auth_repo.UserGroup.user_id == user.ua_user_id).first()
+
+    if not user_role or not user_group:
+        raise HTTPException(status_code=404, detail="User role or group not found")
+
+    # Create login history for observability
     auth_repo.create_login_history(
         db,
         user_id=user.ua_user_id,
@@ -78,13 +111,20 @@ def login(
         user_agent=request.headers.get("user-agent"),
         success=True,
     )
+    
+    # Update user's last login time
     auth_repo.update_user_last_login(db, user_id=user.ua_user_id)
-    user_payload = UserResponse.model_validate(user, from_attributes=True).model_dump()
 
+    # Create the JWT token with role and group info
+    user_payload = UserResponse.model_validate(user, from_attributes=True).model_dump()
+    user_payload["role"] = user_role.ro_role_name if user_role else None
+    user_payload["group"] = user_group.group_name if user_group else None
+
+    # Create access and refresh tokens
     response = JSONResponse(content={"user": user_payload})
     set_auth_cookies(response, access_token=access, refresh_token=refresh)
+    
     return response
-
 
 @router.post("/logout")
 def logout(db: Session = Depends(get_db)):

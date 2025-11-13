@@ -1,7 +1,9 @@
 from sqlalchemy.orm import Session
 from app.models.permissions import Permission
+from app.models.user_roles import UserRole
 from app.schemas.permission import PermissionCreate, PermissionUpdate
 from app.utils.http_exceptions import validation_error
+from app.models.role_permissions import RolePermission
 from datetime import datetime
 
 class PermissionService:
@@ -56,6 +58,21 @@ class PermissionService:
         db.delete(permission_to_delete)
         db.commit()
         return permission_to_delete
+    
+    def get_user_permissions(db: Session, user_id: str):
+        # Get user's role
+        user_role = db.query(UserRole).filter(UserRole.user_id == user_id).first()
+        if not user_role:
+            raise Exception("User role not found")
+
+        # Get permissions for the user's role
+        permissions = db.query(Permission.pe_name).join(
+            RolePermission,
+            RolePermission.rp_permission_id == Permission.pe_permission_id
+        ).filter(RolePermission.rp_role_id == user_role.role_id).all()
+
+        return [permission.pe_name for permission in permissions]
+
 
 # Initialize the service
 permission_service = PermissionService()

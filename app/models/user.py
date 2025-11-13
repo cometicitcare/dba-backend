@@ -11,26 +11,7 @@ from sqlalchemy import (
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from app.db.base import Base
-
-
-class Role(Base):
-    __tablename__ = "roles"
-
-    ro_role_id = Column(String(20), primary_key=True, index=True)
-    ro_role_name = Column(String(100), unique=True, nullable=False)
-    ro_description = Column(Text)
-    ro_is_system_role = Column(Boolean, default=False)
-    ro_is_deleted = Column(Boolean, default=False)
-    ro_created_at = Column(DateTime(timezone=True), server_default=func.now())
-    ro_updated_at = Column(
-        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
-    )
-    ro_created_by = Column(String(50))
-    ro_updated_by = Column(String(50))
-    ro_version_number = Column(Integer, default=1)
-
-    # Relationship
-    users = relationship("UserAccount", back_populates="role")
+from .roles import Role
 
 
 class UserAccount(Base):
@@ -62,7 +43,9 @@ class UserAccount(Base):
     ua_version_number = Column(Integer, default=1)
     
     # Foreign Key to Role
-    ro_role_id = Column(String(20), ForeignKey("roles.ro_role_id"), nullable=False)
+    # foreign key references the single Role model (defined in app.models.roles)
+    # align size with Role.ro_role_id (String(10))
+    ro_role_id = Column(String(10), ForeignKey("roles.ro_role_id"), nullable=False)
 
     # Relationship
     role = relationship("Role", back_populates="users")
