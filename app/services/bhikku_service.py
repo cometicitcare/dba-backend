@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import re
 from collections import defaultdict
-from datetime import datetime
+from datetime import datetime, date
 from typing import Any, Dict, Optional, Tuple
 
 from sqlalchemy import MetaData, Table, select, text
@@ -241,13 +241,74 @@ class BhikkuService:
         skip: int = 0,
         limit: int = 100,
         search: Optional[str] = None,
+        vh_trn: Optional[str] = None,
+        district: Optional[str] = None,
+        divisional_secretariat: Optional[str] = None,
+        gn_division: Optional[str] = None,
+        temple: Optional[str] = None,
+        child_temple: Optional[str] = None,
+        nikaya: Optional[str] = None,
+        parshawaya: Optional[str] = None,
+        category: Optional[list[str]] = None,
+        status: Optional[list[str]] = None,
+        date_from: Optional[date] = None,
+        date_to: Optional[date] = None,
     ) -> list[Bhikku]:
         limit = max(1, min(limit, 200))
         skip = max(0, skip)
-        return bhikku_repo.get_all(db, skip=skip, limit=limit, search_key=search)
+        return bhikku_repo.get_all(
+            db,
+            skip=skip,
+            limit=limit,
+            search_key=search,
+            vh_trn=vh_trn,
+            district=district,
+            divisional_secretariat=divisional_secretariat,
+            gn_division=gn_division,
+            temple=temple,
+            child_temple=child_temple,
+            nikaya=nikaya,
+            parshawaya=parshawaya,
+            category=category,
+            status=status,
+            date_from=date_from,
+            date_to=date_to,
+        )
 
-    def count_bhikkus(self, db: Session, *, search: Optional[str] = None) -> int:
-        total = bhikku_repo.get_total_count(db, search_key=search)
+    def count_bhikkus(
+        self,
+        db: Session,
+        *,
+        search: Optional[str] = None,
+        vh_trn: Optional[str] = None,
+        district: Optional[str] = None,
+        divisional_secretariat: Optional[str] = None,
+        gn_division: Optional[str] = None,
+        temple: Optional[str] = None,
+        child_temple: Optional[str] = None,
+        nikaya: Optional[str] = None,
+        parshawaya: Optional[str] = None,
+        category: Optional[list[str]] = None,
+        status: Optional[list[str]] = None,
+        date_from: Optional[date] = None,
+        date_to: Optional[date] = None,
+    ) -> int:
+        total = bhikku_repo.get_total_count(
+            db,
+            search_key=search,
+            vh_trn=vh_trn,
+            district=district,
+            divisional_secretariat=divisional_secretariat,
+            gn_division=gn_division,
+            temple=temple,
+            child_temple=child_temple,
+            nikaya=nikaya,
+            parshawaya=parshawaya,
+            category=category,
+            status=status,
+            date_from=date_from,
+            date_to=date_to,
+        )
         return int(total or 0)
 
     def list_mahanayaka_view(self, db: Session) -> list[dict[str, Any]]:
