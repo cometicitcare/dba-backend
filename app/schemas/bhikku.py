@@ -143,12 +143,25 @@ class Bhikku(BhikkuBase):
 class BhikkuRequestPayload(BaseModel):
     # For READ_ONE, UPDATE, DELETE
     br_id: Optional[int] = None
-    br_regn: Optional[str] = None 
-    # For READ_ALL - Enhanced with page number and search
+    br_regn: Optional[str] = None
+    # For READ_ALL - Pagination and search
     skip: Annotated[int, Field(ge=0)] = 0
     limit: Annotated[int, Field(ge=1, le=200)] = 10
     page: Annotated[Optional[int], Field(ge=1)] = 1
     search_key: Optional[str] = Field(default="", max_length=100)
+    # Filters for READ_ALL
+    vh_trn: Optional[str] = Field(default=None)
+    district: Optional[str] = Field(default=None)
+    divisional_secretariat: Optional[str] = Field(default=None)
+    gn_division: Optional[str] = Field(default=None)
+    temple: Optional[str] = Field(default=None)
+    child_temple: Optional[str] = Field(default=None)
+    nikaya: Optional[str] = Field(default=None)
+    parshawaya: Optional[str] = Field(default=None)
+    category: List[str] = Field(default_factory=list)
+    status: List[str] = Field(default_factory=list)
+    date_from: Optional[date] = None
+    date_to: Optional[date] = None
     # For CREATE, UPDATE
     data: Optional[Union[BhikkuCreate, BhikkuUpdate]] = None
 
