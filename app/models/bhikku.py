@@ -29,15 +29,21 @@ class Bhikku(Base):
     # Status Information
     br_currstat = Column(String(5), nullable=False)
     br_effctdate = Column(Date)
+    br_residence_at_declaration = Column(String(200))
+    br_declaration_date = Column(Date)
     
     # Temple/Religious Information
     br_parshawaya = Column(String(10), nullable=False)
-    br_livtemple = Column(String(10), nullable=False)
+    br_nikaya = Column(String(10))
+    br_livtemple = Column(String(10), nullable=True)
     br_mahanatemple = Column(String(10), nullable=False)
     br_mahanaacharyacd = Column(String(12), nullable=False)
     br_multi_mahanaacharyacd = Column(String(200))
     br_mahananame = Column(String(50))
     br_mahanadate = Column(Date)
+    br_mahanayaka_name = Column(String(200))
+    br_mahanayaka_address = Column(String(200))
+    br_viharadhipathi = Column(String(12))
     br_cat = Column(String(5))
     
     # Contact Information
@@ -48,6 +54,8 @@ class Bhikku(Base):
     
     # Serial Number
     br_upasampada_serial_no = Column(String(20))
+    br_robing_tutor_residence = Column(String(10))
+    br_robing_after_residence_temple = Column(String(10))
     
     # Audit Fields
     br_version = Column(TIMESTAMP, nullable=False, server_default=func.now())
