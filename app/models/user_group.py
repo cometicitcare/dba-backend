@@ -16,5 +16,6 @@ class UserGroup(Base):
     group = relationship("Group", back_populates="users")
     user = relationship("UserAccount", back_populates="groups")
 
+
     def __repr__(self):
         return f"<UserGroup(user_id={self.user_id}, group_id={self.group_id}, created_at={self.created_at})>"

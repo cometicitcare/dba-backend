@@ -1,6 +1,6 @@
 from datetime import datetime
 from sqlalchemy import String, Index, ForeignKey, TIMESTAMP
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.db.base import Base
 from app.models.mixins import AuditMixin
 
@@ -14,6 +14,11 @@ class UserRole(Base, AuditMixin):
     ur_role_id: Mapped[str] = mapped_column(String(10), ForeignKey("roles.ro_role_id", ondelete="RESTRICT"), nullable=False)
     ur_assigned_date: Mapped[datetime | None] = mapped_column(TIMESTAMP(timezone=False), nullable=True)
     ur_expires_date: Mapped[datetime | None] = mapped_column(TIMESTAMP(timezone=False), nullable=True)
+
+    user_id = ForeignKey('user_accounts.ua_user_id', ondelete="CASCADE")
+    role_id = ForeignKey('roles.ro_role_id', ondelete="CASCADE")
+    user = relationship("UserAccount", back_populates="roles")
+    role = relationship("Role", back_populates="users")
 
 
     __table_args__ = (
