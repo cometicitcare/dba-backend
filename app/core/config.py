@@ -1,10 +1,16 @@
 # app/core/config.py
 import os
-from urllib.parse import urlparse, urlunparse, parse_qsl, urlencode
+from pathlib import Path
+from urllib.parse import parse_qsl, urlencode, urlparse, urlunparse
+
 from dotenv import load_dotenv
 
 # Load environment variables from .env file
 load_dotenv()
+
+BASE_DIR = Path(__file__).resolve().parents[1]
+DEFAULT_STORAGE_DIR = BASE_DIR / "storage"
+
 
 class Settings:
     PROJECT_NAME: str = "Bhikku Registry API"
@@ -31,6 +37,9 @@ class Settings:
     COOKIE_SAMESITE: str = os.getenv("COOKIE_SAMESITE", "none")  # Changed from "lax"
     # CRITICAL: Must be True when SameSite=none
     COOKIE_SECURE: bool = os.getenv("COOKIE_SECURE", "true").lower() == "true"  # Changed logic
+
+    # File storage
+    STORAGE_DIR: str = os.getenv("STORAGE_DIR", str(DEFAULT_STORAGE_DIR))
 
     def __init__(self) -> None:
         # Normalize DATABASE_URL for SQLAlchemy/psycopg2 and Railway
