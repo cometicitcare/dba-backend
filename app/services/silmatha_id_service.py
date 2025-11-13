@@ -1,12 +1,14 @@
 from __future__ import annotations
 
-from typing import Dict, Optional
+from typing import Any, Dict, Optional
 
 from sqlalchemy.orm import Session
 
 from app.models.bhikku import Bhikku
 from app.models.bhikku_certification import BhikkuCertification
+from app.models.silmatha_id_card import SilmathaIDCard
 from app.models.vihara import ViharaData
+from app.repositories.silmatha_id_repo import silmatha_id_repo
 from app.schemas.silmatha_id import (
     DeclarationWithDate,
     SilmathaIDAcharyaInfo,
@@ -46,6 +48,7 @@ class SilmathaIDService:
         silmatha_residence = self._get_vihara_details(db, bhikku.br_livtemple)
 
         certificate_exists = self._has_certificate(db, lookup_key)
+        card_record = silmatha_id_repo.get_by_regn(db, bhikku.br_regn)
 
         acharya_info = SilmathaIDAcharyaInfo(
             full_name=self._prefer_name(acharya),
@@ -94,6 +97,13 @@ class SilmathaIDService:
             ),
         )
 
+        self._apply_card_overrides(
+            card_record=card_record,
+            acharya=acharya,
+            acharya_info=acharya_info,
+            applicant_info=applicant_info,
+        )
+
         return SilmathaIDCardData(
             form_id=bhikku.br_regn,
             district=bhikku.br_district,
@@ -101,6 +111,50 @@ class SilmathaIDService:
             applicant=applicant_info,
         )
 
+    def _apply_card_overrides(
+        self,
+        *,
+        card_record: Optional[SilmathaIDCard],
+        acharya: Optional[Bhikku],
+        acharya_info: SilmathaIDAcharyaInfo,
+        applicant_info: SilmathaIDApplicantInfo,
+    ) -> None:
+        if not card_record:
+            return
+
+        record = card_record
+        applicant_info.national_id = record.sic_national_id
+        applicant_info.birth_certificate_attached = record.sic_birth_certificate_attached
+        applicant_info.left_thumbprint_url = record.sic_left_thumbprint_url
+        applicant_info.applicant_image_url = record.sic_applicant_image_url
+
+        acharya_phone = record.sic_acharya_phone
+        if acharya_phone:
+            acharya_info.phone_number = acharya_phone
+            applicant_info.acharya_declaration.phone_number = acharya_phone
+        elif acharya and not applicant_info.acharya_declaration.phone_number:
+            applicant_info.acharya_declaration.phone_number = acharya.br_mobile
+
+        if record.sic_acharya_approved is not None:
+            applicant_info.acharya_declaration.approved = record.sic_acharya_approved
+        if record.sic_acharya_date:
+            applicant_info.acharya_declaration.date = record.sic_acharya_date
+
+        gn_phone = record.sic_grama_niladari_phone
+        if gn_phone:
+            applicant_info.grama_niladari_declaration.phone_number = gn_phone
+        if record.sic_grama_niladari_approved is not None:
+            applicant_info.grama_niladari_declaration.approved = record.sic_grama_niladari_approved
+        if record.sic_grama_niladari_date:
+            applicant_info.grama_niladari_declaration.date = record.sic_grama_niladari_date
+
+        devotional_phone = record.sic_devotional_secretariat_phone
+        if devotional_phone:
+            applicant_info.devotional_secretariat_declaration.phone_number = devotional_phone
+        if record.sic_devotional_secretariat_approved is not None:
+            applicant_info.devotional_secretariat_declaration.approved = record.sic_devotional_secretariat_approved
+        if record.sic_devotional_secretariat_date:
+            applicant_info.devotional_secretariat_declaration.date = record.sic_devotional_secretariat_date
     @staticmethod
     def _get_bhikku_by_regn(db: Session, regn: Optional[str]) -> Optional[Bhikku]:
         if not regn:
@@ -169,4 +223,3 @@ class SilmathaIDService:
 
 
 silmatha_id_service = SilmathaIDService()
-
