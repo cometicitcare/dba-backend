@@ -35,6 +35,37 @@ def manage_bhikku_id_cards(
 ):
     action = request.action
     payload = request.payload
+    user_id = current_user.ua_user_id
+
+    if action == schemas.CRUDAction.CREATE:
+        if not payload.data:
+            raise validation_error(
+                [("payload.data", "data is required for CREATE action")]
+            )
+        try:
+            create_payload = schemas.BhikkuIDCardCreate.model_validate(
+                payload.data
+            )
+        except ValidationError as exc:
+            raise validation_error(_format_validation_errors(exc)) from exc
+
+        try:
+            created = bhikku_id_card_service.create_card(
+                db,
+                payload=create_payload,
+                actor_id=user_id,
+                left_thumbprint=None,
+                applicant_image=None,
+            )
+        except ValueError as exc:
+            raise validation_error([(None, str(exc))]) from exc
+
+        created_out = schemas.BhikkuIDCard.model_validate(created)
+        return schemas.BhikkuIDCardManagementResponse(
+            status="success",
+            message="Bhikku ID card created successfully.",
+            data=created_out,
+        )
 
     if action == schemas.CRUDAction.READ_ONE:
         if payload.bic_id is None:
@@ -84,9 +115,71 @@ def manage_bhikku_id_cards(
             limit=limit,
         )
 
-    raise validation_error(
-        [("action", "Invalid action specified for this endpoint.")]
-    )
+    if action == schemas.CRUDAction.UPDATE:
+        if payload.bic_id is None:
+            raise validation_error(
+                [("payload.bic_id", "bic_id is required for UPDATE action")]
+            )
+        if not payload.data:
+            raise validation_error(
+                [("payload.data", "data is required for UPDATE action")]
+            )
+        try:
+            update_payload = schemas.BhikkuIDCardUpdate.model_validate(
+                payload.data
+            )
+        except ValidationError as exc:
+            raise validation_error(_format_validation_errors(exc)) from exc
+
+        try:
+            updated = bhikku_id_card_service.update_card(
+                db,
+                bic_id=payload.bic_id,
+                payload=update_payload,
+                actor_id=user_id,
+                left_thumbprint=None,
+                applicant_image=None,
+            )
+        except ValueError as exc:
+            message = str(exc)
+            if "not found" in message.lower():
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND, detail=message
+                ) from exc
+            raise validation_error([(None, message)]) from exc
+
+        updated_out = schemas.BhikkuIDCard.model_validate(updated)
+        return schemas.BhikkuIDCardManagementResponse(
+            status="success",
+            message="Bhikku ID card updated successfully.",
+            data=updated_out,
+        )
+
+    if action == schemas.CRUDAction.DELETE:
+        if payload.bic_id is None:
+            raise validation_error(
+                [("payload.bic_id", "bic_id is required for DELETE action")]
+            )
+
+        try:
+            bhikku_id_card_service.delete_card(
+                db, bic_id=payload.bic_id, actor_id=user_id
+            )
+        except ValueError as exc:
+            message = str(exc)
+            if "not found" in message.lower():
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND, detail=message
+                ) from exc
+            raise validation_error([(None, message)]) from exc
+
+        return schemas.BhikkuIDCardManagementResponse(
+            status="success",
+            message="Bhikku ID card deleted successfully.",
+            data=None,
+        )
+
+    raise validation_error([("action", "Invalid action specified.")])
 
 
 @router.post("/", response_model=schemas.BhikkuIDCardResponse)
