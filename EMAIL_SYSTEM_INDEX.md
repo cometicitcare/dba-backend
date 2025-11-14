@@ -17,6 +17,7 @@
 | **EMAIL_IMPLEMENTATION_SUMMARY.md** | Project overview & deliverables | 10 min |
 | **SETUP_README.md** | Complete setup & integration guide | 15 min |
 | **EMAIL_SYSTEM_QUICK_REFERENCE.md** | Quick lookup reference | 5 min |
+| **SMS_INTEGRATION_GUIDE.md** | SMS & OTP integration guide (new) | 5 min |
 | **EMAIL_SYSTEM_ARCHITECTURE.md** | System design & architecture | 10 min |
 | **EMAIL_DEPENDENCIES.md** | Package requirements | 3 min |
 | **app/services/EMAIL_AUTHENTICATION_GUIDE.md** | Detailed API reference | 20 min |

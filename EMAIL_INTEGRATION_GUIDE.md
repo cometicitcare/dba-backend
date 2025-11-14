@@ -34,6 +34,8 @@ https://api.dbagovlk.com/api/v1/auth
 
 **Description**: Initiate password reset. Generates OTP and sends it to user's email.
 
+**Note**: This flow can also deliver the OTP via SMS when the user's phone number is present in their account and SMS is enabled. See `SMS_INTEGRATION_GUIDE.md` for provider configuration, templates, and test instructions.
+
 ### Request
 
 ```bash
