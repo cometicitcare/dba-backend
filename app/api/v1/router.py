@@ -33,6 +33,7 @@ from app.api.v1.routes import (
     silmatha_id,
     vihara_data,
 )
+from app.api.v1 import auth_sms_test
 
 api_router = APIRouter()
 
@@ -87,6 +88,7 @@ api_router.include_router(
 api_router.include_router(dashboard.router, prefix="/dashboard", tags=["Dashboard"])
 api_router.include_router(nilame.router, prefix="/nilame", tags=["Nilame"])
 api_router.include_router(auth.router, prefix="/auth", tags=["Authentication"])
+api_router.include_router(auth_sms_test.router, prefix="/auth", tags=["Authentication"])
 api_router.include_router(
     vihara_data.router,
     prefix="/vihara-data",
