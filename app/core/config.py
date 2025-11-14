@@ -1,10 +1,16 @@
 # app/core/config.py
 import os
-from urllib.parse import urlparse, urlunparse, parse_qsl, urlencode
+from pathlib import Path
+from urllib.parse import parse_qsl, urlencode, urlparse, urlunparse
+
 from dotenv import load_dotenv
 
 # Load environment variables from .env file
 load_dotenv()
+
+BASE_DIR = Path(__file__).resolve().parents[1]
+DEFAULT_STORAGE_DIR = BASE_DIR / "storage"
+
 
 class Settings:
     PROJECT_NAME: str = "Bhikku Registry API"
@@ -36,27 +42,8 @@ class Settings:
     # CRITICAL: Must be True when SameSite=none
     COOKIE_SECURE: bool = os.getenv("COOKIE_SECURE", "true").lower() == "true"  # Changed logic
 
-    # Email / SMTP Configuration
-    SMTP_SERVER: str = os.getenv("SMTP_SERVER", "mail.smtp2go.com")
-    SMTP_PORT: int = int(os.getenv("SMTP_PORT", "2525"))
-    SMTP_USERNAME: str = os.getenv("SMTP_USERNAME", "")
-    SMTP_PASSWORD: str = os.getenv("SMTP_PASSWORD", "")
-    SMTP_FROM_EMAIL: str = os.getenv("SMTP_FROM_EMAIL", "no-reply@dbagovlk.com")
-    SMTP_FROM_NAME: str = os.getenv("SMTP_FROM_NAME", "DBA HRMS")
-    
-    # Password Reset & OTP Configuration
-    RESET_PASSWORD_TOKEN_EXPIRE_MINUTES: int = int(os.getenv("RESET_PASSWORD_TOKEN_EXPIRE_MINUTES", "30"))
-    OTP_EXPIRE_MINUTES: int = int(os.getenv("OTP_EXPIRE_MINUTES", "10"))
-    OTP_LENGTH: int = int(os.getenv("OTP_LENGTH", "6"))
-
-    # SMS / Text service configuration (text.lk example)
-    SMS_ENABLED: bool = os.getenv("SMS_ENABLED", "false").lower() == "true"
-    SMS_API_URL: str = os.getenv("SMS_API_URL", "https://app.text.lk/api/v3/sms/send")
-    SMS_BEARER_TOKEN: str = os.getenv("SMS_BEARER_TOKEN", "")
-    SMS_DEFAULT_SENDER_ID: str = os.getenv("SMS_DEFAULT_SENDER_ID", "COMETICINSY")
-    SMS_MAX_LENGTH: int = int(os.getenv("SMS_MAX_LENGTH", "160"))
-    # Protected test key for triggering test SMS via a dev-only endpoint
-    SMS_TEST_KEY: str = os.getenv("SMS_TEST_KEY", "")
+    # File storage
+    STORAGE_DIR: str = os.getenv("STORAGE_DIR", str(DEFAULT_STORAGE_DIR))
 
     def __init__(self) -> None:
         # Normalize DATABASE_URL for SQLAlchemy/psycopg2 and Railway

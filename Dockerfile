@@ -7,7 +7,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 # System deps for psycopg2 and builds
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    build-essential libpq-dev curl ca-certificates && \
+    build-essential libpq-dev curl ca-certificates gosu && \
     rm -rf /var/lib/apt/lists/*
 
 # Create the app user early so we can set ownership properly
@@ -26,9 +26,6 @@ COPY . /app
 RUN mkdir -p /home/appuser/storage && chown -R appuser:appuser /home/appuser && \
     chown -R appuser:appuser /app && \
     chmod +x /app/start.sh
-
-# Drop privileges
-USER appuser
 
 # Railway injects $PORT at runtime; EXPOSE is informational
 EXPOSE 8080

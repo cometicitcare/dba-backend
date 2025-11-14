@@ -10,7 +10,8 @@ from app.api.v1.routes import (
     bhikku_category,
     bhikku_certification,
     bhikku_high,
-    bhikku_id,
+    bhikku_id_cards,
+    silmatha_id_cards,
     bhikku_nikaya_data,
     bhikku_parshawa_data,
     bhikkus,
@@ -50,6 +51,16 @@ api_router.include_router(
     tags=["Silmatha ID"],
 )
 api_router.include_router(bhikku_high.router, prefix="/bhikkus-high", tags=["Bhikku High"])
+api_router.include_router(
+    bhikku_id_cards.router,
+    prefix="/bhikku-id-cards",
+    tags=["Bhikku ID Cards"],
+)
+api_router.include_router(
+    silmatha_id_cards.router,
+    prefix="/silmatha-id-cards",
+    tags=["Silmatha ID Cards"],
+)
 api_router.include_router(
     bhikku_certification.router,
     prefix="/bhikkus-certifications",

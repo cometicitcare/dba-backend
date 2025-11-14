@@ -16,6 +16,7 @@ from app.models.parshawadata import ParshawaData
 from app.models.user import UserAccount
 from app.models.vihara import ViharaData
 from app.repositories.bhikku_repo import bhikku_repo
+from app.repositories.silmatha_regist_repo import silmatha_regist_repo
 from app.schemas.bhikku import BhikkuCreate, BhikkuUpdate
 
 
@@ -231,6 +232,10 @@ class BhikkuService:
 
         enriched_payload = BhikkuCreate(**payload_dict)
         created = bhikku_repo.create(db, enriched_payload)
+
+        if created.br_cat == "CAT01":
+            silmatha_regist_repo.create_from_bhikku(db, created)
+
         return created
 
     def list_bhikkus(
