@@ -19,7 +19,7 @@ class CRUDAction(str, Enum):
 class BhikkuIDCardBase(BaseModel):
     model_config = ConfigDict(str_strip_whitespace=True, populate_by_name=True)
 
-    bic_regn: Optional[int] = Field(default=None, ge=1)
+    bic_regn: Optional[str] = Field(default=None, max_length=20)
     bic_br_id: Optional[int] = Field(default=None, ge=1)
     bic_form_no: Optional[str] = Field(default=None, max_length=20)
     bic_title_post: Optional[str] = Field(default=None, max_length=100)
@@ -45,8 +45,7 @@ class BhikkuIDCardBase(BaseModel):
 
 
 class BhikkuIDCardCreate(BhikkuIDCardBase):
-    bic_regn: int = Field(ge=1)
-    bic_br_id: int = Field(ge=1)
+    bic_br_id: Optional[int] = Field(default=None, ge=1)
     bic_form_no: str = Field(max_length=20)
 
 
@@ -60,7 +59,7 @@ class BhikkuIDCard(BhikkuIDCardBase):
     )
 
     bic_id: int
-    bic_regn: int
+    bic_regn: str
     bic_br_id: int
     bic_form_no: str
     bic_version: datetime

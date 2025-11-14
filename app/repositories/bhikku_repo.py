@@ -2,10 +2,19 @@
 from datetime import date, datetime
 from typing import List, Optional
 
-from sqlalchemy import func, or_
-from sqlalchemy.orm import Session
+from sqlalchemy import and_, func, or_
+from sqlalchemy.orm import Session, aliased
 
 from app.models import bhikku as models
+from app.models.bhikku_category import BhikkuCategory
+from app.models.district import District
+from app.models.divisional_secretariat import DivisionalSecretariat
+from app.models.gramasewaka import Gramasewaka
+from app.models.nikaya import NikayaData
+from app.models.parshawadata import ParshawaData
+from app.models.province import Province
+from app.models.status import StatusData
+from app.models.vihara import ViharaData
 from app.schemas import bhikku as schemas
 
 
@@ -52,6 +61,16 @@ class BhikkuRepository:
             db.query(models.Bhikku)
             .filter(
                 models.Bhikku.br_id == br_id,
+                models.Bhikku.br_is_deleted.is_(False),
+            )
+            .first()
+        )
+
+    def get_with_master_by_regn(self, db: Session, br_regn: str):
+        query = self._query_with_master_data(db)
+        return (
+            query.filter(
+                models.Bhikku.br_regn == br_regn,
                 models.Bhikku.br_is_deleted.is_(False),
             )
             .first()
@@ -116,6 +135,53 @@ class BhikkuRepository:
             date_to=date_to,
         )
 
+        return (
+            query.order_by(models.Bhikku.br_id)
+            .offset(max(skip, 0))
+            .limit(limit)
+            .all()
+        )
+
+    def get_all_with_master(
+        self,
+        db: Session,
+        skip: int = 0,
+        limit: int = 100,
+        search_key: Optional[str] = None,
+        province: Optional[str] = None,
+        vh_trn: Optional[str] = None,
+        district: Optional[str] = None,
+        divisional_secretariat: Optional[str] = None,
+        gn_division: Optional[str] = None,
+        temple: Optional[str] = None,
+        child_temple: Optional[str] = None,
+        nikaya: Optional[str] = None,
+        parshawaya: Optional[str] = None,
+        category: Optional[List[str]] = None,
+        status: Optional[List[str]] = None,
+        date_from: Optional[date] = None,
+        date_to: Optional[date] = None,
+    ):
+        query = self._query_with_master_data(db).filter(
+            models.Bhikku.br_is_deleted.is_(False)
+        )
+        query = self._apply_filters(
+            query,
+            search_key=search_key,
+            province=province,
+            vh_trn=vh_trn,
+            district=district,
+            divisional_secretariat=divisional_secretariat,
+            gn_division=gn_division,
+            temple=temple,
+            child_temple=child_temple,
+            nikaya=nikaya,
+            parshawaya=parshawaya,
+            category=category,
+            status=status,
+            date_from=date_from,
+            date_to=date_to,
+        )
         return (
             query.order_by(models.Bhikku.br_id)
             .offset(max(skip, 0))
@@ -283,6 +349,152 @@ class BhikkuRepository:
             query = query.filter(models.Bhikku.br_reqstdate <= date_to)
 
         return query
+
+    def _query_with_master_data(self, db: Session):
+        province_alias = aliased(Province)
+        district_alias = aliased(District)
+        division_alias = aliased(DivisionalSecretariat)
+        gn_alias = aliased(Gramasewaka)
+        status_alias = aliased(StatusData)
+        parshawaya_alias = aliased(ParshawaData)
+        nikaya_alias = aliased(NikayaData)
+        category_alias = aliased(BhikkuCategory)
+        liv_temple_alias = aliased(ViharaData)
+        mahanatemple_alias = aliased(ViharaData)
+        robing_tutor_alias = aliased(ViharaData)
+        robing_after_alias = aliased(ViharaData)
+        acharya_alias = aliased(models.Bhikku)
+        viharadhipathi_alias = aliased(models.Bhikku)
+
+        return (
+            db.query(
+                models.Bhikku,
+                province_alias.cp_name.label("br_province_name"),
+                district_alias.dd_dname.label("br_district_name"),
+                division_alias.dv_dvname.label("br_division_name"),
+                gn_alias.gn_gnname.label("br_gndiv_name"),
+                status_alias.st_descr.label("br_currstat_name"),
+                parshawaya_alias.pr_pname.label("br_parshawaya_name"),
+                nikaya_alias.nk_nname.label("br_nikaya_name"),
+                category_alias.cc_catogry.label("br_cat_name"),
+                liv_temple_alias.vh_vname.label("br_livtemple_name"),
+                mahanatemple_alias.vh_vname.label("br_mahanatemple_name"),
+                robing_tutor_alias.vh_vname.label(
+                    "br_robing_tutor_residence_name"
+                ),
+                robing_after_alias.vh_vname.label(
+                    "br_robing_after_residence_temple_name"
+                ),
+                func.coalesce(
+                    acharya_alias.br_mahananame, acharya_alias.br_gihiname
+                ).label("br_mahanaacharyacd_name"),
+                func.coalesce(
+                    viharadhipathi_alias.br_mahananame,
+                    viharadhipathi_alias.br_gihiname,
+                ).label("br_viharadhipathi_name"),
+            )
+            .outerjoin(
+                province_alias,
+                and_(
+                    province_alias.cp_code == models.Bhikku.br_province,
+                    province_alias.cp_is_deleted.is_(False),
+                ),
+            )
+            .outerjoin(
+                district_alias,
+                and_(
+                    district_alias.dd_dcode == models.Bhikku.br_district,
+                    district_alias.dd_is_deleted.is_(False),
+                ),
+            )
+            .outerjoin(
+                division_alias,
+                and_(
+                    division_alias.dv_dvcode == models.Bhikku.br_division,
+                    division_alias.dv_is_deleted.is_(False),
+                ),
+            )
+            .outerjoin(
+                gn_alias,
+                and_(
+                    gn_alias.gn_gnc == models.Bhikku.br_gndiv,
+                    gn_alias.gn_is_deleted.is_(False),
+                ),
+            )
+            .outerjoin(
+                status_alias,
+                and_(
+                    status_alias.st_statcd == models.Bhikku.br_currstat,
+                    status_alias.st_is_deleted.is_(False),
+                ),
+            )
+            .outerjoin(
+                parshawaya_alias,
+                and_(
+                    parshawaya_alias.pr_prn == models.Bhikku.br_parshawaya,
+                    parshawaya_alias.pr_is_deleted.is_(False),
+                ),
+            )
+            .outerjoin(
+                nikaya_alias,
+                and_(
+                    nikaya_alias.nk_nkn == models.Bhikku.br_nikaya,
+                    nikaya_alias.nk_is_deleted.is_(False),
+                ),
+            )
+            .outerjoin(
+                category_alias,
+                and_(
+                    category_alias.cc_code == models.Bhikku.br_cat,
+                    category_alias.cc_is_deleted.is_(False),
+                ),
+            )
+            .outerjoin(
+                liv_temple_alias,
+                and_(
+                    liv_temple_alias.vh_trn == models.Bhikku.br_livtemple,
+                    liv_temple_alias.vh_is_deleted.is_(False),
+                ),
+            )
+            .outerjoin(
+                mahanatemple_alias,
+                and_(
+                    mahanatemple_alias.vh_trn == models.Bhikku.br_mahanatemple,
+                    mahanatemple_alias.vh_is_deleted.is_(False),
+                ),
+            )
+            .outerjoin(
+                robing_tutor_alias,
+                and_(
+                    robing_tutor_alias.vh_trn
+                    == models.Bhikku.br_robing_tutor_residence,
+                    robing_tutor_alias.vh_is_deleted.is_(False),
+                ),
+            )
+            .outerjoin(
+                robing_after_alias,
+                and_(
+                    robing_after_alias.vh_trn
+                    == models.Bhikku.br_robing_after_residence_temple,
+                    robing_after_alias.vh_is_deleted.is_(False),
+                ),
+            )
+            .outerjoin(
+                acharya_alias,
+                and_(
+                    acharya_alias.br_regn == models.Bhikku.br_mahanaacharyacd,
+                    acharya_alias.br_is_deleted.is_(False),
+                ),
+            )
+            .outerjoin(
+                viharadhipathi_alias,
+                and_(
+                    viharadhipathi_alias.br_regn
+                    == models.Bhikku.br_viharadhipathi,
+                    viharadhipathi_alias.br_is_deleted.is_(False),
+                ),
+            )
+        )
 
     def get_by_mobile(self, db: Session, br_mobile: str):
         return (

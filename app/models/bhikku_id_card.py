@@ -9,20 +9,40 @@ from sqlalchemy import (
     Text,
     TIMESTAMP,
     text,
+    Enum,
+    UniqueConstraint,
 )
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.sql import func
+from enum import Enum as PyEnum
 
 from app.db.base import Base
 
 
+class IDCardWorkflowStatusEnum(PyEnum):
+    PENDING = "pending"
+    APPROVED = "approved"
+    REJECTED = "rejected"
+    PRINTED = "printed"
+    SCANNED = "scanned"
+    COMPLETED = "completed"
+
+
 class BhikkuIDCard(Base):
     __tablename__ = "bhikku_id_card"
+    __table_args__ = (
+        UniqueConstraint(
+            "bic_regn", name="uq_bhikku_id_card_bic_regn"
+        ),
+        UniqueConstraint(
+            "bic_br_id", name="uq_bhikku_id_card_bic_br_id"
+        ),
+    )
 
     bic_id = Column(Integer, primary_key=True, index=True)
     bic_regn = Column(
-        Integer,
-        ForeignKey("bhikku_regist.br_id"),
+        String(20),
+        ForeignKey("bhikku_regist.br_regn"),
         nullable=False,
         index=True,
     )
@@ -59,6 +79,7 @@ class BhikkuIDCard(Base):
     bic_final_approved = Column(
         Boolean, nullable=False, server_default=text("false")
     )
+    bic_workflow_status = Column(String(20), nullable=False, default="pending", index=True)
     bic_version = Column(
         TIMESTAMP(timezone=True), nullable=False, server_default=func.now()
     )

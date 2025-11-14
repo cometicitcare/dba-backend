@@ -11,6 +11,7 @@ from app.api.v1.routes import (
     bhikku_certification,
     bhikku_high,
     bhikku_id_cards,
+    bhikku_id_card_workflow,
     bhikku_nikaya_data,
     bhikku_parshawa_data,
     bhikkus,
@@ -48,6 +49,11 @@ api_router.include_router(
     bhikku_id_cards.router,
     prefix="/bhikku-id-cards",
     tags=["Bhikku ID Cards"],
+)
+api_router.include_router(
+    bhikku_id_card_workflow.router,
+    prefix="/bhikku-id-cards/workflow",
+    tags=["Bhikku ID Card Workflow"],
 )
 api_router.include_router(
     bhikku_certification.router,

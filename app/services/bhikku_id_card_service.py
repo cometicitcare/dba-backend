@@ -13,6 +13,7 @@ from app.repositories.bhikku_id_card_repo import bhikku_id_card_repo
 from app.repositories.bhikku_repo import bhikku_repo
 from app.schemas.bhikku_id_card import BhikkuIDCardCreate, BhikkuIDCardUpdate
 from app.storage import LocalStorage, local_storage
+from app.services.bhikku_id_card_workflow_service import bhikku_id_card_workflow_service
 
 
 class BhikkuIDCardService:
@@ -34,7 +35,16 @@ class BhikkuIDCardService:
         applicant_image: Optional[UploadFile] = None,
     ):
         create_data = self._strip_strings(payload.model_dump(exclude_unset=True))
-        self._validate_required_references(db, create_data)
+        bhikku = self._resolve_bhikku_reference(
+            db,
+            br_id=create_data.get("bic_br_id"),
+            regn=create_data.get("bic_regn"),
+        )
+        create_data["bic_br_id"] = bhikku.br_id
+        create_data["bic_regn"] = bhikku.br_regn
+        self._ensure_unique_registration(
+            db, bhikku_id=bhikku.br_id, registration=bhikku.br_regn
+        )
         self._ensure_unique_form_no(
             db, create_data.get("bic_form_no"), current_id=None
         )
@@ -53,9 +63,14 @@ class BhikkuIDCardService:
             )
 
         create_payload = BhikkuIDCardCreate(**create_data)
-        return bhikku_id_card_repo.create(
+        created_card = bhikku_id_card_repo.create(
             db, data=create_payload, actor_id=actor_id
         )
+        
+        # Create workflow record with PENDING status
+        bhikku_id_card_workflow_service.get_or_create_workflow(db, created_card)
+        
+        return created_card
 
     def update_card(
         self,
@@ -78,11 +93,20 @@ class BhikkuIDCardService:
                 db, update_data["bic_form_no"], current_id=entity.bic_id
             )
 
-        for field in ("bic_regn", "bic_br_id"):
-            if field in update_data:
-                self._validate_bhikku_reference(
-                    db, update_data.get(field), field_name=field
-                )
+        if "bic_regn" in update_data or "bic_br_id" in update_data:
+            bhikku = self._resolve_bhikku_reference(
+                db,
+                br_id=update_data.get("bic_br_id"),
+                regn=update_data.get("bic_regn"),
+            )
+            update_data["bic_br_id"] = bhikku.br_id
+            update_data["bic_regn"] = bhikku.br_regn
+            self._ensure_unique_registration(
+                db,
+                bhikku_id=bhikku.br_id,
+                registration=bhikku.br_regn,
+                current_card_id=entity.bic_id,
+            )
 
         context_key = self._resolve_file_context(
             national_id=update_data.get("bic_national_id")
@@ -105,9 +129,10 @@ class BhikkuIDCardService:
             raise ValueError("No updates supplied.")
 
         update_payload = BhikkuIDCardUpdate(**update_data)
-        return bhikku_id_card_repo.update(
+        updated = bhikku_id_card_repo.update(
             db, entity=entity, data=update_payload, actor_id=actor_id
         )
+        return updated
 
     def list_cards(
         self,
@@ -146,24 +171,66 @@ class BhikkuIDCardService:
     # ------------------------------------------------------------------ #
     # Helpers
     # ------------------------------------------------------------------ #
-    def _validate_required_references(
-        self, db: Session, payload: Dict[str, Any]
+    def _resolve_bhikku_reference(
+        self,
+        db: Session,
+        *,
+        br_id: Optional[int],
+        regn: Optional[str],
+    ):
+        normalized_regn = None
+        if regn is not None:
+            normalized_regn = regn.strip()
+            if normalized_regn:
+                normalized_regn = normalized_regn.upper()
+            else:
+                normalized_regn = None
+
+        if br_id is not None:
+            if br_id < 1:
+                raise ValueError("bic_br_id must be a positive integer.")
+            bhikku = bhikku_repo.get_by_id(db, br_id)
+            if not bhikku:
+                raise ValueError(f"bic_br_id '{br_id}' does not reference a bhikku.")
+            if normalized_regn and bhikku.br_regn != normalized_regn:
+                raise ValueError(
+                    "Provided bic_regn does not match the selected bhikku."
+                )
+            return bhikku
+
+        if normalized_regn:
+            bhikku = bhikku_repo.get_by_regn(db, normalized_regn)
+            if not bhikku:
+                raise ValueError(
+                    f"bic_regn '{normalized_regn}' does not reference a bhikku."
+                )
+            return bhikku
+
+        raise ValueError("Either bic_br_id or bic_regn must be provided.")
+
+    def _ensure_unique_registration(
+        self,
+        db: Session,
+        *,
+        bhikku_id: int,
+        registration: str,
+        current_card_id: Optional[int] = None,
     ) -> None:
-        for field in ("bic_regn", "bic_br_id"):
-            self._validate_bhikku_reference(
-                db, payload.get(field), field_name=field
+        existing_by_id = bhikku_id_card_repo.get_by_bhikku_id(
+            db, bhikku_id=bhikku_id
+        )
+        if existing_by_id and existing_by_id.bic_id != current_card_id:
+            raise ValueError(
+                f"An ID card already exists for bhikku registration {registration}."
             )
 
-    def _validate_bhikku_reference(
-        self, db: Session, value: Optional[int], *, field_name: str
-    ) -> None:
-        if value is None:
-            raise ValueError(f"{field_name} is required.")
-        if value < 1:
-            raise ValueError(f"{field_name} must be a positive integer.")
-        exists = bhikku_repo.get_by_id(db, value)
-        if not exists:
-            raise ValueError(f"{field_name} '{value}' does not reference a bhikku.")
+        existing_by_reg = bhikku_id_card_repo.get_by_registration(
+            db, registration=registration
+        )
+        if existing_by_reg and existing_by_reg.bic_id != current_card_id:
+            raise ValueError(
+                f"An ID card already exists for bhikku registration {registration}."
+            )
 
     def _ensure_unique_form_no(
         self, db: Session, form_no: Optional[str], *, current_id: Optional[int]

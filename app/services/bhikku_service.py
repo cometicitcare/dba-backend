@@ -17,6 +17,7 @@ from app.models.user import UserAccount
 from app.models.vihara import ViharaData
 from app.repositories.bhikku_repo import bhikku_repo
 from app.repositories.silmatha_regist_repo import silmatha_regist_repo
+from app.schemas.bhikku import Bhikku as BhikkuSchema
 from app.schemas.bhikku import BhikkuCreate, BhikkuUpdate
 
 
@@ -30,6 +31,22 @@ class BhikkuService:
         "br_cat": ("public", "cmm_cat", "cc_code"),
         "br_nikaya": ("public", "cmm_nikayadata", "nk_nkn"),
     }
+    ENRICHED_NAME_FIELDS = (
+        "br_province_name",
+        "br_district_name",
+        "br_division_name",
+        "br_gndiv_name",
+        "br_currstat_name",
+        "br_parshawaya_name",
+        "br_nikaya_name",
+        "br_livtemple_name",
+        "br_mahanatemple_name",
+        "br_mahanaacharyacd_name",
+        "br_viharadhipathi_name",
+        "br_cat_name",
+        "br_robing_tutor_residence_name",
+        "br_robing_after_residence_temple_name",
+    )
 
     MOBILE_PATTERN = re.compile(r"^0\d{9}$")
 
@@ -281,6 +298,54 @@ class BhikkuService:
             date_from=date_from,
             date_to=date_to,
         )
+
+    def list_bhikkus_with_master(
+        self,
+        db: Session,
+        *,
+        skip: int = 0,
+        limit: int = 100,
+        search: Optional[str] = None,
+        province: Optional[str] = None,
+        vh_trn: Optional[str] = None,
+        district: Optional[str] = None,
+        divisional_secretariat: Optional[str] = None,
+        gn_division: Optional[str] = None,
+        temple: Optional[str] = None,
+        child_temple: Optional[str] = None,
+        nikaya: Optional[str] = None,
+        parshawaya: Optional[str] = None,
+        category: Optional[list[str]] = None,
+        status: Optional[list[str]] = None,
+        date_from: Optional[date] = None,
+        date_to: Optional[date] = None,
+    ) -> list[BhikkuSchema]:
+        limit = max(1, min(limit, 200))
+        skip = max(0, skip)
+        rows = bhikku_repo.get_all_with_master(
+            db,
+            skip=skip,
+            limit=limit,
+            search_key=search,
+            province=province,
+            vh_trn=vh_trn,
+            district=district,
+            divisional_secretariat=divisional_secretariat,
+            gn_division=gn_division,
+            temple=temple,
+            child_temple=child_temple,
+            nikaya=nikaya,
+            parshawaya=parshawaya,
+            category=category,
+            status=status,
+            date_from=date_from,
+            date_to=date_to,
+        )
+        return [
+            self._serialize_bhikku_with_master_row(row)
+            for row in rows
+            if row is not None
+        ]
 
     def count_bhikkus(
         self,
@@ -570,6 +635,17 @@ class BhikkuService:
         result = db.execute(self._id_gn_summary_query).mappings().all()
         return [dict(row) for row in result]
 
+    def get_bhikku_with_master(
+        self,
+        db: Session,
+        *,
+        br_regn: str,
+    ) -> Optional[BhikkuSchema]:
+        row = bhikku_repo.get_with_master_by_regn(db, br_regn)
+        if not row:
+            return None
+        return self._serialize_bhikku_with_master_row(row)
+
     def get_bhikku(self, db: Session, *, br_regn: str) -> Optional[Bhikku]:
         return bhikku_repo.get_by_regn(db, br_regn)
 
@@ -635,6 +711,24 @@ class BhikkuService:
     # --------------------------------------------------------------------- #
     # Helpers
     # --------------------------------------------------------------------- #
+    def _serialize_bhikku_with_master_row(self, row) -> BhikkuSchema:
+        """Convert a Bhikku row with joined master data into the response schema."""
+        entity = getattr(row, "Bhikku", None)
+        if entity is None and hasattr(row, "_mapping"):
+            entity = row._mapping.get(Bhikku)
+        if entity is None:
+            try:
+                entity = row[0]
+            except (TypeError, IndexError, KeyError):
+                entity = None
+        if entity is None:
+            raise ValueError("Unable to serialize bhikku row with master data.")
+
+        base_data = BhikkuSchema.model_validate(entity).model_dump()
+        for field in self.ENRICHED_NAME_FIELDS:
+            base_data[field] = getattr(row, field, None)
+        return BhikkuSchema(**base_data)
+
     def _validate_unique_contact_fields(
         self,
         db: Session,

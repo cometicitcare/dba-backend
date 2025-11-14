@@ -35,6 +35,30 @@ class BhikkuIDCardRepository:
             .first()
         )
 
+    def get_by_bhikku_id(
+        self, db: Session, *, bhikku_id: int
+    ) -> Optional[BhikkuIDCard]:
+        return (
+            db.query(BhikkuIDCard)
+            .filter(
+                BhikkuIDCard.bic_br_id == bhikku_id,
+                BhikkuIDCard.bic_is_deleted.is_(False),
+            )
+            .first()
+        )
+
+    def get_by_registration(
+        self, db: Session, *, registration: str
+    ) -> Optional[BhikkuIDCard]:
+        return (
+            db.query(BhikkuIDCard)
+            .filter(
+                func.lower(BhikkuIDCard.bic_regn) == registration.lower(),
+                BhikkuIDCard.bic_is_deleted.is_(False),
+            )
+            .first()
+        )
+
     def list(
         self,
         db: Session,

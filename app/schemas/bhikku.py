@@ -146,6 +146,20 @@ class Bhikku(BhikkuBase):
     br_regn: str  # Required in response
     br_is_deleted: bool
     br_version_number: int
+    br_province_name: Optional[str] = None
+    br_district_name: Optional[str] = None
+    br_division_name: Optional[str] = None
+    br_gndiv_name: Optional[str] = None
+    br_currstat_name: Optional[str] = None
+    br_parshawaya_name: Optional[str] = None
+    br_nikaya_name: Optional[str] = None
+    br_livtemple_name: Optional[str] = None
+    br_mahanatemple_name: Optional[str] = None
+    br_mahanaacharyacd_name: Optional[str] = None
+    br_viharadhipathi_name: Optional[str] = None
+    br_cat_name: Optional[str] = None
+    br_robing_tutor_residence_name: Optional[str] = None
+    br_robing_after_residence_temple_name: Optional[str] = None
 
     class Config:
         from_attributes = True

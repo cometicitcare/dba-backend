@@ -593,13 +593,11 @@ def manage_bhikku_records(
                 [("payload.br_regn", "br_regn is required for READ_ONE action")]
             )
         
-        db_bhikku = bhikku_service.get_bhikku(db, br_regn=payload.br_regn)
-        if db_bhikku is None:
+        bhikku_schema = bhikku_service.get_bhikku_with_master(
+            db, br_regn=payload.br_regn
+        )
+        if bhikku_schema is None:
             raise HTTPException(status_code=404, detail="Bhikku not found")
-        
-        # Convert model to schema for serialization
-        from app.schemas.bhikku import Bhikku as BhikkuSchema
-        bhikku_schema = BhikkuSchema.model_validate(db_bhikku)
         
         return {"status": "success", "message": "Bhikku retrieved successfully.", "data": bhikku_schema}
 
@@ -634,7 +632,7 @@ def manage_bhikku_records(
             date_to=payload.date_to,
         )
 
-        bhikkus = bhikku_service.list_bhikkus(
+        bhikkus_schema = bhikku_service.list_bhikkus_with_master(
             db, skip=skip, limit=limit, search=search_key, **filter_kwargs
         )
         
@@ -642,10 +640,6 @@ def manage_bhikku_records(
         total_count = bhikku_service.count_bhikkus(
             db, search=search_key, **filter_kwargs
         )
-        
-        # Convert models to schemas for serialization
-        from app.schemas.bhikku import Bhikku as BhikkuSchema
-        bhikkus_schema = [BhikkuSchema.model_validate(bhikku) for bhikku in bhikkus]
         
         return {
             "status": "success",
