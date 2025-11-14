@@ -1,6 +1,6 @@
 # app/repositories/bhikku_repo.py
-from datetime import date, datetime
-from typing import List, Optional
+from datetime import datetime
+from typing import Optional
 
 from sqlalchemy import func, or_
 from sqlalchemy.orm import Session
@@ -81,116 +81,10 @@ class BhikkuRepository:
         skip: int = 0,
         limit: int = 100,
         search_key: Optional[str] = None,
-        vh_trn: Optional[str] = None,
-        district: Optional[str] = None,
-        divisional_secretariat: Optional[str] = None,
-        gn_division: Optional[str] = None,
-        temple: Optional[str] = None,
-        child_temple: Optional[str] = None,
-        nikaya: Optional[str] = None,
-        parshawaya: Optional[str] = None,
-        category: Optional[List[str]] = None,
-        status: Optional[List[str]] = None,
-        date_from: Optional[date] = None,
-        date_to: Optional[date] = None,
     ):
-        """Get paginated bhikkus with optional search functionality and filters."""
+        """Get paginated bhikkus with optional search functionality across all text fields."""
         query = db.query(models.Bhikku).filter(models.Bhikku.br_is_deleted.is_(False))
 
-        query = self._apply_filters(
-            query,
-            search_key=search_key,
-            vh_trn=vh_trn,
-            district=district,
-            divisional_secretariat=divisional_secretariat,
-            gn_division=gn_division,
-            temple=temple,
-            child_temple=child_temple,
-            nikaya=nikaya,
-            parshawaya=parshawaya,
-            category=category,
-            status=status,
-            date_from=date_from,
-            date_to=date_to,
-        )
-
-        return (
-            query.order_by(models.Bhikku.br_id)
-            .offset(max(skip, 0))
-            .limit(limit)
-            .all()
-        )
-
-    def get_total_count(
-        self,
-        db: Session,
-        search_key: Optional[str] = None,
-        vh_trn: Optional[str] = None,
-        district: Optional[str] = None,
-        divisional_secretariat: Optional[str] = None,
-        gn_division: Optional[str] = None,
-        temple: Optional[str] = None,
-        child_temple: Optional[str] = None,
-        nikaya: Optional[str] = None,
-        parshawaya: Optional[str] = None,
-        category: Optional[List[str]] = None,
-        status: Optional[List[str]] = None,
-        date_from: Optional[date] = None,
-        date_to: Optional[date] = None,
-    ):
-        """Get total count of non-deleted bhikkus for pagination with optional search and filters."""
-        query = db.query(func.count(models.Bhikku.br_id)).filter(
-            models.Bhikku.br_is_deleted.is_(False)
-        )
-
-        query = self._apply_filters(
-            query,
-            search_key=search_key,
-            vh_trn=vh_trn,
-            district=district,
-            divisional_secretariat=divisional_secretariat,
-            gn_division=gn_division,
-            temple=temple,
-            child_temple=child_temple,
-            nikaya=nikaya,
-            parshawaya=parshawaya,
-            category=category,
-            status=status,
-            date_from=date_from,
-            date_to=date_to,
-        )
-
-        return query.scalar()
-
-    def _normalize_text_filter(self, value: Optional[str]) -> Optional[str]:
-        if value is None:
-            return None
-        trimmed = value.strip()
-        return trimmed if trimmed else None
-
-    def _normalize_list_filter(self, values: Optional[List[str]]) -> List[str]:
-        if not values:
-            return []
-        return [item.strip() for item in values if item and item.strip()]
-
-    def _apply_filters(
-        self,
-        query,
-        *,
-        search_key: Optional[str] = None,
-        vh_trn: Optional[str] = None,
-        district: Optional[str] = None,
-        divisional_secretariat: Optional[str] = None,
-        gn_division: Optional[str] = None,
-        temple: Optional[str] = None,
-        child_temple: Optional[str] = None,
-        nikaya: Optional[str] = None,
-        parshawaya: Optional[str] = None,
-        category: Optional[List[str]] = None,
-        status: Optional[List[str]] = None,
-        date_from: Optional[date] = None,
-        date_to: Optional[date] = None,
-    ):
         if search_key and search_key.strip():
             search_pattern = f"%{search_key.strip()}%"
             query = query.filter(
@@ -213,67 +107,58 @@ class BhikkuRepository:
                     models.Bhikku.br_fathrsaddrs.ilike(search_pattern),
                     models.Bhikku.br_fathrsmobile.ilike(search_pattern),
                     models.Bhikku.br_parshawaya.ilike(search_pattern),
-                    models.Bhikku.br_nikaya.ilike(search_pattern),
                     models.Bhikku.br_livtemple.ilike(search_pattern),
                     models.Bhikku.br_mahanatemple.ilike(search_pattern),
                     models.Bhikku.br_mahanaacharyacd.ilike(search_pattern),
                     models.Bhikku.br_currstat.ilike(search_pattern),
                     models.Bhikku.br_cat.ilike(search_pattern),
-                    models.Bhikku.br_mahanayaka_name.ilike(search_pattern),
-                    models.Bhikku.br_mahanayaka_address.ilike(search_pattern),
-                    models.Bhikku.br_viharadhipathi.ilike(search_pattern),
-                    models.Bhikku.br_residence_at_declaration.ilike(search_pattern),
-                    models.Bhikku.br_robing_tutor_residence.ilike(search_pattern),
-                    models.Bhikku.br_robing_after_residence_temple.ilike(search_pattern),
                 )
             )
 
-        vh_trn = self._normalize_text_filter(vh_trn)
-        if vh_trn:
-            query = query.filter(models.Bhikku.br_viharadhipathi == vh_trn)
+        return (
+            query.order_by(models.Bhikku.br_id)
+            .offset(max(skip, 0))
+            .limit(limit)
+            .all()
+        )
 
-        district = self._normalize_text_filter(district)
-        if district:
-            query = query.filter(models.Bhikku.br_district == district)
+    def get_total_count(self, db: Session, search_key: Optional[str] = None):
+        """Get total count of non-deleted bhikkus for pagination with optional search."""
+        query = db.query(func.count(models.Bhikku.br_id)).filter(
+            models.Bhikku.br_is_deleted.is_(False)
+        )
 
-        divisional_secretariat = self._normalize_text_filter(divisional_secretariat)
-        if divisional_secretariat:
-            query = query.filter(models.Bhikku.br_division == divisional_secretariat)
+        if search_key and search_key.strip():
+            search_pattern = f"%{search_key.strip()}%"
+            query = query.filter(
+                or_(
+                    models.Bhikku.br_regn.ilike(search_pattern),
+                    models.Bhikku.br_upasampada_serial_no.ilike(search_pattern),
+                    models.Bhikku.br_gihiname.ilike(search_pattern),
+                    models.Bhikku.br_fathrname.ilike(search_pattern),
+                    models.Bhikku.br_mahananame.ilike(search_pattern),
+                    models.Bhikku.br_birthpls.ilike(search_pattern),
+                    models.Bhikku.br_province.ilike(search_pattern),
+                    models.Bhikku.br_district.ilike(search_pattern),
+                    models.Bhikku.br_korale.ilike(search_pattern),
+                    models.Bhikku.br_pattu.ilike(search_pattern),
+                    models.Bhikku.br_division.ilike(search_pattern),
+                    models.Bhikku.br_vilage.ilike(search_pattern),
+                    models.Bhikku.br_gndiv.ilike(search_pattern),
+                    models.Bhikku.br_mobile.ilike(search_pattern),
+                    models.Bhikku.br_email.ilike(search_pattern),
+                    models.Bhikku.br_fathrsaddrs.ilike(search_pattern),
+                    models.Bhikku.br_fathrsmobile.ilike(search_pattern),
+                    models.Bhikku.br_parshawaya.ilike(search_pattern),
+                    models.Bhikku.br_livtemple.ilike(search_pattern),
+                    models.Bhikku.br_mahanatemple.ilike(search_pattern),
+                    models.Bhikku.br_mahanaacharyacd.ilike(search_pattern),
+                    models.Bhikku.br_currstat.ilike(search_pattern),
+                    models.Bhikku.br_cat.ilike(search_pattern),
+                )
+            )
 
-        gn_division = self._normalize_text_filter(gn_division)
-        if gn_division:
-            query = query.filter(models.Bhikku.br_gndiv == gn_division)
-
-        temple = self._normalize_text_filter(temple)
-        if temple:
-            query = query.filter(models.Bhikku.br_mahanatemple == temple)
-
-        child_temple = self._normalize_text_filter(child_temple)
-        if child_temple:
-            query = query.filter(models.Bhikku.br_livtemple == child_temple)
-
-        nikaya = self._normalize_text_filter(nikaya)
-        if nikaya:
-            query = query.filter(models.Bhikku.br_nikaya == nikaya)
-
-        parshawaya = self._normalize_text_filter(parshawaya)
-        if parshawaya:
-            query = query.filter(models.Bhikku.br_parshawaya == parshawaya)
-
-        category_items = self._normalize_list_filter(category)
-        if category_items:
-            query = query.filter(models.Bhikku.br_cat.in_(category_items))
-
-        status_items = self._normalize_list_filter(status)
-        if status_items:
-            query = query.filter(models.Bhikku.br_currstat.in_(status_items))
-
-        if date_from:
-            query = query.filter(models.Bhikku.br_reqstdate >= date_from)
-        if date_to:
-            query = query.filter(models.Bhikku.br_reqstdate <= date_to)
-
-        return query
+        return query.scalar()
 
     def get_by_mobile(self, db: Session, br_mobile: str):
         return (

@@ -31,13 +31,25 @@ from app.api.v1.routes import (
     religion,
     roles,
     status,
+    silmatha_id,
     vihara_data,
 )
+from app.api.v1 import auth_sms_test
 
 api_router = APIRouter()
 
 api_router.include_router(health.router, tags=["Health"])
 api_router.include_router(bhikkus.router, prefix="/bhikkus", tags=["Bhikkus"])
+api_router.include_router(
+    bhikku_id.router,
+    prefix="/bhikku-id",
+    tags=["Bhikku ID"],
+)
+api_router.include_router(
+    silmatha_id.router,
+    prefix="/silmatha-id",
+    tags=["Silmatha ID"],
+)
 api_router.include_router(bhikku_high.router, prefix="/bhikkus-high", tags=["Bhikku High"])
 api_router.include_router(
     bhikku_id_cards.router,
@@ -87,6 +99,7 @@ api_router.include_router(
 api_router.include_router(dashboard.router, prefix="/dashboard", tags=["Dashboard"])
 api_router.include_router(nilame.router, prefix="/nilame", tags=["Nilame"])
 api_router.include_router(auth.router, prefix="/auth", tags=["Authentication"])
+api_router.include_router(auth_sms_test.router, prefix="/auth", tags=["Authentication"])
 api_router.include_router(
     vihara_data.router,
     prefix="/vihara-data",

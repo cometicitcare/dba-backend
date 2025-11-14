@@ -609,29 +609,12 @@ def manage_bhikku_records(
         skip = max(0, skip)
         
         # Get paginated bhikku records with search
-        filter_kwargs = dict(
-            vh_trn=payload.vh_trn,
-            district=payload.district,
-            divisional_secretariat=payload.divisional_secretariat,
-            gn_division=payload.gn_division,
-            temple=payload.temple,
-            child_temple=payload.child_temple,
-            nikaya=payload.nikaya,
-            parshawaya=payload.parshawaya,
-            category=payload.category,
-            status=payload.status,
-            date_from=payload.date_from,
-            date_to=payload.date_to,
-        )
-
         bhikkus = bhikku_service.list_bhikkus(
-            db, skip=skip, limit=limit, search=search_key, **filter_kwargs
+            db, skip=skip, limit=limit, search=search_key
         )
         
         # Get total count for pagination
-        total_count = bhikku_service.count_bhikkus(
-            db, search=search_key, **filter_kwargs
-        )
+        total_count = bhikku_service.count_bhikkus(db, search=search_key)
         
         return {
             "status": "success",

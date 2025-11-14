@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Username Found - DBA HRMS</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f4f4f4;
+            color: #333;
+            line-height: 1.6;
+        }
+        .container {
+            max-width: 600px;
+            margin: 20px auto;
+            background-color: #ffffff;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+        .header {
+            background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+            color: #ffffff;
+            padding: 40px 20px;
+            text-align: center;
+        }
+        .header h1 {
+            font-size: 28px;
+            margin-bottom: 10px;
+        }
+        .icon-placeholder {
+            font-size: 48px;
+            margin-bottom: 10px;
+        }
+        .content {
+            padding: 40px 30px;
+        }
+        .greeting {
+            font-size: 18px;
+            margin-bottom: 20px;
+            color: #333;
+        }
+        .body-text {
+            font-size: 14px;
+            margin-bottom: 20px;
+            color: #555;
+            line-height: 1.8;
+        }
+        .username-box {
+            background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+            color: white;
+            border-radius: 8px;
+            padding: 30px;
+            margin: 30px 0;
+            text-align: center;
+        }
+        .username-label {
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            opacity: 0.9;
+            margin-bottom: 15px;
+        }
+        .username-text {
+            font-size: 32px;
+            font-weight: bold;
+            letter-spacing: 4px;
+            font-family: 'Courier New', monospace;
+        }
+        .info-box {
+            background-color: #f0f9f8;
+            border-left: 4px solid #38ef7d;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 4px;
+        }
+        .info-box h3 {
+            color: #11998e;
+            margin-bottom: 10px;
+            font-size: 16px;
+        }
+        .info-box p {
+            font-size: 14px;
+            color: #555;
+            margin: 8px 0;
+            line-height: 1.6;
+        }
+        .cta-button {
+            display: inline-block;
+            background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+            color: #ffffff;
+            padding: 14px 35px;
+            border-radius: 6px;
+            text-decoration: none;
+            font-weight: 600;
+            margin: 20px 0;
+            transition: transform 0.2s;
+            font-size: 15px;
+        }
+        .cta-button:hover {
+            transform: translateY(-2px);
+        }
+        .next-steps {
+            background-color: #fff3cd;
+            border-left: 4px solid #ffc107;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 4px;
+            font-size: 14px;
+            color: #856404;
+        }
+        .next-steps strong {
+            display: block;
+            margin-bottom: 10px;
+            color: #664d00;
+        }
+        .next-steps ol {
+            margin-left: 20px;
+        }
+        .next-steps li {
+            margin: 8px 0;
+        }
+        .security-note {
+            background-color: #e7f3ff;
+            border: 1px solid #b3d9ff;
+            border-radius: 4px;
+            padding: 15px;
+            margin: 20px 0;
+            font-size: 13px;
+            color: #004085;
+        }
+        .security-note strong {
+            display: block;
+            margin-bottom: 5px;
+        }
+        .footer {
+            background-color: #f9f9f9;
+            border-top: 1px solid #e0e0e0;
+            padding: 20px;
+            text-align: center;
+            font-size: 12px;
+            color: #999;
+        }
+        .footer a {
+            color: #38ef7d;
+            text-decoration: none;
+        }
+        .footer a:hover {
+            text-decoration: underline;
+        }
+        .email-note {
+            background-color: #f0f0f0;
+            border-radius: 4px;
+            padding: 15px;
+            margin: 20px 0;
+            font-size: 13px;
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <div class="icon-placeholder">👤</div>
+            <h1>Username Recovery</h1>
+            <p>Account Found</p>
+        </div>
+
+        <!-- Main Content -->
+        <div class="content">
+            <div class="greeting">
+                Hello,
+            </div>
+
+            <p class="body-text">
+                We received a request to recover the username associated with the email address {{email}}. We found your account in our system. Here is your username:
+            </p>
+
+            <!-- Username Box -->
+            <div class="username-box">
+                <div class="username-label">Your Username</div>
+                <div class="username-text">{{username}}</div>
+            </div>
+
+            <!-- Info Box -->
+            <div class="info-box">
+                <h3>Account Information:</h3>
+                <p><strong>Username:</strong> {{username}}</p>
+                <p><strong>Email:</strong> {{email}}</p>
+                <p><strong>Account Status:</strong> {{account_status}}</p>
+            </div>
+
+            <!-- Next Steps -->
+            <div class="next-steps">
+                <strong>What to Do Next:</strong>
+                <ol>
+                    <li>Save your username in a secure location</li>
+                    <li><a href="{{login_url}}" style="color: #664d00; font-weight: 600; text-decoration: none;">Log in to DBA HRMS</a> using this username</li>
+                    <li>If you also need to reset your password, click the "Forgot Password" link on the login page</li>
+                    <li>Keep this email for your records</li>
+                </ol>
+            </div>
+
+            <!-- CTA Button -->
+            <center>
+                <a href="{{login_url}}" class="cta-button">Go to Login Page</a>
+            </center>
+
+            <!-- Security Note -->
+            <div class="security-note">
+                <strong>🔒 Security Reminder:</strong>
+                <ul style="margin-left: 20px; margin-top: 8px;">
+                    <li>Keep your username confidential</li>
+                    <li>Use a strong, unique password for your account</li>
+                    <li>Be cautious of phishing emails requesting your credentials</li>
+                    <li>Never share your account information with anyone</li>
+                </ul>
+            </div>
+
+            <!-- Didn't Request This? -->
+            <div class="email-note">
+                <strong>Didn't request this?</strong><br>
+                If you didn't request this username recovery, no further action is needed. This email was sent based on a request to recover a username using this email address. If you believe your account is at risk, please <a href="{{support_url}}" style="color: #38ef7d; text-decoration: none; font-weight: 600;">contact support</a> immediately.
+            </div>
+
+            <p class="body-text">
+                Best regards,<br>
+                <strong>DBA HRMS Administration Team</strong>
+            </p>
+        </div>
+
+        <!-- Footer -->
+        <div class="footer">
+            <p>© 2025 Digital Buddhist Archive (DBA). All rights reserved.</p>
+            <p>
+                <a href="{{support_url}}">Support</a> | 
+                <a href="{{privacy_url}}">Privacy Policy</a> | 
+                <a href="{{terms_url}}">Terms of Service</a>
+            </p>
+            <p style="margin-top: 15px; color: #aaa;">
+                This is an automated message, please do not reply to this email.
+            </p>
+        </div>
+    </div>
+</body>
+</html>

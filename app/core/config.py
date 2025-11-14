@@ -24,6 +24,10 @@ class Settings:
         if origin.strip()
     ]
     
+    # Frontend & Backend URLs
+    FRONTEND_URL: str = os.getenv("FRONTEND_URL", "https://hrms.dbagovlk.com")
+    BACKEND_URL: str = os.getenv("BACKEND_URL", "https://api.dbagovlk.com")
+    
     # Auth / JWT
     SECRET_KEY: str = os.getenv("SECRET_KEY", "change-me-in-prod")
     ALGORITHM: str = os.getenv("ALGORITHM", "HS256")

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import re
 from collections import defaultdict
-from datetime import datetime, date
+from datetime import datetime
 from typing import Any, Dict, Optional, Tuple
 
 from sqlalchemy import MetaData, Table, select, text
@@ -28,7 +28,6 @@ class BhikkuService:
         "br_currstat": ("public", "statusdata", "st_statcd"),
         "br_parshawaya": ("public", "cmm_parshawadata", "pr_prn"),
         "br_cat": ("public", "cmm_cat", "cc_code"),
-        "br_nikaya": ("public", "cmm_nikayadata", "nk_nkn"),
     }
 
     MOBILE_PATTERN = re.compile(r"^0\d{9}$")
@@ -246,74 +245,13 @@ class BhikkuService:
         skip: int = 0,
         limit: int = 100,
         search: Optional[str] = None,
-        vh_trn: Optional[str] = None,
-        district: Optional[str] = None,
-        divisional_secretariat: Optional[str] = None,
-        gn_division: Optional[str] = None,
-        temple: Optional[str] = None,
-        child_temple: Optional[str] = None,
-        nikaya: Optional[str] = None,
-        parshawaya: Optional[str] = None,
-        category: Optional[list[str]] = None,
-        status: Optional[list[str]] = None,
-        date_from: Optional[date] = None,
-        date_to: Optional[date] = None,
     ) -> list[Bhikku]:
         limit = max(1, min(limit, 200))
         skip = max(0, skip)
-        return bhikku_repo.get_all(
-            db,
-            skip=skip,
-            limit=limit,
-            search_key=search,
-            vh_trn=vh_trn,
-            district=district,
-            divisional_secretariat=divisional_secretariat,
-            gn_division=gn_division,
-            temple=temple,
-            child_temple=child_temple,
-            nikaya=nikaya,
-            parshawaya=parshawaya,
-            category=category,
-            status=status,
-            date_from=date_from,
-            date_to=date_to,
-        )
+        return bhikku_repo.get_all(db, skip=skip, limit=limit, search_key=search)
 
-    def count_bhikkus(
-        self,
-        db: Session,
-        *,
-        search: Optional[str] = None,
-        vh_trn: Optional[str] = None,
-        district: Optional[str] = None,
-        divisional_secretariat: Optional[str] = None,
-        gn_division: Optional[str] = None,
-        temple: Optional[str] = None,
-        child_temple: Optional[str] = None,
-        nikaya: Optional[str] = None,
-        parshawaya: Optional[str] = None,
-        category: Optional[list[str]] = None,
-        status: Optional[list[str]] = None,
-        date_from: Optional[date] = None,
-        date_to: Optional[date] = None,
-    ) -> int:
-        total = bhikku_repo.get_total_count(
-            db,
-            search_key=search,
-            vh_trn=vh_trn,
-            district=district,
-            divisional_secretariat=divisional_secretariat,
-            gn_division=gn_division,
-            temple=temple,
-            child_temple=child_temple,
-            nikaya=nikaya,
-            parshawaya=parshawaya,
-            category=category,
-            status=status,
-            date_from=date_from,
-            date_to=date_to,
-        )
+    def count_bhikkus(self, db: Session, *, search: Optional[str] = None) -> int:
+        total = bhikku_repo.get_total_count(db, search_key=search)
         return int(total or 0)
 
     def list_mahanayaka_view(self, db: Session) -> list[dict[str, Any]]:
@@ -686,26 +624,8 @@ class BhikkuService:
             current_regn=current_regn,
         )
 
-        self._validate_bhikku_reference(
-            db,
-            payload.get("br_viharadhipathi"),
-            "br_viharadhipathi",
-            current_regn=current_regn,
-        )
-
         self._validate_bhikku_high_reference(
             db, payload.get("br_upasampada_serial_no"), "br_upasampada_serial_no"
-        )
-
-        self._validate_vihara_reference(
-            db,
-            payload.get("br_robing_tutor_residence"),
-            "br_robing_tutor_residence",
-        )
-        self._validate_vihara_reference(
-            db,
-            payload.get("br_robing_after_residence_temple"),
-            "br_robing_after_residence_temple",
         )
 
         for field, target in self.FK_TABLE_MAP.items():
