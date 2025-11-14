@@ -82,69 +82,106 @@ class AuthService:
     # ============================================================================
     # EMAIL & PASSWORD RECOVERY METHODS
     # ============================================================================
+    def initiate_password_reset(self, db: Session, identifier: str) -> tuple[bool, str, dict]:
+        """
+        Initiate password reset for a user given an identifier (email, username, or phone).
 
-    def initiate_password_reset(self, db: Session, email: str) -> tuple[bool, str]:
-        """
-        Initiate password reset for user.
-        Finds user by email and sends OTP via email.
-        
-        Args:
-            db: Database session
-            email: User's email address
-            
         Returns:
-            tuple: (success, message)
+            (success: bool, message: str, payload: dict)
+        payload contains: {"channels": {"email": bool, "sms": bool}, "user_id": str|None}
         """
+        def _mask_email(email: str) -> str:
+            try:
+                local, domain = email.split("@", 1)
+                if len(local) <= 2:
+                    masked_local = local[0] + "*"
+                else:
+                    masked_local = local[0] + "***" + local[-1]
+                return f"{masked_local}@{domain}"
+            except Exception:
+                return "***@***"
+
+        def _mask_phone(phone: str) -> str:
+            # keep last 3 digits, mask rest with *
+            digits = "".join(ch for ch in phone if ch.isdigit())
+            if len(digits) <= 3:
+                return digits
+            return "*" * (len(digits) - 3) + digits[-3:]
+
+        GENERIC_MSG = "If an account exists you'll receive an OTP"
+
         try:
+            # Try email
             user = db.query(UserAccount).filter(
-                UserAccount.ua_email == email,
-                UserAccount.ua_is_deleted == False
+                UserAccount.ua_email == identifier,
+                UserAccount.ua_is_deleted == False,
             ).first()
 
-            if user:
-                # Initiate password reset (generates OTP and sends email)
-                success, message = password_reset_service.initiate_password_reset(
-                    user_id=user.ua_user_id,
-                    user_email=user.ua_email,
-                    user_name=user.ua_first_name or "User",
-                    user_phone=user.ua_phone,
-                )
+            lookup_by = "email"
+            if not user:
+                # Try username
+                user = db.query(UserAccount).filter(
+                    UserAccount.ua_username == identifier,
+                    UserAccount.ua_is_deleted == False,
+                ).first()
+                lookup_by = "username"
 
-                if success:
-                    logger.info(f"Password reset initiated for user: {user.ua_username}")
-                else:
-                    logger.warning(f"Failed to send password reset email to: {email}")
-            else:
-                logger.info(f"Password reset attempt for non-existent email: {email}")
+            if not user:
+                # Try phone (normalize digits)
+                digits = "".join(ch for ch in identifier if ch.isdigit())
+                possible_phones = [identifier]
+                if digits:
+                    if digits.startswith("0"):
+                        possible_phones.append("94" + digits[1:])
+                    elif len(digits) == 9:
+                        possible_phones.append("94" + digits)
 
-            # Return generic message for security (prevent email enumeration)
-            return (
-                True,
-                "If an account exists with this email, you will receive a password reset link shortly.",
+                for p in possible_phones:
+                    user = db.query(UserAccount).filter(
+                        UserAccount.ua_phone == p,
+                        UserAccount.ua_is_deleted == False,
+                    ).first()
+                    if user:
+                        lookup_by = "phone"
+                        break
+
+            if not user:
+                # No matching account — return generic message and empty payload
+                return True, GENERIC_MSG, {"channels": {"email": False, "sms": False}, "user_id": None, "masked": None}
+
+            # Found user — initiate password reset (email + optional SMS)
+            success, _provider_msg, channels = password_reset_service.initiate_password_reset(
+                user_id=user.ua_user_id,
+                user_email=user.ua_email,
+                user_name=user.ua_first_name or "User",
+                user_phone=user.ua_phone,
             )
+
+            logger.info(f"Password reset initiated for user: {user.ua_username} (by {lookup_by})")
+
+            masked = {
+                "email": _mask_email(user.ua_email) if user.ua_email else None,
+                "phone": _mask_phone(user.ua_phone) if user.ua_phone else None,
+            }
+
+            # Always return generic message for safety, but include masked contact hints if available
+            return True, GENERIC_MSG, {"channels": channels, "user_id": user.ua_user_id, "masked": masked}
 
         except Exception as e:
             logger.error(f"Error initiating password reset: {str(e)}")
-            return (
-                True,
-                "If an account exists with this email, you will receive a password reset link shortly.",
-            )
+            return False, f"An error occurred: {str(e)}", {"channels": {"email": False, "sms": False}, "user_id": None}
+
 
     def validate_password_reset_otp(self, user_id: str, otp: str) -> tuple[bool, str]:
         """
         Validate OTP for password reset.
-        
-        Args:
-            user_id: User's ID
-            otp: 6-digit OTP
-            
-        Returns:
-            tuple: (is_valid, message)
+
+        Returns (is_valid, message)
         """
         try:
             is_valid, message = password_reset_service.validate_otp_for_reset(
                 user_id=user_id,
-                otp=otp
+                otp=otp,
             )
 
             if is_valid:
@@ -158,34 +195,26 @@ class AuthService:
             logger.error(f"Error validating OTP: {str(e)}")
             return False, "An error occurred during OTP validation"
 
+
     def complete_password_reset(self, db: Session, user_id: str, new_password: str) -> tuple[bool, str]:
         """
-        Complete password reset after OTP validation.
-        Updates user password and clears OTP.
-        
-        Args:
-            db: Database session
-            user_id: User's ID
-            new_password: New password
-            
-        Returns:
-            tuple: (success, message)
+        Complete password reset after OTP validation: update user's password and clear OTP.
+
+        Returns (success, message)
         """
         try:
             user = db.query(UserAccount).filter(
                 UserAccount.ua_user_id == user_id,
-                UserAccount.ua_is_deleted == False
+                UserAccount.ua_is_deleted == False,
             ).first()
 
             if not user:
                 logger.warning(f"Password reset attempt for non-existent user: {user_id}")
                 return False, "User not found"
 
-            # Hash the new password
             from app.core.security import get_password_hash
             hashed_password = get_password_hash(new_password + user.ua_salt)
 
-            # Update password
             user.ua_password_hash = hashed_password
             user.ua_must_change_password = False
             user.ua_password_expires = datetime.utcnow() + timedelta(days=90)
@@ -194,10 +223,7 @@ class AuthService:
             db.commit()
 
             # Clear OTP
-            password_reset_service.complete_password_reset(
-                user_id=user_id,
-                new_password=new_password
-            )
+            password_reset_service.complete_password_reset(user_id=user_id, new_password=new_password)
 
             logger.info(f"Password reset completed for user: {user_id}")
             return True, "Password reset successful"
@@ -207,22 +233,18 @@ class AuthService:
             logger.error(f"Error completing password reset: {str(e)}")
             return False, f"Error completing password reset: {str(e)}"
 
+
     def recover_username(self, db: Session, email: str) -> tuple[bool, str]:
         """
         Recover username by email.
         Finds user by email and sends username recovery email.
-        
-        Args:
-            db: Database session
-            email: User's email address
-            
-        Returns:
-            tuple: (success, message)
+
+        Returns (success, message)
         """
         try:
             user = db.query(UserAccount).filter(
                 UserAccount.ua_email == email,
-                UserAccount.ua_is_deleted == False
+                UserAccount.ua_is_deleted == False,
             ).first()
 
             if user:
@@ -236,28 +258,20 @@ class AuthService:
 
                 success, message = username_recovery_service.recover_username_by_email(
                     email=email,
-                    user_data=user_data
+                    user_data=user_data,
                 )
 
                 if success:
                     logger.info(f"Username recovery email sent to: {email}")
                 else:
                     logger.warning(f"Failed to send username recovery email to: {email}")
-            else:
-                logger.info(f"Username recovery attempt for non-existent email: {email}")
 
-            # Return generic message for security (prevent email enumeration)
-            return (
-                True,
-                "If an account exists with this email, you will receive your username shortly.",
-            )
+            # Return generic message for security
+            return True, "If an account exists with this email, you will receive your username shortly."
 
         except Exception as e:
             logger.error(f"Error recovering username: {str(e)}")
-            return (
-                True,
-                "If an account exists with this email, you will receive your username shortly.",
-            )
+            return True, "If an account exists with this email, you will receive your username shortly."
 
     def send_welcome_email(self, user: UserAccount, temporary_password: str) -> bool:
         """
