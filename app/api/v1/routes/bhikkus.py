@@ -577,10 +577,14 @@ def manage_bhikku_records(
         except RuntimeError as exc:
             raise HTTPException(status_code=500, detail=str(exc)) from exc
 
+        # Convert model to schema for serialization
+        from app.schemas.bhikku import Bhikku as BhikkuSchema
+        bhikku_schema = BhikkuSchema.model_validate(created_bhikku)
+
         return {
             "status": "success",
             "message": "Bhikku created successfully.",
-            "data": created_bhikku,
+            "data": bhikku_schema,
         }
 
     elif action == schemas.CRUDAction.READ_ONE:
@@ -592,7 +596,12 @@ def manage_bhikku_records(
         db_bhikku = bhikku_service.get_bhikku(db, br_regn=payload.br_regn)
         if db_bhikku is None:
             raise HTTPException(status_code=404, detail="Bhikku not found")
-        return {"status": "success", "message": "Bhikku retrieved successfully.", "data": db_bhikku}
+        
+        # Convert model to schema for serialization
+        from app.schemas.bhikku import Bhikku as BhikkuSchema
+        bhikku_schema = BhikkuSchema.model_validate(db_bhikku)
+        
+        return {"status": "success", "message": "Bhikku retrieved successfully.", "data": bhikku_schema}
 
     elif action == schemas.CRUDAction.READ_ALL:
         # Handle pagination - use page-based or skip-based
@@ -634,10 +643,14 @@ def manage_bhikku_records(
             db, search=search_key, **filter_kwargs
         )
         
+        # Convert models to schemas for serialization
+        from app.schemas.bhikku import Bhikku as BhikkuSchema
+        bhikkus_schema = [BhikkuSchema.model_validate(bhikku) for bhikku in bhikkus]
+        
         return {
             "status": "success",
             "message": "Bhikkus retrieved successfully.",
-            "data": bhikkus,
+            "data": bhikkus_schema,
             "totalRecords": total_count,
             "page": page,
             "limit": limit
@@ -685,10 +698,14 @@ def manage_bhikku_records(
         except RuntimeError as exc:
             raise HTTPException(status_code=500, detail=str(exc)) from exc
 
+        # Convert model to schema for serialization
+        from app.schemas.bhikku import Bhikku as BhikkuSchema
+        bhikku_schema = BhikkuSchema.model_validate(updated_bhikku)
+
         return {
             "status": "success",
             "message": "Bhikku updated successfully.",
-            "data": updated_bhikku,
+            "data": bhikku_schema,
         }
 
     elif action == schemas.CRUDAction.DELETE:

@@ -15,6 +15,7 @@ from app.api.v1.routes import (
     bhikku_parshawa_data,
     bhikkus,
     bhikku_summary,
+    bhikku_workflow,
     certificate_changes,
     certificates,
     city,
@@ -37,6 +38,11 @@ api_router = APIRouter()
 
 api_router.include_router(health.router, tags=["Health"])
 api_router.include_router(bhikkus.router, prefix="/bhikkus", tags=["Bhikkus"])
+api_router.include_router(
+    bhikku_workflow.router,
+    prefix="/bhikkus/workflow",
+    tags=["Bhikku Workflow"],
+)
 api_router.include_router(bhikku_high.router, prefix="/bhikkus-high", tags=["Bhikku High"])
 api_router.include_router(
     bhikku_id_cards.router,

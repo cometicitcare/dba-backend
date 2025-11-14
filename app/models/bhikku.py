@@ -1,7 +1,17 @@
 # app/models/bhikku.py
-from sqlalchemy import Boolean, Column, Integer, String, Date, TIMESTAMP, text
+from sqlalchemy import Boolean, Column, Integer, String, Date, TIMESTAMP, text, Enum
 from sqlalchemy.sql import func
 from app.db.base import Base
+from enum import Enum as PyEnum
+
+
+class WorkflowStatusEnum(PyEnum):
+    PENDING = "pending"
+    APPROVED = "approved"
+    REJECTED = "rejected"
+    PRINTED = "printed"
+    SCANNED = "scanned"
+    COMPLETED = "completed"
 
 class Bhikku(Base):
     __tablename__ = "bhikku_regist"
@@ -31,6 +41,7 @@ class Bhikku(Base):
     br_effctdate = Column(Date)
     br_residence_at_declaration = Column(String(200))
     br_declaration_date = Column(Date)
+    br_workflow_status = Column(String(20), nullable=False, default="pending", index=True)
     
     # Temple/Religious Information
     br_parshawaya = Column(String(10), nullable=False)

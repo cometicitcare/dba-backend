@@ -4,6 +4,15 @@ from datetime import date
 from typing import Annotated, Optional, List, Union, Any
 from enum import Enum
 
+# --- Workflow Status Enum ---
+class WorkflowStatusEnum(str, Enum):
+    PENDING = "pending"
+    APPROVED = "approved"
+    REJECTED = "rejected"
+    PRINTED = "printed"
+    SCANNED = "scanned"
+    COMPLETED = "completed"
+
 # --- Action Enum ---
 class CRUDAction(str, Enum):
     CREATE = "CREATE"
@@ -38,6 +47,7 @@ class BhikkuBase(BaseModel):
     br_effctdate: Optional[date] = None
     br_residence_at_declaration: Optional[str] = None
     br_declaration_date: Optional[date] = None
+    br_workflow_status: Optional[WorkflowStatusEnum] = WorkflowStatusEnum.PENDING
     
     # Temple/Religious Information
     br_parshawaya: str
@@ -98,6 +108,7 @@ class BhikkuUpdate(BaseModel):
     br_effctdate: Optional[date] = None
     br_residence_at_declaration: Optional[str] = None
     br_declaration_date: Optional[date] = None
+    br_workflow_status: Optional[WorkflowStatusEnum] = None
     
     # Temple/Religious Information
     br_parshawaya: Optional[str] = None
