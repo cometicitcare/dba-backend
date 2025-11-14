@@ -81,6 +81,7 @@ class BhikkuRepository:
         skip: int = 0,
         limit: int = 100,
         search_key: Optional[str] = None,
+        province: Optional[str] = None,
         vh_trn: Optional[str] = None,
         district: Optional[str] = None,
         divisional_secretariat: Optional[str] = None,
@@ -100,6 +101,7 @@ class BhikkuRepository:
         query = self._apply_filters(
             query,
             search_key=search_key,
+            province=province,
             vh_trn=vh_trn,
             district=district,
             divisional_secretariat=divisional_secretariat,
@@ -125,6 +127,7 @@ class BhikkuRepository:
         self,
         db: Session,
         search_key: Optional[str] = None,
+        province: Optional[str] = None,
         vh_trn: Optional[str] = None,
         district: Optional[str] = None,
         divisional_secretariat: Optional[str] = None,
@@ -146,6 +149,7 @@ class BhikkuRepository:
         query = self._apply_filters(
             query,
             search_key=search_key,
+            province=province,
             vh_trn=vh_trn,
             district=district,
             divisional_secretariat=divisional_secretariat,
@@ -178,6 +182,7 @@ class BhikkuRepository:
         query,
         *,
         search_key: Optional[str] = None,
+        province: Optional[str] = None,
         vh_trn: Optional[str] = None,
         district: Optional[str] = None,
         divisional_secretariat: Optional[str] = None,
@@ -227,6 +232,10 @@ class BhikkuRepository:
                     models.Bhikku.br_robing_after_residence_temple.ilike(search_pattern),
                 )
             )
+
+        province = self._normalize_text_filter(province)
+        if province:
+            query = query.filter(models.Bhikku.br_province == province)
 
         vh_trn = self._normalize_text_filter(vh_trn)
         if vh_trn:

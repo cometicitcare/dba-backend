@@ -610,6 +610,7 @@ def manage_bhikku_records(
         
         # Get paginated bhikku records with search
         filter_kwargs = dict(
+            province=payload.province,
             vh_trn=payload.vh_trn,
             district=payload.district,
             divisional_secretariat=payload.divisional_secretariat,

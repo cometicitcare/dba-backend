@@ -150,6 +150,7 @@ class BhikkuRequestPayload(BaseModel):
     page: Annotated[Optional[int], Field(ge=1)] = 1
     search_key: Optional[str] = Field(default="", max_length=100)
     # Filters for READ_ALL
+    province: Optional[str] = Field(default=None)
     vh_trn: Optional[str] = Field(default=None)
     district: Optional[str] = Field(default=None)
     divisional_secretariat: Optional[str] = Field(default=None)
