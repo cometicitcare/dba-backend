@@ -3,6 +3,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from app.api.auth_middleware import get_current_user
+from app.api.auth_dependencies import has_permission, has_any_permission
 from app.api.deps import get_db
 from app.models.user import UserAccount
 from app.repositories.bhikku_summary_repo import bhikku_summary_repo
@@ -12,7 +13,7 @@ from app.utils.http_exceptions import validation_error
 router = APIRouter(tags=["Bhikku Summary"])
 
 
-@router.post("/manage", response_model=schemas.BhikkuSummaryManagementResponse)
+@router.post("/manage", response_model=schemas.BhikkuSummaryManagementResponse, dependencies=[has_any_permission("bhikku:create", "bhikku:update", "bhikku:delete")])
 def manage_bhikku_summary_records(
     request: schemas.BhikkuSummaryManagementRequest,
     db: Session = Depends(get_db),

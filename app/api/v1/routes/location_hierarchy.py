@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
 from app.api.auth_middleware import get_current_user
+from app.api.auth_dependencies import has_permission, has_any_permission
 from app.api.deps import get_db
 from app.models.user import UserAccount
 from app.schemas.gramasewaka import GramasewakaOut
@@ -15,7 +16,7 @@ from app.services.gramasewaka_service import gramasewaka_service
 router = APIRouter(tags=["Location Hierarchy"])
 
 
-@router.get("/hierarchy", response_model=LocationHierarchyResponse)
+@router.get("/hierarchy", response_model=LocationHierarchyResponse, dependencies=[has_permission("public:view")])
 def get_location_hierarchy(
     db: Session = Depends(get_db),
     current_user: UserAccount = Depends(get_current_user),

@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from app.api.deps import get_db
+from app.api.auth_dependencies import has_permission, has_any_permission
 from app.schemas.permission import PermissionCreate, PermissionUpdate, PermissionOut
 from app.models.permission import Permission
 from app.services.permission_service import permission_service
@@ -9,7 +10,7 @@ from app.utils.http_exceptions import validation_error
 router = APIRouter(tags=["Permissions"])
 
 # Create a new permission
-@router.post("/create", response_model=PermissionOut)
+@router.post("/create", response_model=PermissionOut, dependencies=[has_permission("system:manage_permissions")])
 def create_permission(
     permission: PermissionCreate,
     db: Session = Depends(get_db),
@@ -23,7 +24,7 @@ def create_permission(
         raise HTTPException(status_code=500, detail=str(exc)) from exc
 
 # Update an existing permission
-@router.put("/update/{permission_id}", response_model=PermissionOut)
+@router.put("/update/{permission_id}", response_model=PermissionOut, dependencies=[has_permission("system:manage_permissions")])
 def update_permission(
     permission_id: str,
     permission: PermissionUpdate,
@@ -38,7 +39,7 @@ def update_permission(
         raise HTTPException(status_code=500, detail=str(exc)) from exc
 
 # Get a specific permission by ID
-@router.get("/get/{permission_id}", response_model=PermissionOut)
+@router.get("/get/{permission_id}", response_model=PermissionOut, dependencies=[has_permission("system:manage_permissions")])
 def get_permission(
     permission_id: str,
     db: Session = Depends(get_db),
@@ -49,7 +50,7 @@ def get_permission(
     return permission
 
 # Delete a permission
-@router.delete("/delete/{permission_id}", response_model=PermissionOut)
+@router.delete("/delete/{permission_id}", response_model=PermissionOut, dependencies=[has_permission("system:manage_permissions")])
 def delete_permission(
     permission_id: str,
     db: Session = Depends(get_db),

@@ -28,8 +28,8 @@ class AuthService:
         if not user or not verify_password(password + user.ua_salt, user.ua_password_hash):
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
         
-        # Fetch the user's role and group information
-        user_role = db.query(Role).join(UserRole).filter(UserRole.user_id == user.ua_user_id).first()
+        # Fetch the user's role and group information (use ur_user_id for UserRole)
+        user_role = db.query(Role).join(UserRole).filter(UserRole.ur_user_id == user.ua_user_id).first()
         user_group = db.query(Group).join(UserGroup).filter(UserGroup.user_id == user.ua_user_id).first()
 
         if not user_role or not user_group:

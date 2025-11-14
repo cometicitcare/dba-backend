@@ -155,22 +155,38 @@ def login(
     form_data: UserLogin,
     db: Session = Depends(get_db),
 ):
-    """Login user, set http-only cookies with access/refresh tokens, and return user info"""
-    # Authenticate the user
-    access, refresh, user = auth_service.authenticate(db, form_data.ua_username, form_data.ua_password)
-
-    # Fetch user's role and group
-    user_role = db.query(auth_repo.Role).join(auth_repo.UserRole).filter(auth_repo.UserRole.user_id == user.ua_user_id).first()
-    user_group = db.query(auth_repo.Group).join(auth_repo.UserGroup).filter(auth_repo.UserGroup.user_id == user.ua_user_id).first()
-
-    if not user_role or not user_group:
-        raise HTTPException(status_code=404, detail="User role or group not found")
+    """
+    Login user, set http-only cookies with access/refresh tokens, and return complete user context.
+    
+    Returns comprehensive RBAC information including:
+    - User profile
+    - All active roles with hierarchy levels
+    - All active groups/departments
+    - Effective permissions (resource:action format)
+    - Permission map (grouped by resource)
+    - Access control flags (is_super_admin, is_admin, can_manage_users)
+    """
+    from app.api.auth_dependencies import get_user_access_context
+    from fastapi.responses import JSONResponse
+    import traceback
+    
+    try:
+        # Authenticate the user
+        access, refresh, user = auth_service.authenticate(db, form_data.ua_username, form_data.ua_password)
+    except Exception as e:
+        error_msg = f"Authentication error: {str(e)}"
+        print(error_msg)
+        traceback.print_exc()
+        return JSONResponse(status_code=500, content={"error": error_msg, "traceback": traceback.format_exc()})
 
     # Create login history for observability
+    import uuid
+    from datetime import datetime
+    session_id = f"login-{user.ua_user_id}-{datetime.utcnow().strftime('%Y%m%d%H%M%S')}-{uuid.uuid4().hex[:8]}"
     auth_repo.create_login_history(
         db,
         user_id=user.ua_user_id,
-        session_id=f"login-{user.ua_user_id}",
+        session_id=session_id,
         ip_address=request.client.host if request.client else None,
         user_agent=request.headers.get("user-agent"),
         success=True,
@@ -179,16 +195,45 @@ def login(
     # Update user's last login time
     auth_repo.update_user_last_login(db, user_id=user.ua_user_id)
 
-    # Create the JWT token with role and group info
-    user_payload = UserResponse.model_validate(user, from_attributes=True).model_dump()
-    user_payload["role"] = user_role.ro_role_name if user_role else None
-    user_payload["group"] = user_group.group_name if user_group else None
-
-    # Create access and refresh tokens
-    response = JSONResponse(content={"user": user_payload})
-    set_auth_cookies(response, access_token=access, refresh_token=refresh)
+    # Get basic user info
+    try:
+        user_payload = UserResponse.model_validate(user, from_attributes=True).model_dump()
+    except Exception as e:
+        error_msg = f"Error creating user payload: {str(e)}"
+        print(error_msg)
+        return JSONResponse(status_code=500, content={"error": error_msg, "traceback": traceback.format_exc()})
     
-    return response
+    # Get complete RBAC access context
+    try:
+        access_context = get_user_access_context(db, user)
+    except Exception as e:
+        error_msg = f"Error getting access context: {str(e)}"
+        print(error_msg)
+        return JSONResponse(status_code=500, content={"error": error_msg, "traceback": traceback.format_exc()})
+    
+    # Merge user info with access context
+    try:
+        response_data = {
+            "user": user_payload,
+            "roles": access_context["roles"],
+            "groups": access_context["groups"],
+            "permissions": access_context["permissions"],
+            "permission_map": access_context["permission_map"],
+            "is_super_admin": access_context["is_super_admin"],
+            "is_admin": access_context["is_admin"],
+            "can_manage_users": access_context["can_manage_users"],
+            "departments": access_context["departments"]
+        }
+
+        # Create response with cookies
+        response = JSONResponse(content=response_data)
+        set_auth_cookies(response, access_token=access, refresh_token=refresh)
+        
+        return response
+    except Exception as e:
+        error_msg = f"Error building response: {str(e)}"
+        print(error_msg)
+        return JSONResponse(status_code=500, content={"error": error_msg, "traceback": traceback.format_exc()})
 
 @router.post("/logout")
 def logout(db: Session = Depends(get_db)):
@@ -230,6 +275,65 @@ def refresh_token(request: Request, db: Session = Depends(get_db)):
         return response
     except Exception:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid refresh token")
+
+
+# ============================================================================
+# RBAC CONTEXT ENDPOINTS
+# ============================================================================
+
+@router.get("/me/context")
+def get_my_context(
+    request: Request,
+    db: Session = Depends(get_db)
+):
+    """Get complete RBAC context for the currently authenticated user"""
+    from app.api.auth_middleware import get_current_user
+    from app.api.auth_dependencies import get_user_access_context
+    
+    current_user = get_current_user(request, db)
+    access_context = get_user_access_context(db, current_user)
+    user_payload = UserResponse.model_validate(current_user, from_attributes=True).model_dump()
+    
+    return {
+        "user": user_payload,
+        "roles": access_context["roles"],
+        "groups": access_context["groups"],
+        "permissions": access_context["permissions"],
+        "permission_map": access_context["permission_map"],
+        "is_super_admin": access_context["is_super_admin"],
+        "is_admin": access_context["is_admin"],
+        "can_manage_users": access_context["can_manage_users"],
+        "departments": access_context["departments"]
+    }
+
+
+@router.get("/me/permissions")
+def get_my_permissions(
+    request: Request,
+    db: Session = Depends(get_db)
+):
+    """Get list of effective permissions for current user"""
+    from app.api.auth_middleware import get_current_user
+    from app.api.auth_dependencies import get_user_permissions, is_super_admin
+    
+    current_user = get_current_user(request, db)
+    permissions = get_user_permissions(db, current_user)
+    super_admin = is_super_admin(db, current_user)
+    
+    permission_map = {}
+    for perm in permissions:
+        if ":" in perm:
+            resource, action = perm.split(":", 1)
+            if resource not in permission_map:
+                permission_map[resource] = []
+            permission_map[resource].append(action)
+    
+    return {
+        "permissions": permissions,
+        "permission_map": permission_map,
+        "is_super_admin": super_admin,
+        "total_permissions": len(permissions)
+    }
 
 
 # ============================================================================

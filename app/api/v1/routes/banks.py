@@ -4,6 +4,7 @@ from pydantic import ValidationError
 from sqlalchemy.orm import Session
 
 from app.api.auth_middleware import get_current_user
+from app.api.auth_dependencies import has_permission, has_any_permission
 from app.api.deps import get_db
 from app.models.user import UserAccount
 from app.schemas import bank as schemas
@@ -13,7 +14,10 @@ from app.utils.http_exceptions import validation_error
 router = APIRouter(tags=["Banks"])
 
 
-@router.post("/manage", response_model=schemas.BankManagementResponse)
+@router.post("/manage", 
+             response_model=schemas.BankManagementResponse, 
+             dependencies=[has_any_permission("system:create", "system:update", "system:delete")
+                           ])
 def manage_bank_records(
     request: schemas.BankManagementRequest,
     db: Session = Depends(get_db),

@@ -4,6 +4,7 @@ from pydantic import BaseModel, ValidationError
 from sqlalchemy.orm import Session
 
 from app.api.auth_middleware import get_current_user
+from app.api.auth_dependencies import has_permission, has_any_permission
 from app.api.deps import get_db
 from app.models.user import UserAccount
 from app.schemas.status import (
@@ -20,7 +21,7 @@ from app.utils.http_exceptions import validation_error
 router = APIRouter(tags=["Status"])
 
 
-@router.post("/manage", response_model=StatusManagementResponse)
+@router.post("/manage", response_model=StatusManagementResponse, dependencies=[has_any_permission("system:create", "system:update", "system:delete")])
 def manage_status_records(
     request: StatusManagementRequest,
     db: Session = Depends(get_db),

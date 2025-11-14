@@ -89,7 +89,3 @@ docker-compose.override.yml
 
 # Railway / local volumes
 storage/
-
-# Archive folders - temporary development documentation
-archive_temp_docs/
-todel/

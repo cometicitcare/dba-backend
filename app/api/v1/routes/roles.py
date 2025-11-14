@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.api.auth_middleware import get_current_user
+from app.api.auth_dependencies import has_permission, has_any_permission
 from app.api.deps import get_db
 from app.models.user import UserAccount
 from app.repositories.role_repo import role_repo
@@ -19,7 +20,7 @@ from app.utils.http_exceptions import validation_error
 router = APIRouter(tags=["Roles"])
 
 
-@router.post("/manage", response_model=RoleManagementResponse)
+@router.post("/manage", response_model=RoleManagementResponse, dependencies=[has_permission("system:manage_roles")])
 def manage_roles(
     request: RoleManagementRequest,
     db: Session = Depends(get_db),

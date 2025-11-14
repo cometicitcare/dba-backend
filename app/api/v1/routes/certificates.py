@@ -4,6 +4,7 @@ from pydantic import ValidationError
 from sqlalchemy.orm import Session
 
 from app.api.auth_middleware import get_current_user
+from app.api.auth_dependencies import has_permission, has_any_permission
 from app.api.deps import get_db
 from app.models.user import UserAccount
 from app.repositories.certificate_repo import certificate_repo
@@ -14,7 +15,7 @@ from app.utils.http_exceptions import validation_error
 router = APIRouter(tags=["Certificates"])
 
 
-@router.post("/manage", response_model=schemas.CertificateManagementResponse)
+@router.post("/manage", response_model=schemas.CertificateManagementResponse, dependencies=[has_any_permission("certificate:create", "certificate:update", "certificate:delete")])
 def manage_certificate_records(
     request: schemas.CertificateManagementRequest,
     db: Session = Depends(get_db),

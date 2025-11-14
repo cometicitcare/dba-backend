@@ -19,6 +19,7 @@ from app.api.v1.routes import (
     certificates,
     city,
     dashboard,
+    debug,
     district,
     divisional_secretariat,
     gramasewaka,
@@ -27,6 +28,7 @@ from app.api.v1.routes import (
     nilame,
     payment_methods,
     province,
+    rbac_admin,
     religion,
     roles,
     status,
@@ -87,6 +89,7 @@ api_router.include_router(
 )
 api_router.include_router(dashboard.router, prefix="/dashboard", tags=["Dashboard"])
 api_router.include_router(nilame.router, prefix="/nilame", tags=["Nilame"])
+api_router.include_router(debug.router, tags=["Debug"])
 api_router.include_router(auth.router, prefix="/auth", tags=["Authentication"])
 api_router.include_router(auth_sms_test.router, prefix="/auth", tags=["Authentication"])
 api_router.include_router(
@@ -131,4 +134,9 @@ api_router.include_router(
 api_router.include_router(
     location_hierarchy.router,
     prefix="/locations",
+)
+api_router.include_router(
+    rbac_admin.router,
+    prefix="/admin",
+    tags=["RBAC Administration"],
 )

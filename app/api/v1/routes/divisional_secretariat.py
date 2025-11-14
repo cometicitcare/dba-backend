@@ -3,6 +3,7 @@ from pydantic import ValidationError
 from sqlalchemy.orm import Session
 
 from app.api.auth_middleware import get_current_user
+from app.api.auth_dependencies import has_permission, has_any_permission
 from app.api.deps import get_db
 from app.models.user import UserAccount
 from app.schemas.divisional_secretariat import (
@@ -21,7 +22,7 @@ from app.utils.http_exceptions import validation_error
 router = APIRouter(tags=["Divisional Secretariat"])
 
 
-@router.post("/manage", response_model=DivisionalSecretariatManagementResponse)
+@router.post("/manage", response_model=DivisionalSecretariatManagementResponse, dependencies=[has_any_permission("div_secretariat:create", "div_secretariat:update", "div_secretariat:delete")])
 def manage_divisional_secretariat_records(
     request: DivisionalSecretariatManagementRequest,
     db: Session = Depends(get_db),
