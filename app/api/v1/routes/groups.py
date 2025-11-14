@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from app.api.deps import get_db
+from app.api.auth_dependencies import has_permission, has_any_permission
 from app.schemas.group import GroupCreate, GroupUpdate, GroupOut, GroupListResponse
 from app.models.group import Group
 from app.services.group_service import group_service
@@ -9,7 +10,7 @@ from app.utils.http_exceptions import validation_error
 router = APIRouter(tags=["Groups"])
 
 # Create a new group
-@router.post("/create", response_model=GroupOut)
+@router.post("/create", response_model=GroupOut, dependencies=[has_permission("system:manage_roles")])
 def create_group(
     group: GroupCreate,
     db: Session = Depends(get_db),
@@ -23,7 +24,7 @@ def create_group(
         raise HTTPException(status_code=500, detail=str(exc)) from exc
 
 # Update an existing group
-@router.put("/update/{group_id}", response_model=GroupOut)
+@router.put("/update/{group_id}", response_model=GroupOut, dependencies=[has_permission("system:manage_roles")])
 def update_group(
     group_id: int,
     group: GroupUpdate,
@@ -38,7 +39,7 @@ def update_group(
         raise HTTPException(status_code=500, detail=str(exc)) from exc
 
 # Get a specific group by its ID
-@router.get("/get/{group_id}", response_model=GroupOut)
+@router.get("/get/{group_id}", response_model=GroupOut, dependencies=[has_permission("system:manage_roles")])
 def get_group(
     group_id: int,
     db: Session = Depends(get_db),
@@ -49,7 +50,7 @@ def get_group(
     return group
 
 # Get a list of groups with pagination
-@router.get("/list", response_model=GroupListResponse)
+@router.get("/list", response_model=GroupListResponse, dependencies=[has_permission("system:manage_roles")])
 def list_groups(
     page: int = 1,
     limit: int = 20,
@@ -67,7 +68,7 @@ def list_groups(
     )
 
 # Delete a group
-@router.delete("/delete/{group_id}", response_model=GroupOut)
+@router.delete("/delete/{group_id}", response_model=GroupOut, dependencies=[has_permission("system:manage_roles")])
 def delete_group(
     group_id: int,
     db: Session = Depends(get_db),

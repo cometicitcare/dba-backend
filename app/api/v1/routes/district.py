@@ -3,6 +3,7 @@ from pydantic import ValidationError
 from sqlalchemy.orm import Session
 
 from app.api.auth_middleware import get_current_user
+from app.api.auth_dependencies import has_permission, has_any_permission
 from app.api.deps import get_db
 from app.models.user import UserAccount
 from app.schemas.district import (
@@ -19,7 +20,7 @@ from app.utils.http_exceptions import validation_error
 router = APIRouter(tags=["District"])
 
 
-@router.post("/manage", response_model=DistrictManagementResponse)
+@router.post("/manage", response_model=DistrictManagementResponse, dependencies=[has_any_permission("system:create", "system:update", "system:delete")])
 def manage_districts(
     request: DistrictManagementRequest,
     db: Session = Depends(get_db),

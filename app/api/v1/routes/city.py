@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from app.api.auth_middleware import get_current_user
+from app.api.auth_dependencies import has_permission, has_any_permission
 from app.api.deps import get_db
 from app.models.user import UserAccount
 from app.schemas.city import (
@@ -18,7 +19,7 @@ from app.utils.http_exceptions import validation_error
 router = APIRouter(tags=["City"])
 
 
-@router.post("/manage", response_model=CityManagementResponse)
+@router.post("/manage", response_model=CityManagementResponse, dependencies=[has_any_permission("system:create", "system:update", "system:delete")])
 def manage_city_records(
     request: CityManagementRequest,
     db: Session = Depends(get_db),

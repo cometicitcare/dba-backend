@@ -188,12 +188,16 @@ class PasswordResetService:
                         "password_reset_sms", otp=otp, otp_expiry=self.otp_manager.otp_expiry
                     )
                     if sms_text:
-                        sms_sent = sms_service.send_sms(recipient=user_phone, message=sms_text)
+                        sms_result = sms_service.send_sms(recipient=user_phone, message=sms_text)
+                        # SMS service returns dict with 'success' key
+                        sms_sent = sms_result.get('success', False) if isinstance(sms_result, dict) else bool(sms_result)
                         if sms_sent:
                             logger.info(f"Password reset SMS sent to {user_phone}")
 
             except Exception as e:
+                import traceback
                 logger.error(f"Failed to send password reset SMS to {user_phone}: {e}")
+                logger.error(f"SMS error traceback: {traceback.format_exc()}")
 
             # Overall success if at least one channel delivered
             channels = {"email": bool(email_sent), "sms": bool(sms_sent)}

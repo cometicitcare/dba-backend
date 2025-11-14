@@ -103,7 +103,7 @@ class UserResponse(BaseModel):
     ua_last_name: Optional[str]
     ua_phone: Optional[str]
     ua_status: str
-    ro_role_id: str
+    ro_role_id: Optional[str] = None  # Made optional for RBAC - roles returned separately
     role: Optional[RoleBase] = None
 
     class Config:

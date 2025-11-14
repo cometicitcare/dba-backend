@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from app.api.auth_middleware import get_current_user
+from app.api.auth_dependencies import has_permission, has_any_permission
 from app.api.deps import get_db
 from app.models.user import UserAccount
 from app.schemas.silmatha_id import SilmathaIDCardResponse
@@ -10,7 +11,7 @@ from app.services.silmatha_id_service import silmatha_id_service
 router = APIRouter(tags=["Silmatha ID"])
 
 
-@router.get("/{regn}", response_model=SilmathaIDCardResponse)
+@router.get("/{regn}", response_model=SilmathaIDCardResponse, dependencies=[has_permission("silmatha:read")])
 def get_silmatha_id_card(
     regn: str,
     db: Session = Depends(get_db),

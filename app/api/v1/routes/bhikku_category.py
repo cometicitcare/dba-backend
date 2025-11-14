@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 from pydantic import ValidationError
 
 from app.api.auth_middleware import get_current_user
+from app.api.auth_dependencies import has_permission, has_any_permission
 from app.api.deps import get_db
 from app.models.user import UserAccount
 from app.schemas.bhikku_category import (
@@ -19,7 +20,7 @@ from app.utils.http_exceptions import validation_error
 router = APIRouter(tags=["Bhikku Category"])
 
 
-@router.post("/manage", response_model=BhikkuCategoryManagementResponse)
+@router.post("/manage", response_model=BhikkuCategoryManagementResponse, dependencies=[has_any_permission("bhikku:create", "bhikku:update", "bhikku:delete")])
 def manage_bhikku_categories(
     request: BhikkuCategoryManagementRequest,
     db: Session = Depends(get_db),

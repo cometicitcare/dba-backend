@@ -52,10 +52,13 @@ def register_exception_handlers(app: FastAPI) -> None:
         request: Request, exc: Exception
     ) -> JSONResponse:
         # TODO: add structured logging once logging stack is in place.
+        import traceback
+        print(f"❌ UNHANDLED EXCEPTION: {type(exc).__name__}: {str(exc)}")
+        traceback.print_exc()
         return _build_response(
             status.HTTP_500_INTERNAL_SERVER_ERROR,
             "Internal server error",
-            [_make_error(None, "An unexpected error occurred.")],
+            [_make_error(None, f"{type(exc).__name__}: {str(exc)}")],
         )
 
 

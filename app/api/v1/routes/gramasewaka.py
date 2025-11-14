@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from app.api.auth_middleware import get_current_user
+from app.api.auth_dependencies import has_permission, has_any_permission
 from app.api.deps import get_db
 from app.models.user import UserAccount
 from app.schemas import gramasewaka as schemas
@@ -12,7 +13,7 @@ from pydantic import ValidationError
 router = APIRouter()
 
 
-@router.post("/manage", response_model=schemas.GramasewakaManagementResponse)
+@router.post("/manage", response_model=schemas.GramasewakaManagementResponse, dependencies=[has_any_permission("div_secretariat:create", "div_secretariat:update", "div_secretariat:delete")])
 def manage_gramasewaka_records(
     request: schemas.GramasewakaManagementRequest,
     db: Session = Depends(get_db),

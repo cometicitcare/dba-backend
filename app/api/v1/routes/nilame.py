@@ -3,6 +3,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from app.api.auth_middleware import get_current_user
+from app.api.auth_dependencies import has_permission, has_any_permission
 from app.api.deps import get_db
 from app.models.user import UserAccount
 from app.repositories.nilame_repo import nilame_repo
@@ -14,7 +15,7 @@ from pydantic import ValidationError
 router = APIRouter(tags=["Nilame"])
 
 
-@router.post("/manage", response_model=schemas.NilameManagementResponse)
+@router.post("/manage", response_model=schemas.NilameManagementResponse, dependencies=[has_any_permission("system:create", "system:update", "system:delete")])
 def manage_nilame_records(
     request: schemas.NilameManagementRequest,
     db: Session = Depends(get_db),

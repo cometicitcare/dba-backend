@@ -5,6 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.api.auth_middleware import get_current_user
+from app.api.auth_dependencies import has_permission, has_any_permission
 from app.api.deps import get_db
 from app.models.user import UserAccount
 from app.repositories.audit_log_repo import audit_log_repo
@@ -27,7 +28,7 @@ def _is_system_user(user: UserAccount) -> bool:
         return False
 
 
-@router.post("/manage", response_model=AuditLogManagementResponse)
+@router.post("/manage", response_model=AuditLogManagementResponse, dependencies=[has_any_permission("system:view_audit_log")])
 def manage_audit_log(
     request: AuditLogManagementRequest,
     db: Session = Depends(get_db),

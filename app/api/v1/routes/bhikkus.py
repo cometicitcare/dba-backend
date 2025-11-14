@@ -4,6 +4,7 @@ from sqlalchemy.orm import Session
 
 from app.api.deps import get_db
 from app.api.auth_middleware import get_current_user
+from app.api.auth_dependencies import has_permission, has_any_permission
 from app.models.user import UserAccount
 from app.schemas import bhikku as schemas
 from app.services.bhikku_service import bhikku_service
@@ -16,6 +17,7 @@ router = APIRouter()
 @router.get(
     "/mahanayaka-list",
     response_model=schemas.BhikkuMahanayakaListResponse,
+    dependencies=[has_permission("bhikku:read")],
 )
 def list_mahanayaka_bhikkus(
     db: Session = Depends(get_db),
@@ -23,6 +25,7 @@ def list_mahanayaka_bhikkus(
 ):
     """
     Return rows from the `bikkudtls_mahanayakalist` database view.
+    Requires: bhikku:read permission
     """
     records = bhikku_service.list_mahanayaka_view(db)
     return {
@@ -35,6 +38,7 @@ def list_mahanayaka_bhikkus(
 @router.get(
     "/nikaya-list",
     response_model=schemas.BhikkuNikayaListResponse,
+    dependencies=[has_permission("bhikku:read")],
 )
 def list_nikaya_bhikkus(
     db: Session = Depends(get_db),
@@ -42,6 +46,7 @@ def list_nikaya_bhikkus(
 ):
     """
     Return rows from the `bikkudtls_nikaya_list` database view.
+    Requires: bhikku:read permission
     """
     records = bhikku_service.list_nikaya_view(db)
     return {
@@ -54,6 +59,7 @@ def list_nikaya_bhikkus(
 @router.get(
     "/nikaya-hierarchy",
     response_model=schemas.BhikkuNikayaHierarchyResponse,
+    dependencies=[has_permission("bhikku:read")],
 )
 def list_nikaya_hierarchy(
     db: Session = Depends(get_db),
@@ -73,6 +79,7 @@ def list_nikaya_hierarchy(
 @router.get(
     "/acharya-list",
     response_model=schemas.BhikkuAcharyaListResponse,
+    dependencies=[has_permission("bhikku:read")],
 )
 def list_acharya_bhikkus(
     db: Session = Depends(get_db),
@@ -92,6 +99,7 @@ def list_acharya_bhikkus(
 @router.get(
     "/details-list",
     response_model=schemas.BhikkuDetailsListResponse,
+    dependencies=[has_permission("bhikku:read")],
 )
 def list_bhikku_details(
     db: Session = Depends(get_db),
@@ -111,6 +119,7 @@ def list_bhikku_details(
 @router.get(
     "/certification-list",
     response_model=schemas.BhikkuCertificationListResponse,
+    dependencies=[has_permission("bhikku:read")],
 )
 def list_certification_bhikkus(
     db: Session = Depends(get_db),
@@ -130,6 +139,7 @@ def list_certification_bhikkus(
 @router.get(
     "/certification-printnow",
     response_model=schemas.BhikkuCertificationPrintListResponse,
+    dependencies=[has_permission("bhikku:read")],
 )
 def list_certification_print_bhikkus(
     db: Session = Depends(get_db),
@@ -149,6 +159,7 @@ def list_certification_print_bhikkus(
 @router.get(
     "/current-status-list",
     response_model=schemas.BhikkuCurrentStatusListResponse,
+    dependencies=[has_permission("bhikku:read")],
 )
 def list_current_status_bhikkus(
     db: Session = Depends(get_db),
@@ -168,6 +179,7 @@ def list_current_status_bhikkus(
 @router.get(
     "/district-list",
     response_model=schemas.BhikkuDistrictListResponse,
+    dependencies=[has_permission("bhikku:read")],
 )
 def list_district_bhikkus(
     db: Session = Depends(get_db),
@@ -187,6 +199,7 @@ def list_district_bhikkus(
 @router.get(
     "/division-secretariat-list",
     response_model=schemas.BhikkuDivisionSecListResponse,
+    dependencies=[has_permission("bhikku:read")],
 )
 def list_division_secretariat_bhikkus(
     db: Session = Depends(get_db),
@@ -206,6 +219,7 @@ def list_division_secretariat_bhikkus(
 @router.get(
     "/gn-division-list",
     response_model=schemas.BhikkuGNListResponse,
+    dependencies=[has_permission("bhikku:read")],
 )
 def list_gn_division_bhikkus(
     db: Session = Depends(get_db),
@@ -225,6 +239,7 @@ def list_gn_division_bhikkus(
 @router.get(
     "/history-status-list",
     response_model=schemas.BhikkuHistoryStatusListResponse,
+    dependencies=[has_permission("bhikku:read")],
 )
 def list_history_status_bhikkus(
     db: Session = Depends(get_db),
@@ -244,6 +259,7 @@ def list_history_status_bhikkus(
 @router.get(
     "/id-all-list",
     response_model=schemas.BhikkuIDAllListResponse,
+    dependencies=[has_permission("bhikku:read")],
 )
 def list_id_all_bhikkus(
     db: Session = Depends(get_db),
@@ -263,6 +279,7 @@ def list_id_all_bhikkus(
 @router.get(
     "/id-district-list",
     response_model=schemas.BhikkuIDDistrictListResponse,
+    dependencies=[has_permission("bhikku:read")],
 )
 def list_id_district_bhikkus(
     db: Session = Depends(get_db),
@@ -282,6 +299,7 @@ def list_id_district_bhikkus(
 @router.get(
     "/id-division-secretariat-list",
     response_model=schemas.BhikkuIDDvSecListResponse,
+    dependencies=[has_permission("bhikku:read")],
 )
 def list_id_division_secretariat_bhikkus(
     db: Session = Depends(get_db),
@@ -301,6 +319,7 @@ def list_id_division_secretariat_bhikkus(
 @router.get(
     "/id-gn-division-list",
     response_model=schemas.BhikkuIDGNListResponse,
+    dependencies=[has_permission("bhikku:read")],
 )
 def list_id_gn_division_bhikkus(
     db: Session = Depends(get_db),
@@ -320,6 +339,7 @@ def list_id_gn_division_bhikkus(
 @router.get(
     "/nikayanayaka-list",
     response_model=schemas.BhikkuNikayanayakaListResponse,
+    dependencies=[has_permission("bhikku:read")],
 )
 def list_nikayanayaka_bhikkus(
     db: Session = Depends(get_db),
@@ -339,6 +359,7 @@ def list_nikayanayaka_bhikkus(
 @router.get(
     "/parshawa-list",
     response_model=schemas.BhikkuParshawaListResponse,
+    dependencies=[has_permission("bhikku:read")],
 )
 def list_parshawa_bhikkus(
     db: Session = Depends(get_db),
@@ -358,6 +379,7 @@ def list_parshawa_bhikkus(
 @router.get(
     "/status-history-composite",
     response_model=schemas.BhikkuStatusHistoryCompositeResponse,
+    dependencies=[has_permission("bhikku:read")],
 )
 def list_status_history_composite(
     db: Session = Depends(get_db),
@@ -377,6 +399,7 @@ def list_status_history_composite(
 @router.get(
     "/status-history-list",
     response_model=schemas.BhikkuStatusHistoryListResponse,
+    dependencies=[has_permission("bhikku:read")],
 )
 def list_status_history(
     db: Session = Depends(get_db),
@@ -396,6 +419,7 @@ def list_status_history(
 @router.get(
     "/status-history-list2",
     response_model=schemas.BhikkuStatusHistoryList2Response,
+    dependencies=[has_permission("bhikku:read")],
 )
 def list_status_history_aggregated(
     db: Session = Depends(get_db),
@@ -415,6 +439,7 @@ def list_status_history_aggregated(
 @router.get(
     "/viharadipathi-list",
     response_model=schemas.BhikkuViharadipathiListResponse,
+    dependencies=[has_permission("bhikku:read")],
 )
 def list_viharadipathi_bhikkus(
     db: Session = Depends(get_db),
@@ -434,6 +459,7 @@ def list_viharadipathi_bhikkus(
 @router.get(
     "/current-status-summary",
     response_model=schemas.BhikkuCurrentStatusSummaryResponse,
+    dependencies=[has_permission("bhikku:read")],
 )
 def list_current_status_summary(
     db: Session = Depends(get_db),
@@ -453,6 +479,7 @@ def list_current_status_summary(
 @router.get(
     "/district-summary",
     response_model=schemas.BhikkuDistrictSummaryResponse,
+    dependencies=[has_permission("bhikku:read")],
 )
 def list_district_summary(
     db: Session = Depends(get_db),
@@ -472,6 +499,7 @@ def list_district_summary(
 @router.get(
     "/gn-summary",
     response_model=schemas.BhikkuGNSummaryResponse,
+    dependencies=[has_permission("bhikku:read")],
 )
 def list_gn_summary(
     db: Session = Depends(get_db),
@@ -491,6 +519,7 @@ def list_gn_summary(
 @router.get(
     "/id-district-summary",
     response_model=schemas.BhikkuIDDistrictSummaryResponse,
+    dependencies=[has_permission("bhikku:read")],
 )
 def list_id_district_summary(
     db: Session = Depends(get_db),
@@ -510,6 +539,7 @@ def list_id_district_summary(
 @router.get(
     "/id-gn-summary",
     response_model=schemas.BhikkuIDGNSummaryResponse,
+    dependencies=[has_permission("bhikku:read")],
 )
 def list_id_gn_summary(
     db: Session = Depends(get_db),
@@ -526,15 +556,22 @@ def list_id_gn_summary(
     }
 
 
-@router.post("/manage", response_model=schemas.BhikkuManagementResponse)
+@router.post(
+    "/manage",
+    response_model=schemas.BhikkuManagementResponse,
+    dependencies=[has_any_permission("bhikku:create", "bhikku:update", "bhikku:delete")],
+)
 def manage_bhikku_records(
     request: schemas.BhikkuManagementRequest, 
     db: Session = Depends(get_db),
-    current_user: UserAccount = Depends(get_current_user)
+    current_user: UserAccount = Depends(get_current_user),
 ):
     """
     Unified endpoint for all Bhikku CRUD operations.
-    Requires authentication via session ID in Authorization header.
+    Requires authentication + at least one of: bhikku:create, bhikku:update, bhikku:delete
+    
+    Note: Permission check is relaxed to allow any CRUD permission.
+    For stricter enforcement, implement action-specific checks within the function.
     """
     action = request.action
     payload = request.payload

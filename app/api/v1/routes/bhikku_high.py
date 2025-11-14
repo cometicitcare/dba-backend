@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from app.api.auth_middleware import get_current_user
+from app.api.auth_dependencies import has_permission, has_any_permission
 from app.api.deps import get_db
 from app.models.user import UserAccount
 from app.schemas import bhikku_high as schemas
@@ -17,7 +18,7 @@ def check_permission(db: Session, user_id: str, permission_name: str):
     if permission_name not in permissions:
         raise HTTPException(status_code=403, detail="Permission denied")
 
-@router.post("/manage", response_model=schemas.BhikkuHighManagementResponse)
+@router.post("/manage", response_model=schemas.BhikkuHighManagementResponse, dependencies=[has_any_permission("bhikku:create", "bhikku:update", "bhikku:delete")])
 def manage_bhikku_high_records(
     request: schemas.BhikkuHighManagementRequest,
     db: Session = Depends(get_db),

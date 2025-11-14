@@ -4,6 +4,7 @@ from sqlalchemy.orm import Session
 from pydantic import BaseModel, ValidationError
 
 from app.api.auth_middleware import get_current_user
+from app.api.auth_dependencies import has_permission, has_any_permission
 from app.api.deps import get_db
 from app.models.user import UserAccount
 from app.schemas.religion import (
@@ -20,7 +21,7 @@ from app.utils.http_exceptions import validation_error
 router = APIRouter(tags=["Religion"])
 
 
-@router.post("/manage", response_model=ReligionManagementResponse)
+@router.post("/manage", response_model=ReligionManagementResponse, dependencies=[has_any_permission("system:create", "system:update", "system:delete")])
 def manage_religion_records(
     request: ReligionManagementRequest,
     db: Session = Depends(get_db),

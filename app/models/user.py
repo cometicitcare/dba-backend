@@ -42,13 +42,13 @@ class UserAccount(Base):
     ua_updated_by = Column(String(50))
     ua_version_number = Column(Integer, default=1)
     
-    # Foreign Key to Role
-    # foreign key references the single Role model (defined in app.models.roles)
-    # align size with Role.ro_role_id (String(10))
-    ro_role_id = Column(String(10), ForeignKey("roles.ro_role_id"), nullable=False)
-
-    # Relationship
-    role = relationship("Role", back_populates="users")
+    # Relationships (many-to-many through junction tables)
+    # User can have multiple roles via UserRole table
+    user_roles = relationship("UserRole", back_populates="user", cascade="all, delete-orphan")
+    # User can belong to multiple groups via UserGroup table
+    user_groups = relationship("UserGroup", back_populates="user", cascade="all, delete-orphan")
+    # User can have permission overrides via UserPermission table
+    user_permissions = relationship("UserPermission", back_populates="user", cascade="all, delete-orphan")
 
 
 class LoginHistory(Base):

@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from app.api.auth_middleware import get_current_user
+from app.api.auth_dependencies import has_permission, has_any_permission
 from app.api.deps import get_db
 from app.models.user import UserAccount
 from app.schemas.bhikku_id import BhikkuIDCardResponse
@@ -10,7 +11,7 @@ from app.services.bhikku_id_service import bhikku_id_service
 router = APIRouter(tags=["Bhikku ID"])
 
 
-@router.get("/{regn}", response_model=BhikkuIDCardResponse)
+@router.get("/{regn}", response_model=BhikkuIDCardResponse, dependencies=[has_permission("bhikku:read")])
 def get_bhikku_id_card(
     regn: str,
     db: Session = Depends(get_db),

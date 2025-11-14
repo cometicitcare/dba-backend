@@ -32,11 +32,10 @@ class Permission(Base):
     pe_created_at: Mapped[datetime] = mapped_column(TIMESTAMP, default=datetime.utcnow)
     pe_updated_at: Mapped[datetime] = mapped_column(TIMESTAMP, default=datetime.utcnow, onupdate=datetime.utcnow)
 
-    # Relationship to the group
+    # Relationships
     group = relationship("Group", back_populates="permissions")
-
-    def __repr__(self):
-        return f"<Permission(pe_permission_id={self.pe_permission_id}, pe_name={self.pe_name})>"
+    role_permissions = relationship("RolePermission", back_populates="permission", cascade="all, delete-orphan")
+    user_permissions = relationship("UserPermission", back_populates="permission", cascade="all, delete-orphan")
 
     # Indexes to optimize queries
     __table_args__ = (
