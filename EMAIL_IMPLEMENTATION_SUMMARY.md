@@ -45,6 +45,7 @@ A complete, production-ready email system for the DBA HRMS application with:
 | `EMAIL_SYSTEM_QUICK_REFERENCE.md` | Quick reference | ✅ Complete |
 | `EMAIL_SYSTEM_ARCHITECTURE.md` | Architecture diagram | ✅ Complete |
 | `EMAIL_DEPENDENCIES.md` | Dependencies info | ✅ Complete |
+| `SMS_INTEGRATION_GUIDE.md` | SMS integration & OTP delivery guide | ✅ Added |
 
 ### 5. Examples
 | File | Purpose | Status |
