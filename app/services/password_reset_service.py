@@ -196,14 +196,15 @@ class PasswordResetService:
                 logger.error(f"Failed to send password reset SMS to {user_phone}: {e}")
 
             # Overall success if at least one channel delivered
+            channels = {"email": bool(email_sent), "sms": bool(sms_sent)}
             if email_sent or sms_sent:
-                return True, "Password reset OTP sent"
+                return True, "Password reset OTP sent", channels
             else:
-                return False, "Failed to send password reset OTP. Please try again."
+                return False, "Failed to send password reset OTP. Please try again.", channels
 
         except Exception as e:
             logger.error(f"Error initiating password reset: {str(e)}")
-            return False, f"An error occurred: {str(e)}"
+            return False, f"An error occurred: {str(e)}", {"email": False, "sms": False}
 
     def validate_otp_for_reset(self, user_id: str | int, otp: str) -> tuple[bool, str]:
         """

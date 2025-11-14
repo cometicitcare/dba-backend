@@ -24,9 +24,12 @@ router = APIRouter()
 
 
 class ForgotPasswordRequest(BaseModel):
-    """Request model for password reset initiation"""
+    """Request model for password reset initiation.
 
-    email: EmailStr = Field(..., description="User's email address")
+    Accepts an identifier which can be an email, username or phone number.
+    """
+
+    identifier: str = Field(..., description="Email, username, or phone number")
 
 
 class ValidateOTPRequest(BaseModel):
@@ -57,6 +60,8 @@ class PasswordResetResponse(BaseModel):
     success: bool
     message: str
     user_id: str | None = None
+    channels: dict | None = None
+    masked: dict | None = None
 
 
 class OTPStatusResponse(BaseModel):
@@ -264,16 +269,17 @@ async def forgot_password(request: ForgotPasswordRequest, db: Session = Depends(
     **Frontend URL**: `https://hrms.dbagovlk.com/auth/forgot-password`
     """
     try:
-        success, message = auth_service.initiate_password_reset(
-            db=db,
-            email=request.email
-        )
+        # Use generic success message for safety; auth_service will return masked contact info
+        success, _message, payload = auth_service.initiate_password_reset(db=db, identifier=request.identifier)
 
-        logger.info(f"Password reset initiated for email: {request.email}")
+        logger.info(f"Password reset initiation requested for identifier: {request.identifier}")
 
         return PasswordResetResponse(
-            success=success,
-            message=message,
+            success=True,
+            message="If an account exists you'll receive an OTP",
+            user_id=payload.get("user_id"),
+            channels=payload.get("channels"),
+            masked=payload.get("masked"),
         )
 
     except Exception as e:
