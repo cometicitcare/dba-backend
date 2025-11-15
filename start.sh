@@ -11,13 +11,16 @@ mkdir -p "$STORAGE_DIR" || true
 # If migration fails due to missing revision, stamp the database with the latest revision
 echo "Running database migrations..."
 
-if alembic upgrade head 2>&1; then
+# Capture the output to check for specific errors
+MIGRATION_OUTPUT=$(alembic upgrade head 2>&1) || MIGRATION_EXIT_CODE=$?
+
+if [ -z "${MIGRATION_EXIT_CODE}" ]; then
     echo "✓ Migrations completed successfully"
 else
     echo "⚠ Migration failed - checking for revision mismatch..."
     
     # Check if the error is related to missing revision
-    if alembic current 2>&1 | grep -q "Can't locate revision"; then
+    if echo "$MIGRATION_OUTPUT" | grep -q "Can't locate revision"; then
         echo "⚠ Found missing revision in database history"
         echo "⚠ Stamping database with current head to fix..."
         
@@ -29,7 +32,8 @@ else
         alembic upgrade head
         echo "✓ Migrations completed after fix"
     else
-        echo "✗ Migration failed for unknown reason"
+        echo "✗ Migration failed for unknown reason:"
+        echo "$MIGRATION_OUTPUT"
         exit 1
     fi
 fi
