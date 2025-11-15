@@ -18,6 +18,15 @@ depends_on = None
 
 def upgrade():
     # Add foreign key constraints to bhikku_regist table
+    # First, clean up invalid data before adding foreign keys
+    
+    # Clean invalid province references
+    op.execute("""
+        UPDATE bhikku_regist 
+        SET br_province = NULL 
+        WHERE br_province IS NOT NULL 
+        AND br_province NOT IN (SELECT cp_code FROM cmm_province)
+    """)
     
     # br_province -> cmm_province.cp_code
     op.create_foreign_key(
@@ -27,6 +36,14 @@ def upgrade():
         ondelete='SET NULL'
     )
     
+    # Clean invalid district references
+    op.execute("""
+        UPDATE bhikku_regist 
+        SET br_district = NULL 
+        WHERE br_district IS NOT NULL 
+        AND br_district NOT IN (SELECT dd_dcode FROM cmm_districtdata)
+    """)
+    
     # br_district -> cmm_districtdata.dd_dcode
     op.create_foreign_key(
         'fk_bhikku_regist_district',
@@ -34,6 +51,14 @@ def upgrade():
         ['br_district'], ['dd_dcode'],
         ondelete='SET NULL'
     )
+    
+    # Clean invalid division references
+    op.execute("""
+        UPDATE bhikku_regist 
+        SET br_division = NULL 
+        WHERE br_division IS NOT NULL 
+        AND br_division NOT IN (SELECT dv_dvcode FROM cmm_dvsec)
+    """)
     
     # br_division -> cmm_dvsec.dv_dvcode
     op.create_foreign_key(
@@ -43,6 +68,14 @@ def upgrade():
         ondelete='SET NULL'
     )
     
+    # Clean invalid gndiv references
+    op.execute("""
+        UPDATE bhikku_regist 
+        SET br_gndiv = NULL 
+        WHERE br_gndiv IS NOT NULL 
+        AND br_gndiv NOT IN (SELECT gn_gnc FROM cmm_gndata)
+    """)
+    
     # br_gndiv -> cmm_gndata.gn_gnc
     op.create_foreign_key(
         'fk_bhikku_regist_gndiv',
@@ -50,6 +83,14 @@ def upgrade():
         ['br_gndiv'], ['gn_gnc'],
         ondelete='RESTRICT'
     )
+    
+    # Clean invalid currstat references
+    op.execute("""
+        UPDATE bhikku_regist 
+        SET br_currstat = NULL 
+        WHERE br_currstat IS NOT NULL 
+        AND br_currstat NOT IN (SELECT st_statcd FROM statusdata)
+    """)
     
     # br_currstat -> statusdata.st_statcd
     op.create_foreign_key(
@@ -59,6 +100,14 @@ def upgrade():
         ondelete='RESTRICT'
     )
     
+    # Clean invalid parshawaya references
+    op.execute("""
+        UPDATE bhikku_regist 
+        SET br_parshawaya = NULL 
+        WHERE br_parshawaya IS NOT NULL 
+        AND br_parshawaya NOT IN (SELECT pr_prn FROM cmm_parshawadata)
+    """)
+    
     # br_parshawaya -> cmm_parshawadata.pr_prn
     op.create_foreign_key(
         'fk_bhikku_regist_parshawaya',
@@ -66,6 +115,14 @@ def upgrade():
         ['br_parshawaya'], ['pr_prn'],
         ondelete='RESTRICT'
     )
+    
+    # Clean invalid livtemple references
+    op.execute("""
+        UPDATE bhikku_regist 
+        SET br_livtemple = NULL 
+        WHERE br_livtemple IS NOT NULL 
+        AND br_livtemple NOT IN (SELECT vh_trn FROM vihaddata)
+    """)
     
     # br_livtemple -> vihaddata.vh_trn
     op.create_foreign_key(
@@ -75,6 +132,14 @@ def upgrade():
         ondelete='SET NULL'
     )
     
+    # Clean invalid mahanatemple references
+    op.execute("""
+        UPDATE bhikku_regist 
+        SET br_mahanatemple = NULL 
+        WHERE br_mahanatemple IS NOT NULL 
+        AND br_mahanatemple NOT IN (SELECT vh_trn FROM vihaddata)
+    """)
+    
     # br_mahanatemple -> vihaddata.vh_trn
     op.create_foreign_key(
         'fk_bhikku_regist_mahanatemple',
@@ -82,6 +147,14 @@ def upgrade():
         ['br_mahanatemple'], ['vh_trn'],
         ondelete='RESTRICT'
     )
+    
+    # Clean invalid mahanaacharyacd references (self-join)
+    op.execute("""
+        UPDATE bhikku_regist 
+        SET br_mahanaacharyacd = NULL 
+        WHERE br_mahanaacharyacd IS NOT NULL 
+        AND br_mahanaacharyacd NOT IN (SELECT br_regn FROM bhikku_regist)
+    """)
     
     # br_mahanaacharyacd -> bhikku_regist.br_regn (self-join)
     op.create_foreign_key(
@@ -91,6 +164,14 @@ def upgrade():
         ondelete='RESTRICT'
     )
     
+    # Clean invalid cat references
+    op.execute("""
+        UPDATE bhikku_regist 
+        SET br_cat = NULL 
+        WHERE br_cat IS NOT NULL 
+        AND br_cat NOT IN (SELECT cc_code FROM cmm_cat)
+    """)
+    
     # br_cat -> cmm_cat.cc_code
     op.create_foreign_key(
         'fk_bhikku_regist_cat',
@@ -98,6 +179,14 @@ def upgrade():
         ['br_cat'], ['cc_code'],
         ondelete='SET NULL'
     )
+    
+    # Clean invalid viharadhipathi references (self-join)
+    op.execute("""
+        UPDATE bhikku_regist 
+        SET br_viharadhipathi = NULL 
+        WHERE br_viharadhipathi IS NOT NULL 
+        AND br_viharadhipathi NOT IN (SELECT br_regn FROM bhikku_regist)
+    """)
     
     # br_viharadhipathi -> bhikku_regist.br_regn (self-join)
     op.create_foreign_key(
@@ -107,6 +196,14 @@ def upgrade():
         ondelete='SET NULL'
     )
     
+    # Clean invalid nikaya references
+    op.execute("""
+        UPDATE bhikku_regist 
+        SET br_nikaya = NULL 
+        WHERE br_nikaya IS NOT NULL 
+        AND br_nikaya NOT IN (SELECT nk_nkn FROM cmm_nikayadata)
+    """)
+    
     # br_nikaya -> cmm_nikayadata.nk_nkn
     op.create_foreign_key(
         'fk_bhikku_regist_nikaya',
@@ -114,6 +211,14 @@ def upgrade():
         ['br_nikaya'], ['nk_nkn'],
         ondelete='SET NULL'
     )
+    
+    # Clean invalid mahanayaka_name references (self-join)
+    op.execute("""
+        UPDATE bhikku_regist 
+        SET br_mahanayaka_name = NULL 
+        WHERE br_mahanayaka_name IS NOT NULL 
+        AND br_mahanayaka_name NOT IN (SELECT br_regn FROM bhikku_regist)
+    """)
     
     # br_mahanayaka_name -> bhikku_regist.br_regn (self-join)
     op.create_foreign_key(
@@ -123,6 +228,14 @@ def upgrade():
         ondelete='SET NULL'
     )
     
+    # Clean invalid robing_tutor_residence references
+    op.execute("""
+        UPDATE bhikku_regist 
+        SET br_robing_tutor_residence = NULL 
+        WHERE br_robing_tutor_residence IS NOT NULL 
+        AND br_robing_tutor_residence NOT IN (SELECT vh_trn FROM vihaddata)
+    """)
+    
     # br_robing_tutor_residence -> vihaddata.vh_trn
     op.create_foreign_key(
         'fk_bhikku_regist_robing_tutor_residence',
@@ -130,6 +243,14 @@ def upgrade():
         ['br_robing_tutor_residence'], ['vh_trn'],
         ondelete='SET NULL'
     )
+    
+    # Clean invalid robing_after_residence_temple references
+    op.execute("""
+        UPDATE bhikku_regist 
+        SET br_robing_after_residence_temple = NULL 
+        WHERE br_robing_after_residence_temple IS NOT NULL 
+        AND br_robing_after_residence_temple NOT IN (SELECT vh_trn FROM vihaddata)
+    """)
     
     # br_robing_after_residence_temple -> vihaddata.vh_trn
     op.create_foreign_key(
