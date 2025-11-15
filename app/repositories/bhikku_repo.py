@@ -81,10 +81,25 @@ class BhikkuRepository:
         skip: int = 0,
         limit: int = 100,
         search_key: Optional[str] = None,
+        province: Optional[str] = None,
+        vh_trn: Optional[str] = None,
+        district: Optional[str] = None,
+        divisional_secretariat: Optional[str] = None,
+        gn_division: Optional[str] = None,
+        temple: Optional[str] = None,
+        child_temple: Optional[str] = None,
+        nikaya: Optional[str] = None,
+        parshawaya: Optional[str] = None,
+        category: Optional[list[str]] = None,
+        status: Optional[list[str]] = None,
+        workflow_status: Optional[list[str]] = None,
+        date_from: Optional[str] = None,
+        date_to: Optional[str] = None,
     ):
         """Get paginated bhikkus with optional search functionality across all text fields."""
         query = db.query(models.Bhikku).filter(models.Bhikku.br_is_deleted.is_(False))
 
+        # Apply search filter
         if search_key and search_key.strip():
             search_pattern = f"%{search_key.strip()}%"
             query = query.filter(
@@ -114,6 +129,46 @@ class BhikkuRepository:
                     models.Bhikku.br_cat.ilike(search_pattern),
                 )
             )
+
+        # Apply advanced filters
+        if province:
+            query = query.filter(models.Bhikku.br_province == province)
+        
+        if vh_trn:
+            query = query.filter(models.Bhikku.br_livtemple == vh_trn)
+        
+        if district:
+            query = query.filter(models.Bhikku.br_district == district)
+        
+        if divisional_secretariat:
+            query = query.filter(models.Bhikku.br_division == divisional_secretariat)
+        
+        if gn_division:
+            query = query.filter(models.Bhikku.br_gndiv == gn_division)
+        
+        if temple:
+            query = query.filter(models.Bhikku.br_livtemple == temple)
+        
+        if child_temple:
+            query = query.filter(models.Bhikku.br_mahanatemple == child_temple)
+        
+        if parshawaya:
+            query = query.filter(models.Bhikku.br_parshawaya == parshawaya)
+        
+        if category and len(category) > 0:
+            query = query.filter(models.Bhikku.br_cat.in_(category))
+        
+        if status and len(status) > 0:
+            query = query.filter(models.Bhikku.br_currstat.in_(status))
+        
+        if workflow_status and len(workflow_status) > 0:
+            query = query.filter(models.Bhikku.br_workflow_status.in_(workflow_status))
+        
+        if date_from:
+            query = query.filter(models.Bhikku.br_reqstdate >= date_from)
+        
+        if date_to:
+            query = query.filter(models.Bhikku.br_reqstdate <= date_to)
 
         return (
             query.order_by(models.Bhikku.br_id)
@@ -122,12 +177,31 @@ class BhikkuRepository:
             .all()
         )
 
-    def get_total_count(self, db: Session, search_key: Optional[str] = None):
+    def get_total_count(
+        self, 
+        db: Session, 
+        search_key: Optional[str] = None,
+        province: Optional[str] = None,
+        vh_trn: Optional[str] = None,
+        district: Optional[str] = None,
+        divisional_secretariat: Optional[str] = None,
+        gn_division: Optional[str] = None,
+        temple: Optional[str] = None,
+        child_temple: Optional[str] = None,
+        nikaya: Optional[str] = None,
+        parshawaya: Optional[str] = None,
+        category: Optional[list[str]] = None,
+        status: Optional[list[str]] = None,
+        workflow_status: Optional[list[str]] = None,
+        date_from: Optional[str] = None,
+        date_to: Optional[str] = None,
+    ):
         """Get total count of non-deleted bhikkus for pagination with optional search."""
         query = db.query(func.count(models.Bhikku.br_id)).filter(
             models.Bhikku.br_is_deleted.is_(False)
         )
 
+        # Apply search filter
         if search_key and search_key.strip():
             search_pattern = f"%{search_key.strip()}%"
             query = query.filter(
@@ -157,6 +231,46 @@ class BhikkuRepository:
                     models.Bhikku.br_cat.ilike(search_pattern),
                 )
             )
+
+        # Apply advanced filters (same as get_all)
+        if province:
+            query = query.filter(models.Bhikku.br_province == province)
+        
+        if vh_trn:
+            query = query.filter(models.Bhikku.br_livtemple == vh_trn)
+        
+        if district:
+            query = query.filter(models.Bhikku.br_district == district)
+        
+        if divisional_secretariat:
+            query = query.filter(models.Bhikku.br_division == divisional_secretariat)
+        
+        if gn_division:
+            query = query.filter(models.Bhikku.br_gndiv == gn_division)
+        
+        if temple:
+            query = query.filter(models.Bhikku.br_livtemple == temple)
+        
+        if child_temple:
+            query = query.filter(models.Bhikku.br_mahanatemple == child_temple)
+        
+        if parshawaya:
+            query = query.filter(models.Bhikku.br_parshawaya == parshawaya)
+        
+        if category and len(category) > 0:
+            query = query.filter(models.Bhikku.br_cat.in_(category))
+        
+        if status and len(status) > 0:
+            query = query.filter(models.Bhikku.br_currstat.in_(status))
+        
+        if workflow_status and len(workflow_status) > 0:
+            query = query.filter(models.Bhikku.br_workflow_status.in_(workflow_status))
+        
+        if date_from:
+            query = query.filter(models.Bhikku.br_reqstdate >= date_from)
+        
+        if date_to:
+            query = query.filter(models.Bhikku.br_reqstdate <= date_to)
 
         return query.scalar()
 
@@ -202,6 +316,8 @@ class BhikkuRepository:
         db_bhikku.br_created_at = now
         db_bhikku.br_updated_at = now
         db_bhikku.br_version = now
+        # Set workflow status to PENDING for new records
+        db_bhikku.br_workflow_status = "PENDING"
 
         db.add(db_bhikku)
         db.commit()

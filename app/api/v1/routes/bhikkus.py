@@ -614,11 +614,14 @@ def manage_bhikku_records(
         except RuntimeError as exc:
             raise HTTPException(status_code=500, detail=str(exc)) from exc
 
-        return {
-            "status": "success",
-            "message": "Bhikku created successfully.",
-            "data": created_bhikku,
-        }
+        # Convert SQLAlchemy model to Pydantic schema
+        bhikku_schema = schemas.Bhikku.model_validate(created_bhikku)
+        
+        return schemas.BhikkuManagementResponse(
+            status="success",
+            message="Bhikku created successfully.",
+            data=bhikku_schema,
+        )
 
     elif action == schemas.CRUDAction.READ_ONE:
         if not payload.br_regn:
@@ -629,7 +632,13 @@ def manage_bhikku_records(
         db_bhikku = bhikku_service.get_bhikku(db, br_regn=payload.br_regn)
         if db_bhikku is None:
             raise HTTPException(status_code=404, detail="Bhikku not found")
-        return {"status": "success", "message": "Bhikku retrieved successfully.", "data": db_bhikku}
+        
+        bhikku_schema = schemas.Bhikku.model_validate(db_bhikku)
+        return schemas.BhikkuManagementResponse(
+            status="success",
+            message="Bhikku retrieved successfully.",
+            data=bhikku_schema,
+        )
 
     elif action == schemas.CRUDAction.READ_ALL:
         # Handle pagination - use page-based or skip-based
@@ -645,22 +654,59 @@ def manage_bhikku_records(
         skip = payload.skip if payload.page is None else (page - 1) * limit
         skip = max(0, skip)
         
-        # Get paginated bhikku records with search
+        # Get paginated bhikku records with search and filters
         bhikkus = bhikku_service.list_bhikkus(
-            db, skip=skip, limit=limit, search=search_key
+            db, 
+            skip=skip, 
+            limit=limit, 
+            search=search_key,
+            province=payload.province,
+            vh_trn=payload.vh_trn,
+            district=payload.district,
+            divisional_secretariat=payload.divisional_secretariat,
+            gn_division=payload.gn_division,
+            temple=payload.temple,
+            child_temple=payload.child_temple,
+            nikaya=payload.nikaya,
+            parshawaya=payload.parshawaya,
+            category=payload.category,
+            status=payload.status,
+            workflow_status=payload.workflow_status,
+            date_from=payload.date_from,
+            date_to=payload.date_to
         )
         
         # Get total count for pagination
-        total_count = bhikku_service.count_bhikkus(db, search=search_key)
+        total_count = bhikku_service.count_bhikkus(
+            db, 
+            search=search_key,
+            province=payload.province,
+            vh_trn=payload.vh_trn,
+            district=payload.district,
+            divisional_secretariat=payload.divisional_secretariat,
+            gn_division=payload.gn_division,
+            temple=payload.temple,
+            child_temple=payload.child_temple,
+            nikaya=payload.nikaya,
+            parshawaya=payload.parshawaya,
+            category=payload.category,
+            status=payload.status,
+            workflow_status=payload.workflow_status,
+            date_from=payload.date_from,
+            date_to=payload.date_to
+        )
         
-        return {
-            "status": "success",
-            "message": "Bhikkus retrieved successfully.",
-            "data": bhikkus,
-            "totalRecords": total_count,
-            "page": page,
-            "limit": limit
-        }
+        # Convert SQLAlchemy models to Pydantic schemas
+        bhikku_schemas = [schemas.Bhikku.model_validate(bhikku) for bhikku in bhikkus]
+        
+        return schemas.BhikkuManagementResponse(
+            status="success",
+            message="Bhikkus retrieved successfully.",
+            data=bhikku_schemas,
+            totalRecords=total_count,
+            page=page,
+            limit=limit,
+        )
 
     elif action == schemas.CRUDAction.UPDATE:
         if not payload.br_regn:
@@ -704,11 +750,12 @@ def manage_bhikku_records(
         except RuntimeError as exc:
             raise HTTPException(status_code=500, detail=str(exc)) from exc
 
-        return {
-            "status": "success",
-            "message": "Bhikku updated successfully.",
-            "data": updated_bhikku,
-        }
+        bhikku_schema = schemas.Bhikku.model_validate(updated_bhikku)
+        return schemas.BhikkuManagementResponse(
+            status="success",
+            message="Bhikku updated successfully.",
+            data=bhikku_schema,
+        )
 
     elif action == schemas.CRUDAction.DELETE:
         if not payload.br_regn:
@@ -728,11 +775,249 @@ def manage_bhikku_records(
         except RuntimeError as exc:
             raise HTTPException(status_code=500, detail=str(exc)) from exc
 
-        return {
-            "status": "success",
-            "message": "Bhikku deleted successfully.",
-            "data": None,
-        }
+        return schemas.BhikkuManagementResponse(
+            status="success",
+            message="Bhikku deleted successfully.",
+            data=None,
+        )
+
+    elif action == schemas.CRUDAction.APPROVE:
+        if not payload.br_regn:
+            raise validation_error(
+                [("payload.br_regn", "br_regn is required for APPROVE action")]
+            )
+        
+        try:
+            approved_bhikku = bhikku_service.approve_bhikku(
+                db, br_regn=payload.br_regn, actor_id=user_id
+            )
+        except ValueError as exc:
+            message = str(exc)
+            if "not found" in message.lower():
+                raise HTTPException(status_code=404, detail=message) from exc
+            raise validation_error([(None, message)]) from exc
+        except RuntimeError as exc:
+            raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+        bhikku_schema = schemas.Bhikku.model_validate(approved_bhikku)
+        return schemas.BhikkuManagementResponse(
+            status="success",
+            message="Bhikku approved successfully.",
+            data=bhikku_schema,
+        )
+
+    elif action == schemas.CRUDAction.REJECT:
+        if not payload.br_regn:
+            raise validation_error(
+                [("payload.br_regn", "br_regn is required for REJECT action")]
+            )
+        
+        try:
+            rejected_bhikku = bhikku_service.reject_bhikku(
+                db, 
+                br_regn=payload.br_regn, 
+                actor_id=user_id,
+                rejection_reason=payload.rejection_reason
+            )
+        except ValueError as exc:
+            message = str(exc)
+            if "not found" in message.lower():
+                raise HTTPException(status_code=404, detail=message) from exc
+            raise validation_error([(None, message)]) from exc
+        except RuntimeError as exc:
+            raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+        bhikku_schema = schemas.Bhikku.model_validate(rejected_bhikku)
+        return schemas.BhikkuManagementResponse(
+            status="success",
+            message="Bhikku rejected successfully.",
+            data=bhikku_schema,
+        )
+
+    elif action == schemas.CRUDAction.MARK_PRINTED:
+        if not payload.br_regn:
+            raise validation_error(
+                [("payload.br_regn", "br_regn is required for MARK_PRINTED action")]
+            )
+        
+        try:
+            printed_bhikku = bhikku_service.mark_printed(
+                db, br_regn=payload.br_regn, actor_id=user_id
+            )
+        except ValueError as exc:
+            message = str(exc)
+            if "not found" in message.lower():
+                raise HTTPException(status_code=404, detail=message) from exc
+            raise validation_error([(None, message)]) from exc
+        except RuntimeError as exc:
+            raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+        bhikku_schema = schemas.Bhikku.model_validate(printed_bhikku)
+        return schemas.BhikkuManagementResponse(
+            status="success",
+            message="Bhikku certificate marked as printed successfully.",
+            data=bhikku_schema,
+        )
+
+    elif action == schemas.CRUDAction.MARK_SCANNED:
+        if not payload.br_regn:
+            raise validation_error(
+                [("payload.br_regn", "br_regn is required for MARK_SCANNED action")]
+            )
+        
+        try:
+            scanned_bhikku = bhikku_service.mark_scanned(
+                db, br_regn=payload.br_regn, actor_id=user_id
+            )
+        except ValueError as exc:
+            message = str(exc)
+            if "not found" in message.lower():
+                raise HTTPException(status_code=404, detail=message) from exc
+            raise validation_error([(None, message)]) from exc
+        except RuntimeError as exc:
+            raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+        bhikku_schema = schemas.Bhikku.model_validate(scanned_bhikku)
+        return schemas.BhikkuManagementResponse(
+            status="success",
+            message="Bhikku certificate marked as scanned successfully.",
+            data=bhikku_schema,
+        )
 
     else:
         raise validation_error([("action", "Invalid action specified")])
+
+
+@router.post(
+    "/workflow",
+    response_model=schemas.BhikkuWorkflowResponse,
+    dependencies=[has_any_permission("bhikku:approve", "bhikku:update")],
+)
+def update_bhikku_workflow(
+    request: schemas.BhikkuWorkflowRequest,
+    db: Session = Depends(get_db),
+    current_user: UserAccount = Depends(get_current_user),
+):
+    """
+    Update workflow status of a bhikku record.
+    
+    Main Workflow Actions:
+    - APPROVE: Approve pending bhikku registration
+    - REJECT: Reject pending bhikku registration (requires rejection_reason)
+    - MARK_PRINTING: Mark as in printing process
+    - MARK_PRINTED: Mark certificate as printed
+    - MARK_SCANNED: Mark certificate as scanned (completes workflow)
+    - RESET_TO_PENDING: Reset workflow to pending state (for corrections)
+    
+    Reprint Workflow Actions:
+    - REQUEST_REPRINT: Request a certificate reprint (requires reprint_reason)
+    - ACCEPT_REPRINT: Accept a reprint request
+    - REJECT_REPRINT: Reject a reprint request (requires rejection_reason)
+    - COMPLETE_REPRINT: Mark reprint as completed
+    
+    Requires: bhikku:approve OR bhikku:update permission
+    """
+    user_id = current_user.ua_user_id
+    action = request.action
+    br_regn = request.br_regn
+
+    try:
+        if action == schemas.WorkflowActionType.APPROVE:
+            updated_bhikku = bhikku_service.approve_bhikku(
+                db, br_regn=br_regn, actor_id=user_id
+            )
+            message = "Bhikku approved successfully."
+
+        elif action == schemas.WorkflowActionType.REJECT:
+            if not request.rejection_reason:
+                raise validation_error(
+                    [("rejection_reason", "Rejection reason is required when rejecting")]
+                )
+            updated_bhikku = bhikku_service.reject_bhikku(
+                db, 
+                br_regn=br_regn, 
+                actor_id=user_id,
+                rejection_reason=request.rejection_reason
+            )
+            message = "Bhikku rejected successfully."
+
+        elif action == schemas.WorkflowActionType.MARK_PRINTING:
+            updated_bhikku = bhikku_service.mark_printing(
+                db, br_regn=br_regn, actor_id=user_id
+            )
+            message = "Bhikku marked as printing successfully."
+
+        elif action == schemas.WorkflowActionType.MARK_PRINTED:
+            updated_bhikku = bhikku_service.mark_printed(
+                db, br_regn=br_regn, actor_id=user_id
+            )
+            message = "Bhikku certificate marked as printed successfully."
+
+        elif action == schemas.WorkflowActionType.MARK_SCANNED:
+            updated_bhikku = bhikku_service.mark_scanned(
+                db, br_regn=br_regn, actor_id=user_id
+            )
+            message = "Bhikku certificate marked as scanned successfully."
+
+        elif action == schemas.WorkflowActionType.RESET_TO_PENDING:
+            updated_bhikku = bhikku_service.reset_to_pending(
+                db, br_regn=br_regn, actor_id=user_id
+            )
+            message = "Bhikku workflow reset to pending successfully."
+
+        # Reprint workflow actions
+        elif action == schemas.WorkflowActionType.REQUEST_REPRINT:
+            if not request.reprint_reason:
+                raise validation_error(
+                    [("reprint_reason", "Reprint reason is required when requesting reprint")]
+                )
+            updated_bhikku = bhikku_service.request_reprint(
+                db, 
+                br_regn=br_regn, 
+                actor_id=user_id,
+                reprint_reason=request.reprint_reason
+            )
+            message = "Reprint request submitted successfully."
+
+        elif action == schemas.WorkflowActionType.ACCEPT_REPRINT:
+            updated_bhikku = bhikku_service.accept_reprint(
+                db, br_regn=br_regn, actor_id=user_id
+            )
+            message = "Reprint request accepted successfully."
+
+        elif action == schemas.WorkflowActionType.REJECT_REPRINT:
+            if not request.rejection_reason:
+                raise validation_error(
+                    [("rejection_reason", "Rejection reason is required when rejecting reprint")]
+                )
+            updated_bhikku = bhikku_service.reject_reprint(
+                db, 
+                br_regn=br_regn, 
+                actor_id=user_id,
+                rejection_reason=request.rejection_reason
+            )
+            message = "Reprint request rejected successfully."
+
+        elif action == schemas.WorkflowActionType.COMPLETE_REPRINT:
+            updated_bhikku = bhikku_service.complete_reprint(
+                db, br_regn=br_regn, actor_id=user_id
+            )
+            message = "Reprint completed successfully."
+
+        else:
+            raise validation_error([("action", "Invalid workflow action")])
+
+    except ValueError as exc:
+        error_msg = str(exc)
+        if "not found" in error_msg.lower():
+            raise HTTPException(status_code=404, detail=error_msg) from exc
+        raise validation_error([(None, error_msg)]) from exc
+    except RuntimeError as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+    bhikku_schema = schemas.Bhikku.model_validate(updated_bhikku)
+    return schemas.BhikkuWorkflowResponse(
+        status="success",
+        message=message,
+        data=bhikku_schema,
+    )

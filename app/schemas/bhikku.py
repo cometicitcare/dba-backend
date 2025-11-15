@@ -1,6 +1,6 @@
 # app/schemas/bhikku.py
-from pydantic import BaseModel, Field, EmailStr
-from datetime import date
+from pydantic import BaseModel, Field, EmailStr, ConfigDict
+from datetime import date, datetime
 from typing import Annotated, Optional, List, Union, Any
 from enum import Enum
 
@@ -11,6 +11,25 @@ class CRUDAction(str, Enum):
     READ_ALL = "READ_ALL"
     UPDATE = "UPDATE"
     DELETE = "DELETE"
+    APPROVE = "APPROVE"
+    REJECT = "REJECT"
+    MARK_PRINTED = "MARK_PRINTED"
+    MARK_SCANNED = "MARK_SCANNED"
+
+# --- Workflow Status Enum ---
+class WorkflowStatus(str, Enum):
+    PENDING = "PENDING"
+    APPROVED = "APPROVED"
+    REJECTED = "REJECTED"
+    PRINTING = "PRINTING"
+    PRINTED = "PRINTED"
+    SCANNED = "SCANNED"
+    COMPLETED = "COMPLETED"
+
+# --- Approval Status Enum ---
+class ApprovalStatus(str, Enum):
+    APPROVED = "APPROVED"
+    REJECTED = "REJECTED"
 
 # --- Bhikku Schemas with ALL Fields ---
 class BhikkuBase(BaseModel):
@@ -47,6 +66,16 @@ class BhikkuBase(BaseModel):
     br_mahanadate: Optional[date] = None
     br_cat: Optional[str] = None
     
+    # Additional Religious/Administrative Fields
+    br_viharadhipathi: Optional[str] = None
+    br_nikaya: Optional[str] = None
+    br_mahanayaka_name: Optional[str] = None
+    br_mahanayaka_address: Optional[str] = None
+    br_residence_at_declaration: Optional[str] = None
+    br_declaration_date: Optional[date] = None
+    br_robing_tutor_residence: Optional[str] = None
+    br_robing_after_residence_temple: Optional[str] = None
+    
     # Contact Information
     br_mobile: Optional[str] = Field(None, max_length=10)
     br_email: Optional[EmailStr] = None
@@ -62,6 +91,7 @@ class BhikkuBase(BaseModel):
 
 class BhikkuCreate(BhikkuBase):
     """Schema for creating a new Bhikku record - br_regn is auto-generated"""
+    # Workflow fields are set automatically - not included in create
     pass
 
 class BhikkuUpdate(BaseModel):
@@ -99,6 +129,16 @@ class BhikkuUpdate(BaseModel):
     br_mahanadate: Optional[date] = None
     br_cat: Optional[str] = None
     
+    # Additional Religious/Administrative Fields
+    br_viharadhipathi: Optional[str] = None
+    br_nikaya: Optional[str] = None
+    br_mahanayaka_name: Optional[str] = None
+    br_mahanayaka_address: Optional[str] = None
+    br_residence_at_declaration: Optional[str] = None
+    br_declaration_date: Optional[date] = None
+    br_robing_tutor_residence: Optional[str] = None
+    br_robing_after_residence_temple: Optional[str] = None
+    
     # Contact Information
     br_mobile: Optional[str] = Field(None, max_length=10)
     br_email: Optional[EmailStr] = None
@@ -114,13 +154,38 @@ class BhikkuUpdate(BaseModel):
 
 class Bhikku(BhikkuBase):
     """Schema for returning a Bhikku record"""
+    model_config = ConfigDict(from_attributes=True)
+    
     br_id: int
     br_regn: str  # Required in response
     br_is_deleted: bool
     br_version_number: int
-
-    class Config:
-        from_attributes = True
+    
+    # Workflow Fields
+    br_workflow_status: str = "PENDING"
+    br_approval_status: Optional[str] = None
+    br_approved_by: Optional[str] = None
+    br_approved_at: Optional[datetime] = None
+    br_rejected_by: Optional[str] = None
+    br_rejected_at: Optional[datetime] = None
+    br_rejection_reason: Optional[str] = None
+    br_printed_at: Optional[datetime] = None
+    br_printed_by: Optional[str] = None
+    br_scanned_at: Optional[datetime] = None
+    br_scanned_by: Optional[str] = None
+    
+    # Reprint Workflow Fields
+    br_reprint_status: Optional[str] = None
+    br_reprint_requested_by: Optional[str] = None
+    br_reprint_requested_at: Optional[datetime] = None
+    br_reprint_request_reason: Optional[str] = None
+    br_reprint_approved_by: Optional[str] = None
+    br_reprint_approved_at: Optional[datetime] = None
+    br_reprint_rejected_by: Optional[str] = None
+    br_reprint_rejected_at: Optional[datetime] = None
+    br_reprint_rejection_reason: Optional[str] = None
+    br_reprint_completed_by: Optional[str] = None
+    br_reprint_completed_at: Optional[datetime] = None
 
 # --- Schemas for the Single Endpoint ---
 class BhikkuRequestPayload(BaseModel):
@@ -132,8 +197,25 @@ class BhikkuRequestPayload(BaseModel):
     limit: Annotated[int, Field(ge=1, le=200)] = 10
     page: Annotated[Optional[int], Field(ge=1)] = 1
     search_key: Optional[str] = Field(default="", max_length=100)
+    # Advanced filters for READ_ALL
+    province: Optional[str] = None
+    vh_trn: Optional[str] = None
+    district: Optional[str] = None
+    divisional_secretariat: Optional[str] = None
+    gn_division: Optional[str] = None
+    temple: Optional[str] = None
+    child_temple: Optional[str] = None
+    nikaya: Optional[str] = None
+    parshawaya: Optional[str] = None
+    category: Optional[List[str]] = None
+    status: Optional[List[str]] = None
+    workflow_status: Optional[List[str]] = None  # Filter by workflow status
+    date_from: Optional[date] = None
+    date_to: Optional[date] = None
     # For CREATE, UPDATE
     data: Optional[Union[BhikkuCreate, BhikkuUpdate]] = None
+    # For workflow actions (APPROVE, REJECT)
+    rejection_reason: Optional[str] = Field(None, max_length=500)
 
 class BhikkuPaginatedResponse(BaseModel):
     status: str
@@ -148,6 +230,8 @@ class BhikkuManagementRequest(BaseModel):
     payload: BhikkuRequestPayload
 
 class BhikkuManagementResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    
     status: str
     message: str
     data: Optional[Union[Bhikku, List[Bhikku], Any]] = None
@@ -555,3 +639,45 @@ class BhikkuIDGNSummaryResponse(BaseModel):
     status: str
     message: str
     data: List[BhikkuIDGNSummaryItem]
+
+
+# --- Workflow Action Schemas ---
+class WorkflowActionType(str, Enum):
+    """Workflow actions available for bhikku records"""
+    APPROVE = "APPROVE"
+    REJECT = "REJECT"
+    MARK_PRINTING = "MARK_PRINTING"
+    MARK_PRINTED = "MARK_PRINTED"
+    MARK_SCANNED = "MARK_SCANNED"
+    RESET_TO_PENDING = "RESET_TO_PENDING"
+    # Reprint workflow actions
+    REQUEST_REPRINT = "REQUEST_REPRINT"
+    ACCEPT_REPRINT = "ACCEPT_REPRINT"
+    REJECT_REPRINT = "REJECT_REPRINT"
+    COMPLETE_REPRINT = "COMPLETE_REPRINT"
+
+
+class BhikkuWorkflowRequest(BaseModel):
+    """Request to update workflow status of a bhikku record"""
+    br_regn: str = Field(..., description="Bhikku registration number")
+    action: WorkflowActionType
+    rejection_reason: Optional[str] = Field(None, max_length=500, description="Required when action is REJECT or REJECT_REPRINT")
+    reprint_reason: Optional[str] = Field(None, max_length=500, description="Required when action is REQUEST_REPRINT")
+    
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "br_regn": "BH2025000001",
+                "action": "APPROVE"
+            }
+        }
+
+
+class BhikkuWorkflowResponse(BaseModel):
+    """Response after workflow action"""
+    model_config = ConfigDict(from_attributes=True)
+    
+    status: str
+    message: str
+    data: Optional[Bhikku] = None
+

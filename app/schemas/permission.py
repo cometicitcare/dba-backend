@@ -25,7 +25,7 @@ class PermissionOut(PermissionBase):
     pe_updated_by: str  # User who last updated the permission
 
     class Config:
-        orm_mode = True  # This tells Pydantic to treat the SQLAlchemy model as a dict
+        from_attributes = True  # This tells Pydantic to treat the SQLAlchemy model as a dict
 
 class PermissionListResponse(BaseModel):
     status: str

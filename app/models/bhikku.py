@@ -40,6 +40,16 @@ class Bhikku(Base):
     br_mahanadate = Column(Date)
     br_cat = Column(String(5))
     
+    # Additional Religious/Administrative Fields
+    br_viharadhipathi = Column(String(20))  # Viharadhipathi registration number
+    br_nikaya = Column(String(10))  # Nikaya code
+    br_mahanayaka_name = Column(String(200))  # Mahanayaka name in Sinhala/Tamil
+    br_mahanayaka_address = Column(String(500))  # Mahanayaka address
+    br_residence_at_declaration = Column(String(500))  # Residence at time of declaration
+    br_declaration_date = Column(Date)  # Declaration date
+    br_robing_tutor_residence = Column(String(20))  # Robing tutor's residence temple
+    br_robing_after_residence_temple = Column(String(20))  # Residence temple after robing
+    
     # Contact Information
     br_mobile = Column(String(10))
     br_email = Column(String(50))
@@ -48,6 +58,32 @@ class Bhikku(Base):
     
     # Serial Number
     br_upasampada_serial_no = Column(String(20))
+    
+    # Workflow Fields
+    br_workflow_status = Column(String(20), server_default=text("'PENDING'"), nullable=False, index=True)
+    br_approval_status = Column(String(20))  # APPROVED, REJECTED
+    br_approved_by = Column(String(25))
+    br_approved_at = Column(TIMESTAMP)
+    br_rejected_by = Column(String(25))
+    br_rejected_at = Column(TIMESTAMP)
+    br_rejection_reason = Column(String(500))
+    br_printed_at = Column(TIMESTAMP)
+    br_printed_by = Column(String(25))
+    br_scanned_at = Column(TIMESTAMP)
+    br_scanned_by = Column(String(25))
+    
+    # Reprint Workflow Fields
+    br_reprint_status = Column(String(20))  # REPRINT_PENDING, REPRINT_ACCEPTED, REPRINT_REJECTED, REPRINT_COMPLETED
+    br_reprint_requested_by = Column(String(25))
+    br_reprint_requested_at = Column(TIMESTAMP)
+    br_reprint_request_reason = Column(String(500))
+    br_reprint_approved_by = Column(String(25))
+    br_reprint_approved_at = Column(TIMESTAMP)
+    br_reprint_rejected_by = Column(String(25))
+    br_reprint_rejected_at = Column(TIMESTAMP)
+    br_reprint_rejection_reason = Column(String(500))
+    br_reprint_completed_by = Column(String(25))
+    br_reprint_completed_at = Column(TIMESTAMP)
     
     # Audit Fields
     br_version = Column(TIMESTAMP, nullable=False, server_default=func.now())
