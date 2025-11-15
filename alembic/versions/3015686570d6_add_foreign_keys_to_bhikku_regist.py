@@ -7,6 +7,7 @@ Create Date: 2025-11-15 16:30:00.000000
 """
 from alembic import op
 import sqlalchemy as sa
+from sqlalchemy import inspect
 
 
 # revision identifiers, used by Alembic.
@@ -14,6 +15,30 @@ revision = '3015686570d6'
 down_revision = '14f4a3921216'
 branch_labels = None
 depends_on = None
+
+
+def constraint_exists(constraint_name, table_name):
+    """Check if a constraint already exists"""
+    connection = op.get_bind()
+    result = connection.execute(sa.text("""
+        SELECT COUNT(*) 
+        FROM information_schema.table_constraints 
+        WHERE constraint_name = :constraint_name 
+        AND table_name = :table_name
+    """), {"constraint_name": constraint_name, "table_name": table_name})
+    return result.scalar() > 0
+
+
+def create_fk_if_not_exists(constraint_name, source_table, referent_table, 
+                            local_cols, remote_cols, ondelete='RESTRICT'):
+    """Create foreign key only if it doesn't already exist"""
+    if not constraint_exists(constraint_name, source_table):
+        op.create_foreign_key(
+            constraint_name,
+            source_table, referent_table,
+            local_cols, remote_cols,
+            ondelete=ondelete
+        )
 
 
 def upgrade():
@@ -29,7 +54,7 @@ def upgrade():
     """)
     
     # br_province -> cmm_province.cp_code
-    op.create_foreign_key(
+    create_fk_if_not_exists(
         'fk_bhikku_regist_province',
         'bhikku_regist', 'cmm_province',
         ['br_province'], ['cp_code'],
@@ -45,7 +70,7 @@ def upgrade():
     """)
     
     # br_district -> cmm_districtdata.dd_dcode
-    op.create_foreign_key(
+    create_fk_if_not_exists(
         'fk_bhikku_regist_district',
         'bhikku_regist', 'cmm_districtdata',
         ['br_district'], ['dd_dcode'],
@@ -61,7 +86,7 @@ def upgrade():
     """)
     
     # br_division -> cmm_dvsec.dv_dvcode
-    op.create_foreign_key(
+    create_fk_if_not_exists(
         'fk_bhikku_regist_division',
         'bhikku_regist', 'cmm_dvsec',
         ['br_division'], ['dv_dvcode'],
@@ -77,7 +102,7 @@ def upgrade():
     """)
     
     # br_gndiv -> cmm_gndata.gn_gnc
-    op.create_foreign_key(
+    create_fk_if_not_exists(
         'fk_bhikku_regist_gndiv',
         'bhikku_regist', 'cmm_gndata',
         ['br_gndiv'], ['gn_gnc'],
@@ -93,7 +118,7 @@ def upgrade():
     """)
     
     # br_currstat -> statusdata.st_statcd
-    op.create_foreign_key(
+    create_fk_if_not_exists(
         'fk_bhikku_regist_currstat',
         'bhikku_regist', 'statusdata',
         ['br_currstat'], ['st_statcd'],
@@ -109,7 +134,7 @@ def upgrade():
     """)
     
     # br_parshawaya -> cmm_parshawadata.pr_prn
-    op.create_foreign_key(
+    create_fk_if_not_exists(
         'fk_bhikku_regist_parshawaya',
         'bhikku_regist', 'cmm_parshawadata',
         ['br_parshawaya'], ['pr_prn'],
@@ -125,7 +150,7 @@ def upgrade():
     """)
     
     # br_livtemple -> vihaddata.vh_trn
-    op.create_foreign_key(
+    create_fk_if_not_exists(
         'fk_bhikku_regist_livtemple',
         'bhikku_regist', 'vihaddata',
         ['br_livtemple'], ['vh_trn'],
@@ -141,7 +166,7 @@ def upgrade():
     """)
     
     # br_mahanatemple -> vihaddata.vh_trn
-    op.create_foreign_key(
+    create_fk_if_not_exists(
         'fk_bhikku_regist_mahanatemple',
         'bhikku_regist', 'vihaddata',
         ['br_mahanatemple'], ['vh_trn'],
@@ -157,7 +182,7 @@ def upgrade():
     """)
     
     # br_mahanaacharyacd -> bhikku_regist.br_regn (self-join)
-    op.create_foreign_key(
+    create_fk_if_not_exists(
         'fk_bhikku_regist_mahanaacharyacd',
         'bhikku_regist', 'bhikku_regist',
         ['br_mahanaacharyacd'], ['br_regn'],
@@ -173,7 +198,7 @@ def upgrade():
     """)
     
     # br_cat -> cmm_cat.cc_code
-    op.create_foreign_key(
+    create_fk_if_not_exists(
         'fk_bhikku_regist_cat',
         'bhikku_regist', 'cmm_cat',
         ['br_cat'], ['cc_code'],
@@ -189,7 +214,7 @@ def upgrade():
     """)
     
     # br_viharadhipathi -> bhikku_regist.br_regn (self-join)
-    op.create_foreign_key(
+    create_fk_if_not_exists(
         'fk_bhikku_regist_viharadhipathi',
         'bhikku_regist', 'bhikku_regist',
         ['br_viharadhipathi'], ['br_regn'],
@@ -205,7 +230,7 @@ def upgrade():
     """)
     
     # br_nikaya -> cmm_nikayadata.nk_nkn
-    op.create_foreign_key(
+    create_fk_if_not_exists(
         'fk_bhikku_regist_nikaya',
         'bhikku_regist', 'cmm_nikayadata',
         ['br_nikaya'], ['nk_nkn'],
@@ -221,7 +246,7 @@ def upgrade():
     """)
     
     # br_mahanayaka_name -> bhikku_regist.br_regn (self-join)
-    op.create_foreign_key(
+    create_fk_if_not_exists(
         'fk_bhikku_regist_mahanayaka_name',
         'bhikku_regist', 'bhikku_regist',
         ['br_mahanayaka_name'], ['br_regn'],
@@ -237,7 +262,7 @@ def upgrade():
     """)
     
     # br_robing_tutor_residence -> vihaddata.vh_trn
-    op.create_foreign_key(
+    create_fk_if_not_exists(
         'fk_bhikku_regist_robing_tutor_residence',
         'bhikku_regist', 'vihaddata',
         ['br_robing_tutor_residence'], ['vh_trn'],
@@ -253,7 +278,7 @@ def upgrade():
     """)
     
     # br_robing_after_residence_temple -> vihaddata.vh_trn
-    op.create_foreign_key(
+    create_fk_if_not_exists(
         'fk_bhikku_regist_robing_after_residence_temple',
         'bhikku_regist', 'vihaddata',
         ['br_robing_after_residence_temple'], ['vh_trn'],
