@@ -149,12 +149,15 @@ class BhikkuUpdate(BaseModel):
     # Serial Number
     br_upasampada_serial_no: Optional[str] = None
     
+    # Document Storage
+    br_scanned_document_path: Optional[str] = None
+    
     # Audit Fields
     br_created_by: Optional[str] = None
     br_updated_by: Optional[str] = None
 
 class Bhikku(BhikkuBase):
-    """Schema for returning a Bhikku record"""
+    """Schema for returning a Bhikku record with resolved names in place of codes"""
     model_config = ConfigDict(from_attributes=True)
     
     br_id: int
@@ -187,6 +190,9 @@ class Bhikku(BhikkuBase):
     br_reprint_rejection_reason: Optional[str] = None
     br_reprint_completed_by: Optional[str] = None
     br_reprint_completed_at: Optional[datetime] = None
+    
+    # Document Storage
+    br_scanned_document_path: Optional[str] = None
 
 # --- Schemas for the Single Endpoint ---
 class BhikkuRequestPayload(BaseModel):

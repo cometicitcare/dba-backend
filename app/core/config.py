@@ -43,6 +43,9 @@ class Settings:
     SMTP_PASSWORD: str = os.getenv("SMTP_PASSWORD", "")
     SMTP_FROM_EMAIL: str = os.getenv("SMTP_FROM_EMAIL", "no-reply@dbagovlk.com")
     SMTP_FROM_NAME: str = os.getenv("SMTP_FROM_NAME", "DBA HRMS")
+    SMTP_TIMEOUT: int = int(os.getenv("SMTP_TIMEOUT", "30"))  # Increased timeout for Railway
+    SMTP_RETRY_ATTEMPTS: int = int(os.getenv("SMTP_RETRY_ATTEMPTS", "3"))
+    SMTP_RETRY_DELAY: int = int(os.getenv("SMTP_RETRY_DELAY", "2"))  # Seconds between retries
     
     # Password Reset & OTP Configuration
     RESET_PASSWORD_TOKEN_EXPIRE_MINUTES: int = int(os.getenv("RESET_PASSWORD_TOKEN_EXPIRE_MINUTES", "30"))

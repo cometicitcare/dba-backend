@@ -5,6 +5,7 @@ from collections import defaultdict
 from datetime import datetime, date
 from typing import Any, Dict, Optional, Tuple
 
+from fastapi import UploadFile
 from sqlalchemy import MetaData, Table, select, text
 from sqlalchemy.exc import NoSuchTableError, SQLAlchemyError
 from sqlalchemy.orm import Session
@@ -17,6 +18,7 @@ from app.models.user import UserAccount
 from app.models.vihara import ViharaData
 from app.repositories.bhikku_repo import bhikku_repo
 from app.schemas.bhikku import BhikkuCreate, BhikkuUpdate
+from app.utils.file_storage import file_storage_service
 
 
 class BhikkuService:
@@ -574,6 +576,96 @@ class BhikkuService:
 
     def get_bhikku_by_id(self, db: Session, *, br_id: int) -> Optional[Bhikku]:
         return bhikku_repo.get_by_id(db, br_id)
+    
+    def enrich_bhikku_dict(self, bhikku: Bhikku, db: Session = None) -> dict:
+        """Transform Bhikku model to dictionary with resolved foreign key names replacing codes"""
+        
+        # Handle multi_mahanaacharyacd - split and resolve names
+        multi_mahanaacharyacd_value = bhikku.br_multi_mahanaacharyacd
+        if bhikku.br_multi_mahanaacharyacd and db:
+            # Assuming comma-separated registration numbers
+            regns = [r.strip() for r in bhikku.br_multi_mahanaacharyacd.split(',') if r.strip()]
+            if regns:
+                # Query all at once for efficiency
+                bhikku_names = db.query(Bhikku.br_regn, Bhikku.br_mahananame).filter(
+                    Bhikku.br_regn.in_(regns),
+                    Bhikku.br_is_deleted.is_(False)
+                ).all()
+                name_map = {b.br_regn: b.br_mahananame for b in bhikku_names}
+                resolved_names = [name_map.get(regn) for regn in regns if name_map.get(regn)]
+                if resolved_names:
+                    multi_mahanaacharyacd_value = ', '.join(resolved_names)
+        
+        bhikku_dict = {
+            "br_id": bhikku.br_id,
+            "br_regn": bhikku.br_regn,
+            "br_reqstdate": bhikku.br_reqstdate,
+            "br_birthpls": bhikku.br_birthpls,
+            # Replace codes with names from relationships
+            "br_province": bhikku.province_rel.cp_name if bhikku.province_rel else bhikku.br_province,
+            "br_district": bhikku.district_rel.dd_dname if bhikku.district_rel else bhikku.br_district,
+            "br_korale": bhikku.br_korale,
+            "br_pattu": bhikku.br_pattu,
+            "br_division": bhikku.division_rel.dv_dvname if bhikku.division_rel else bhikku.br_division,
+            "br_vilage": bhikku.br_vilage,
+            "br_gndiv": bhikku.gndiv_rel.gn_gnname if bhikku.gndiv_rel else bhikku.br_gndiv,
+            "br_gihiname": bhikku.br_gihiname,
+            "br_dofb": bhikku.br_dofb,
+            "br_fathrname": bhikku.br_fathrname,
+            "br_remarks": bhikku.br_remarks,
+            "br_currstat": bhikku.status_rel.st_descr if bhikku.status_rel else bhikku.br_currstat,
+            "br_effctdate": bhikku.br_effctdate,
+            "br_parshawaya": bhikku.parshawaya_rel.pr_pname if bhikku.parshawaya_rel else bhikku.br_parshawaya,
+            "br_livtemple": bhikku.livtemple_rel.vh_vname if bhikku.livtemple_rel else bhikku.br_livtemple,
+            "br_mahanatemple": bhikku.mahanatemple_rel.vh_vname if bhikku.mahanatemple_rel else bhikku.br_mahanatemple,
+            "br_mahanaacharyacd": bhikku.mahanaacharyacd_rel.br_mahananame if bhikku.mahanaacharyacd_rel else bhikku.br_mahanaacharyacd,
+            "br_multi_mahanaacharyacd": multi_mahanaacharyacd_value,
+            "br_mahananame": bhikku.br_mahananame,
+            "br_mahanadate": bhikku.br_mahanadate,
+            "br_cat": bhikku.category_rel.cc_catogry if bhikku.category_rel else bhikku.br_cat,
+            "br_viharadhipathi": bhikku.viharadhipathi_rel.br_mahananame if bhikku.viharadhipathi_rel else bhikku.br_viharadhipathi,
+            "br_nikaya": bhikku.nikaya_rel.nk_nname if bhikku.nikaya_rel else bhikku.br_nikaya,
+            "br_mahanayaka_name": bhikku.mahanayaka_rel.br_mahananame if bhikku.mahanayaka_rel else bhikku.br_mahanayaka_name,
+            "br_mahanayaka_address": bhikku.br_mahanayaka_address,
+            "br_residence_at_declaration": bhikku.br_residence_at_declaration,
+            "br_declaration_date": bhikku.br_declaration_date,
+            "br_robing_tutor_residence": bhikku.robing_tutor_residence_rel.vh_vname if bhikku.robing_tutor_residence_rel else bhikku.br_robing_tutor_residence,
+            "br_robing_after_residence_temple": bhikku.robing_after_residence_temple_rel.vh_vname if bhikku.robing_after_residence_temple_rel else bhikku.br_robing_after_residence_temple,
+            "br_mobile": bhikku.br_mobile,
+            "br_email": bhikku.br_email,
+            "br_fathrsaddrs": bhikku.br_fathrsaddrs,
+            "br_fathrsmobile": bhikku.br_fathrsmobile,
+            "br_upasampada_serial_no": bhikku.br_upasampada_serial_no,
+            "br_workflow_status": bhikku.br_workflow_status,
+            "br_approval_status": bhikku.br_approval_status,
+            "br_approved_by": bhikku.br_approved_by,
+            "br_approved_at": bhikku.br_approved_at,
+            "br_rejected_by": bhikku.br_rejected_by,
+            "br_rejected_at": bhikku.br_rejected_at,
+            "br_rejection_reason": bhikku.br_rejection_reason,
+            "br_printed_at": bhikku.br_printed_at,
+            "br_printed_by": bhikku.br_printed_by,
+            "br_scanned_at": bhikku.br_scanned_at,
+            "br_scanned_by": bhikku.br_scanned_by,
+            "br_reprint_status": bhikku.br_reprint_status,
+            "br_reprint_requested_by": bhikku.br_reprint_requested_by,
+            "br_reprint_requested_at": bhikku.br_reprint_requested_at,
+            "br_reprint_request_reason": bhikku.br_reprint_request_reason,
+            "br_reprint_approved_by": bhikku.br_reprint_approved_by,
+            "br_reprint_approved_at": bhikku.br_reprint_approved_at,
+            "br_reprint_rejected_by": bhikku.br_reprint_rejected_by,
+            "br_reprint_rejected_at": bhikku.br_reprint_rejected_at,
+            "br_reprint_rejection_reason": bhikku.br_reprint_rejection_reason,
+            "br_reprint_completed_by": bhikku.br_reprint_completed_by,
+            "br_reprint_completed_at": bhikku.br_reprint_completed_at,
+            "br_scanned_document_path": bhikku.br_scanned_document_path,
+            "br_is_deleted": bhikku.br_is_deleted,
+            "br_version_number": bhikku.br_version_number,
+            "br_created_by": bhikku.br_created_by,
+            "br_updated_by": bhikku.br_updated_by,
+        }
+        
+        return bhikku_dict
 
     def update_bhikku(
         self,
@@ -1142,6 +1234,60 @@ class BhikkuService:
         if isinstance(value, str) and value.strip() == "":
             return False
         return True
+
+    # --------------------------------------------------------------------- #
+    # File Upload Methods
+    # --------------------------------------------------------------------- #
+    async def upload_scanned_document(
+        self,
+        db: Session,
+        *,
+        br_regn: str,
+        file: UploadFile,
+        actor_id: Optional[str],
+    ) -> Bhikku:
+        """
+        Upload a scanned document for a Bhikku record.
+        
+        Args:
+            db: Database session
+            br_regn: Bhikku registration number
+            file: Uploaded file (PDF, JPG, PNG - max 5MB)
+            actor_id: User ID performing the upload
+            
+        Returns:
+            Updated Bhikku instance with file path stored
+            
+        Raises:
+            ValueError: If bhikku not found or file upload fails
+        """
+        # Get the bhikku record
+        entity = bhikku_repo.get_by_regn(db, br_regn)
+        if not entity:
+            raise ValueError(f"Bhikku with registration number '{br_regn}' not found.")
+        
+        # Delete old file if exists
+        if entity.br_scanned_document_path:
+            file_storage_service.delete_file(entity.br_scanned_document_path)
+        
+        # Save new file using the file storage service
+        # File will be stored at: app/storage/bhikku_update/<year>/<month>/<day>/<br_regn>/scanned_document_*.*
+        relative_path, _ = await file_storage_service.save_file(
+            file,
+            br_regn,
+            "scanned_document",
+            subdirectory="bhikku_update"
+        )
+        
+        # Update the bhikku record with the file path
+        entity.br_scanned_document_path = relative_path
+        entity.br_updated_by = actor_id
+        entity.br_updated_at = datetime.utcnow()
+        
+        db.commit()
+        db.refresh(entity)
+        
+        return entity
 
 
 bhikku_service = BhikkuService()

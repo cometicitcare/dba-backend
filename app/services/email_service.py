@@ -7,6 +7,7 @@ password reset, and username recovery emails.
 
 import smtplib
 import logging
+import time
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from pathlib import Path
@@ -20,7 +21,7 @@ logger = logging.getLogger(__name__)
 class EmailService:
     """
     Email service for sending emails via SMTP.
-    Supports HTML and plain text emails.
+    Supports HTML and plain text emails with retry logic for Railway deployment.
     """
 
     def __init__(self):
@@ -30,6 +31,9 @@ class EmailService:
         self.password = settings.SMTP_PASSWORD
         self.from_email = settings.SMTP_FROM_EMAIL
         self.from_name = settings.SMTP_FROM_NAME
+        self.timeout = settings.SMTP_TIMEOUT
+        self.retry_attempts = settings.SMTP_RETRY_ATTEMPTS
+        self.retry_delay = settings.SMTP_RETRY_DELAY
 
     def send_email(
         self,
@@ -39,7 +43,7 @@ class EmailService:
         plain_text: Optional[str] = None,
     ) -> bool:
         """
-        Send an email with HTML content.
+        Send an email with HTML content using retry logic.
 
         Args:
             to_email: Recipient email address
@@ -50,40 +54,76 @@ class EmailService:
         Returns:
             bool: True if email sent successfully, False otherwise
         """
-        try:
-            # Create email message
-            message = MIMEMultipart("alternative")
-            message["Subject"] = subject
-            message["From"] = f"{self.from_name} <{self.from_email}>"
-            message["To"] = to_email
+        last_error = None
+        
+        for attempt in range(1, self.retry_attempts + 1):
+            try:
+                # Create email message
+                message = MIMEMultipart("alternative")
+                message["Subject"] = subject
+                message["From"] = f"{self.from_name} <{self.from_email}>"
+                message["To"] = to_email
 
-            # Attach plain text part
-            if plain_text:
-                text_part = MIMEText(plain_text, "plain")
-                message.attach(text_part)
+                # Attach plain text part
+                if plain_text:
+                    text_part = MIMEText(plain_text, "plain")
+                    message.attach(text_part)
 
-            # Attach HTML part
-            html_part = MIMEText(html_content, "html")
-            message.attach(html_part)
+                # Attach HTML part
+                html_part = MIMEText(html_content, "html")
+                message.attach(html_part)
 
-            # Send email
-            with smtplib.SMTP(self.smtp_server, self.smtp_port, timeout=10) as server:
-                server.starttls()
-                server.login(self.username, self.password)
-                server.send_message(message)
+                # Send email with extended timeout
+                with smtplib.SMTP(self.smtp_server, self.smtp_port, timeout=self.timeout) as server:
+                    server.starttls()
+                    server.login(self.username, self.password)
+                    server.send_message(message)
 
-            logger.info(f"Email sent successfully to {to_email}")
-            return True
+                logger.info(f"Email sent successfully to {to_email} (attempt {attempt}/{self.retry_attempts})")
+                return True
 
-        except smtplib.SMTPAuthenticationError:
-            logger.error("SMTP authentication failed. Check credentials.")
-            return False
-        except smtplib.SMTPException as e:
-            logger.error(f"SMTP error occurred: {str(e)}")
-            return False
-        except Exception as e:
-            logger.error(f"Failed to send email to {to_email}: {str(e)}")
-            return False
+            except smtplib.SMTPAuthenticationError as e:
+                logger.error(f"SMTP authentication failed (attempt {attempt}/{self.retry_attempts}): {str(e)}")
+                last_error = e
+                # Don't retry auth errors
+                break
+                
+            except (smtplib.SMTPException, TimeoutError, OSError) as e:
+                last_error = e
+                logger.warning(
+                    f"Email send failed to {to_email} (attempt {attempt}/{self.retry_attempts}): {str(e)}"
+                )
+                
+                # Retry if not the last attempt
+                if attempt < self.retry_attempts:
+                    time.sleep(self.retry_delay)
+                    continue
+                else:
+                    logger.error(
+                        f"Failed to send email to {to_email} after {self.retry_attempts} attempts: {str(e)}"
+                    )
+                    
+            except Exception as e:
+                last_error = e
+                logger.error(
+                    f"Unexpected error sending email to {to_email} (attempt {attempt}/{self.retry_attempts}): {str(e)}"
+                )
+                
+                # Retry on unexpected errors
+                if attempt < self.retry_attempts:
+                    time.sleep(self.retry_delay)
+                    continue
+                else:
+                    logger.error(
+                        f"Failed to send email to {to_email} after {self.retry_attempts} attempts: {str(e)}"
+                    )
+
+        # Log final failure
+        logger.error(
+            f"Email delivery failed to {to_email} - all {self.retry_attempts} attempts exhausted. "
+            f"Last error: {str(last_error)}"
+        )
+        return False
 
     @staticmethod
     def load_template(template_name: str, **kwargs) -> str:
