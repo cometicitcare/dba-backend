@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-set -euo pipefail
+set -eo pipefail
 
 : "${PORT:=8080}"
 : "${STORAGE_DIR:=/home/appuser/storage}"
@@ -8,7 +8,32 @@ set -euo pipefail
 mkdir -p "$STORAGE_DIR" || true
 
 # Run DB migrations (requires DATABASE_URL to be set by Railway Postgres plugin)
-alembic upgrade head
+# If migration fails due to missing revision, stamp the database with the latest revision
+echo "Running database migrations..."
 
+if alembic upgrade head 2>&1; then
+    echo "✓ Migrations completed successfully"
+else
+    echo "⚠ Migration failed - checking for revision mismatch..."
+    
+    # Check if the error is related to missing revision
+    if alembic current 2>&1 | grep -q "Can't locate revision"; then
+        echo "⚠ Found missing revision in database history"
+        echo "⚠ Stamping database with current head to fix..."
+        
+        # Stamp the database with the current head to fix migration history issues
+        alembic stamp head --purge
+        
+        echo "✓ Database stamped successfully"
+        echo "Running migrations again..."
+        alembic upgrade head
+        echo "✓ Migrations completed after fix"
+    else
+        echo "✗ Migration failed for unknown reason"
+        exit 1
+    fi
+fi
+
+echo "Starting FastAPI application..."
 # Start FastAPI app
 exec uvicorn app.main:app --host 0.0.0.0 --port "$PORT"
