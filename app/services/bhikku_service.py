@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import re
 from collections import defaultdict
-from datetime import datetime
+from datetime import datetime, date
 from typing import Any, Dict, Optional, Tuple
 
 from sqlalchemy import MetaData, Table, select, text
@@ -229,6 +229,7 @@ class BhikkuService:
             current_regn=None,
         )
 
+        # Create the enriched payload WITHOUT workflow_status (it will be set by the repository/model default)
         enriched_payload = BhikkuCreate(**payload_dict)
         created = bhikku_repo.create(db, enriched_payload)
         return created
@@ -240,13 +241,82 @@ class BhikkuService:
         skip: int = 0,
         limit: int = 100,
         search: Optional[str] = None,
+        province: Optional[str] = None,
+        vh_trn: Optional[str] = None,
+        district: Optional[str] = None,
+        divisional_secretariat: Optional[str] = None,
+        gn_division: Optional[str] = None,
+        temple: Optional[str] = None,
+        child_temple: Optional[str] = None,
+        nikaya: Optional[str] = None,
+        parshawaya: Optional[str] = None,
+        category: Optional[list[str]] = None,
+        status: Optional[list[str]] = None,
+        workflow_status: Optional[list[str]] = None,
+        date_from: Optional[date] = None,
+        date_to: Optional[date] = None,
     ) -> list[Bhikku]:
         limit = max(1, min(limit, 200))
         skip = max(0, skip)
-        return bhikku_repo.get_all(db, skip=skip, limit=limit, search_key=search)
+        return bhikku_repo.get_all(
+            db, 
+            skip=skip, 
+            limit=limit, 
+            search_key=search,
+            province=province,
+            vh_trn=vh_trn,
+            district=district,
+            divisional_secretariat=divisional_secretariat,
+            gn_division=gn_division,
+            temple=temple,
+            child_temple=child_temple,
+            nikaya=nikaya,
+            parshawaya=parshawaya,
+            category=category,
+            status=status,
+            workflow_status=workflow_status,
+            date_from=date_from,
+            date_to=date_to
+        )
 
-    def count_bhikkus(self, db: Session, *, search: Optional[str] = None) -> int:
-        total = bhikku_repo.get_total_count(db, search_key=search)
+    def count_bhikkus(
+        self, 
+        db: Session, 
+        *, 
+        search: Optional[str] = None,
+        province: Optional[str] = None,
+        vh_trn: Optional[str] = None,
+        district: Optional[str] = None,
+        divisional_secretariat: Optional[str] = None,
+        gn_division: Optional[str] = None,
+        temple: Optional[str] = None,
+        child_temple: Optional[str] = None,
+        nikaya: Optional[str] = None,
+        parshawaya: Optional[str] = None,
+        category: Optional[list[str]] = None,
+        status: Optional[list[str]] = None,
+        workflow_status: Optional[list[str]] = None,
+        date_from: Optional[date] = None,
+        date_to: Optional[date] = None,
+    ) -> int:
+        total = bhikku_repo.get_total_count(
+            db, 
+            search_key=search,
+            province=province,
+            vh_trn=vh_trn,
+            district=district,
+            divisional_secretariat=divisional_secretariat,
+            gn_division=gn_division,
+            temple=temple,
+            child_temple=child_temple,
+            nikaya=nikaya,
+            parshawaya=parshawaya,
+            category=category,
+            status=status,
+            workflow_status=workflow_status,
+            date_from=date_from,
+            date_to=date_to
+        )
         return int(total or 0)
 
     def list_mahanayaka_view(self, db: Session) -> list[dict[str, Any]]:
@@ -560,6 +630,306 @@ class BhikkuService:
         if not deleted:
             raise ValueError("Bhikku record not found.")
         return deleted
+
+    # --------------------------------------------------------------------- #
+    # Workflow Methods
+    # --------------------------------------------------------------------- #
+    def approve_bhikku(
+        self,
+        db: Session,
+        *,
+        br_regn: str,
+        actor_id: Optional[str],
+    ) -> Bhikku:
+        """Approve a bhikku registration - transitions workflow to APPROVED status"""
+        entity = bhikku_repo.get_by_regn(db, br_regn)
+        if not entity:
+            raise ValueError("Bhikku record not found.")
+        
+        if entity.br_workflow_status != "PENDING":
+            raise ValueError(f"Cannot approve bhikku with workflow status: {entity.br_workflow_status}. Must be PENDING.")
+        
+        # Update workflow fields
+        entity.br_workflow_status = "APPROVED"
+        entity.br_approval_status = "APPROVED"
+        entity.br_approved_by = actor_id
+        entity.br_approved_at = datetime.utcnow()
+        entity.br_updated_by = actor_id
+        entity.br_updated_at = datetime.utcnow()
+        entity.br_version_number += 1
+        
+        db.commit()
+        db.refresh(entity)
+        return entity
+
+    def reject_bhikku(
+        self,
+        db: Session,
+        *,
+        br_regn: str,
+        actor_id: Optional[str],
+        rejection_reason: Optional[str] = None,
+    ) -> Bhikku:
+        """Reject a bhikku registration - transitions workflow to REJECTED status"""
+        entity = bhikku_repo.get_by_regn(db, br_regn)
+        if not entity:
+            raise ValueError("Bhikku record not found.")
+        
+        if entity.br_workflow_status != "PENDING":
+            raise ValueError(f"Cannot reject bhikku with workflow status: {entity.br_workflow_status}. Must be PENDING.")
+        
+        # Update workflow fields
+        entity.br_workflow_status = "REJECTED"
+        entity.br_approval_status = "REJECTED"
+        entity.br_rejected_by = actor_id
+        entity.br_rejected_at = datetime.utcnow()
+        entity.br_rejection_reason = rejection_reason
+        entity.br_updated_by = actor_id
+        entity.br_updated_at = datetime.utcnow()
+        entity.br_version_number += 1
+        
+        db.commit()
+        db.refresh(entity)
+        return entity
+
+    def mark_printed(
+        self,
+        db: Session,
+        *,
+        br_regn: str,
+        actor_id: Optional[str],
+    ) -> Bhikku:
+        """Mark bhikku certificate as printed - transitions workflow to PRINTED status"""
+        entity = bhikku_repo.get_by_regn(db, br_regn)
+        if not entity:
+            raise ValueError("Bhikku record not found.")
+        
+        if entity.br_workflow_status not in ["APPROVED", "PRINTING"]:
+            raise ValueError(f"Cannot mark as printed bhikku with workflow status: {entity.br_workflow_status}. Must be APPROVED or PRINTING.")
+        
+        # Update workflow fields
+        entity.br_workflow_status = "PRINTED"
+        entity.br_printed_by = actor_id
+        entity.br_printed_at = datetime.utcnow()
+        entity.br_updated_by = actor_id
+        entity.br_updated_at = datetime.utcnow()
+        entity.br_version_number += 1
+        
+        db.commit()
+        db.refresh(entity)
+        return entity
+
+    def mark_scanned(
+        self,
+        db: Session,
+        *,
+        br_regn: str,
+        actor_id: Optional[str],
+    ) -> Bhikku:
+        """Mark bhikku certificate as scanned - transitions workflow to COMPLETED status"""
+        entity = bhikku_repo.get_by_regn(db, br_regn)
+        if not entity:
+            raise ValueError("Bhikku record not found.")
+        
+        if entity.br_workflow_status != "PRINTED":
+            raise ValueError(f"Cannot mark as scanned bhikku with workflow status: {entity.br_workflow_status}. Must be PRINTED.")
+        
+        # Update workflow fields
+        entity.br_workflow_status = "COMPLETED"
+        entity.br_scanned_by = actor_id
+        entity.br_scanned_at = datetime.utcnow()
+        entity.br_updated_by = actor_id
+        entity.br_updated_at = datetime.utcnow()
+        entity.br_version_number += 1
+        
+        db.commit()
+        db.refresh(entity)
+        return entity
+
+    def mark_printing(
+        self,
+        db: Session,
+        *,
+        br_regn: str,
+        actor_id: Optional[str],
+    ) -> Bhikku:
+        """Mark bhikku certificate as in printing process - transitions workflow to PRINTING status"""
+        entity = bhikku_repo.get_by_regn(db, br_regn)
+        if not entity:
+            raise ValueError("Bhikku record not found.")
+        
+        if entity.br_workflow_status != "APPROVED":
+            raise ValueError(f"Cannot mark as printing bhikku with workflow status: {entity.br_workflow_status}. Must be APPROVED.")
+        
+        # Update workflow fields
+        entity.br_workflow_status = "PRINTING"
+        entity.br_updated_by = actor_id
+        entity.br_updated_at = datetime.utcnow()
+        entity.br_version_number += 1
+        
+        db.commit()
+        db.refresh(entity)
+        return entity
+
+    def reset_to_pending(
+        self,
+        db: Session,
+        *,
+        br_regn: str,
+        actor_id: Optional[str],
+    ) -> Bhikku:
+        """Reset bhikku workflow status to PENDING - for corrections or resubmissions"""
+        entity = bhikku_repo.get_by_regn(db, br_regn)
+        if not entity:
+            raise ValueError("Bhikku record not found.")
+        
+        # Clear workflow fields
+        entity.br_workflow_status = "PENDING"
+        entity.br_approval_status = None
+        entity.br_approved_by = None
+        entity.br_approved_at = None
+        entity.br_rejected_by = None
+        entity.br_rejected_at = None
+        entity.br_rejection_reason = None
+        entity.br_printed_by = None
+        entity.br_printed_at = None
+        entity.br_scanned_by = None
+        entity.br_scanned_at = None
+        entity.br_updated_by = actor_id
+        entity.br_updated_at = datetime.utcnow()
+        entity.br_version_number += 1
+        
+        db.commit()
+        db.refresh(entity)
+        return entity
+
+    # --------------------------------------------------------------------- #
+    # Reprint Workflow Methods
+    # --------------------------------------------------------------------- #
+    def request_reprint(
+        self,
+        db: Session,
+        *,
+        br_regn: str,
+        actor_id: Optional[str],
+        reprint_reason: str,
+    ) -> Bhikku:
+        """Request a reprint for a bhikku certificate - initiates reprint workflow"""
+        entity = bhikku_repo.get_by_regn(db, br_regn)
+        if not entity:
+            raise ValueError("Bhikku record not found.")
+        
+        # Can only request reprint for completed records
+        if entity.br_workflow_status not in ["COMPLETED", "PRINTED"]:
+            raise ValueError(f"Cannot request reprint for bhikku with workflow status: {entity.br_workflow_status}. Must be COMPLETED or PRINTED.")
+        
+        # Check if there's already a pending reprint request
+        if entity.br_reprint_status == "REPRINT_PENDING":
+            raise ValueError("There is already a pending reprint request for this bhikku.")
+        
+        # Set reprint workflow fields
+        entity.br_reprint_status = "REPRINT_PENDING"
+        entity.br_reprint_requested_by = actor_id
+        entity.br_reprint_requested_at = datetime.utcnow()
+        entity.br_reprint_request_reason = reprint_reason
+        # Clear previous reprint approval/rejection data
+        entity.br_reprint_approved_by = None
+        entity.br_reprint_approved_at = None
+        entity.br_reprint_rejected_by = None
+        entity.br_reprint_rejected_at = None
+        entity.br_reprint_rejection_reason = None
+        entity.br_reprint_completed_by = None
+        entity.br_reprint_completed_at = None
+        entity.br_updated_by = actor_id
+        entity.br_updated_at = datetime.utcnow()
+        entity.br_version_number += 1
+        
+        db.commit()
+        db.refresh(entity)
+        return entity
+
+    def accept_reprint(
+        self,
+        db: Session,
+        *,
+        br_regn: str,
+        actor_id: Optional[str],
+    ) -> Bhikku:
+        """Accept a reprint request - transitions to REPRINT_ACCEPTED status"""
+        entity = bhikku_repo.get_by_regn(db, br_regn)
+        if not entity:
+            raise ValueError("Bhikku record not found.")
+        
+        if entity.br_reprint_status != "REPRINT_PENDING":
+            raise ValueError(f"Cannot accept reprint with status: {entity.br_reprint_status}. Must be REPRINT_PENDING.")
+        
+        # Update reprint workflow fields
+        entity.br_reprint_status = "REPRINT_ACCEPTED"
+        entity.br_reprint_approved_by = actor_id
+        entity.br_reprint_approved_at = datetime.utcnow()
+        entity.br_updated_by = actor_id
+        entity.br_updated_at = datetime.utcnow()
+        entity.br_version_number += 1
+        
+        db.commit()
+        db.refresh(entity)
+        return entity
+
+    def reject_reprint(
+        self,
+        db: Session,
+        *,
+        br_regn: str,
+        actor_id: Optional[str],
+        rejection_reason: Optional[str] = None,
+    ) -> Bhikku:
+        """Reject a reprint request - transitions to REPRINT_REJECTED status"""
+        entity = bhikku_repo.get_by_regn(db, br_regn)
+        if not entity:
+            raise ValueError("Bhikku record not found.")
+        
+        if entity.br_reprint_status != "REPRINT_PENDING":
+            raise ValueError(f"Cannot reject reprint with status: {entity.br_reprint_status}. Must be REPRINT_PENDING.")
+        
+        # Update reprint workflow fields
+        entity.br_reprint_status = "REPRINT_REJECTED"
+        entity.br_reprint_rejected_by = actor_id
+        entity.br_reprint_rejected_at = datetime.utcnow()
+        entity.br_reprint_rejection_reason = rejection_reason
+        entity.br_updated_by = actor_id
+        entity.br_updated_at = datetime.utcnow()
+        entity.br_version_number += 1
+        
+        db.commit()
+        db.refresh(entity)
+        return entity
+
+    def complete_reprint(
+        self,
+        db: Session,
+        *,
+        br_regn: str,
+        actor_id: Optional[str],
+    ) -> Bhikku:
+        """Complete a reprint - transitions to REPRINT_COMPLETED status"""
+        entity = bhikku_repo.get_by_regn(db, br_regn)
+        if not entity:
+            raise ValueError("Bhikku record not found.")
+        
+        if entity.br_reprint_status != "REPRINT_ACCEPTED":
+            raise ValueError(f"Cannot complete reprint with status: {entity.br_reprint_status}. Must be REPRINT_ACCEPTED.")
+        
+        # Update reprint workflow fields
+        entity.br_reprint_status = "REPRINT_COMPLETED"
+        entity.br_reprint_completed_by = actor_id
+        entity.br_reprint_completed_at = datetime.utcnow()
+        entity.br_updated_by = actor_id
+        entity.br_updated_at = datetime.utcnow()
+        entity.br_version_number += 1
+        
+        db.commit()
+        db.refresh(entity)
+        return entity
 
     # --------------------------------------------------------------------- #
     # Helpers

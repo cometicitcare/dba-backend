@@ -18,4 +18,4 @@ class UserGroupOut(UserGroupBase):
     updated_at: datetime
 
     class Config:
-        orm_mode = True  # This tells Pydantic to treat the SQLAlchemy model as a dict
+        from_attributes = True  # This tells Pydantic to treat the SQLAlchemy model as a dict

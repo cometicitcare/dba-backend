@@ -20,7 +20,7 @@ class GroupOut(GroupBase):
     updated_by: str
 
     class Config:
-        orm_mode = True  # This tells Pydantic to treat the SQLAlchemy model as a dict
+        from_attributes = True  # This tells Pydantic to treat the SQLAlchemy model as a dict
 
 class GroupListResponse(BaseModel):
     status: str
