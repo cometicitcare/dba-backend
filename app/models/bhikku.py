@@ -32,7 +32,7 @@ class Bhikku(Base):
     
     # Temple/Religious Information
     br_parshawaya = Column(String(10), nullable=False)
-    br_livtemple = Column(String(10), nullable=False)
+    br_livtemple = Column(String(10))  # Made nullable - not always provided in payload
     br_mahanatemple = Column(String(10), nullable=False)
     br_mahanaacharyacd = Column(String(12), nullable=False)
     br_multi_mahanaacharyacd = Column(String(200))

@@ -58,9 +58,9 @@ class BhikkuBase(BaseModel):
     
     # Temple/Religious Information
     br_parshawaya: str
-    br_livtemple: str
-    br_mahanatemple: str
-    br_mahanaacharyacd: str
+    br_livtemple: Optional[str] = None  # Made optional to match payload requirements
+    br_mahanatemple: Optional[str] = None  # Made optional to match payload requirements
+    br_mahanaacharyacd: Optional[str] = None  # Made optional to match payload requirements
     br_multi_mahanaacharyacd: Optional[str] = None
     br_mahananame: Optional[str] = None
     br_mahanadate: Optional[date] = None
@@ -90,7 +90,8 @@ class BhikkuBase(BaseModel):
     br_updated_by: Optional[str] = None
 
 class BhikkuCreate(BhikkuBase):
-    """Schema for creating a new Bhikku record - br_regn is auto-generated"""
+    """Schema for creating a new Bhikku record - br_regn is auto-generated
+    Only includes fields that should be provided during creation based on the payload structure"""
     # Workflow fields are set automatically - not included in create
     pass
 
