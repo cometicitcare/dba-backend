@@ -36,7 +36,7 @@ class UserService:
 
         role = (
             db.query(Role)
-            .filter(Role.ro_role_id == payload.ro_role_id, Role.ro_is_active.is_(True))
+            .filter(Role.ro_role_id == payload.ro_role_id, Role.ro_is_deleted.is_(False))
             .first()
         )
         if not role:
