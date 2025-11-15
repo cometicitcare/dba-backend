@@ -81,10 +81,30 @@ def manage_vihara_records(
             search = None
         skip = payload.skip if payload.page is None else (page - 1) * limit
 
-        records = vihara_service.list_viharas(
-            db, skip=skip, limit=limit, search=search
-        )
-        total = vihara_service.count_viharas(db, search=search)
+        # Extract all filter parameters from payload
+        filters = {
+            "skip": skip,
+            "limit": limit,
+            "search": search,
+            "vh_trn": payload.vh_trn,
+            "province": payload.province,
+            "district": payload.district,
+            "divisional_secretariat": payload.divisional_secretariat,
+            "gn_division": payload.gn_division,
+            "temple": payload.temple,
+            "child_temple": payload.child_temple,
+            "nikaya": payload.nikaya,
+            "parshawaya": payload.parshawaya,
+            "category": payload.category,
+            "status": payload.status,
+            "vh_typ": payload.vh_typ,
+            "date_from": payload.date_from,
+            "date_to": payload.date_to,
+        }
+
+        records = vihara_service.list_viharas(db, **filters)
+        total = vihara_service.count_viharas(db, **{k: v for k, v in filters.items() if k not in ["skip", "limit"]})
+        
         return ViharaManagementResponse(
             status="success",
             message="Vihara records retrieved successfully.",

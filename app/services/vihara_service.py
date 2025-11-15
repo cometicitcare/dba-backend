@@ -51,13 +51,82 @@ class ViharaService:
         skip: int = 0,
         limit: int = 100,
         search: Optional[str] = None,
+        vh_trn: Optional[str] = None,
+        province: Optional[str] = None,
+        district: Optional[str] = None,
+        divisional_secretariat: Optional[str] = None,
+        gn_division: Optional[str] = None,
+        temple: Optional[str] = None,
+        child_temple: Optional[str] = None,
+        nikaya: Optional[str] = None,
+        parshawaya: Optional[str] = None,
+        category: Optional[str] = None,
+        status: Optional[str] = None,
+        vh_typ: Optional[str] = None,
+        date_from: Optional[Any] = None,
+        date_to: Optional[Any] = None,
     ) -> list[ViharaData]:
         limit = max(1, min(limit, 200))
         skip = max(0, skip)
-        return vihara_repo.list(db, skip=skip, limit=limit, search=search)
+        return vihara_repo.list(
+            db,
+            skip=skip,
+            limit=limit,
+            search=search,
+            vh_trn=vh_trn,
+            province=province,
+            district=district,
+            divisional_secretariat=divisional_secretariat,
+            gn_division=gn_division,
+            temple=temple,
+            child_temple=child_temple,
+            nikaya=nikaya,
+            parshawaya=parshawaya,
+            category=category,
+            status=status,
+            vh_typ=vh_typ,
+            date_from=date_from,
+            date_to=date_to,
+        )
 
-    def count_viharas(self, db: Session, *, search: Optional[str] = None) -> int:
-        return vihara_repo.count(db, search=search)
+    def count_viharas(
+        self, 
+        db: Session, 
+        *, 
+        search: Optional[str] = None,
+        vh_trn: Optional[str] = None,
+        province: Optional[str] = None,
+        district: Optional[str] = None,
+        divisional_secretariat: Optional[str] = None,
+        gn_division: Optional[str] = None,
+        temple: Optional[str] = None,
+        child_temple: Optional[str] = None,
+        nikaya: Optional[str] = None,
+        parshawaya: Optional[str] = None,
+        category: Optional[str] = None,
+        status: Optional[str] = None,
+        vh_typ: Optional[str] = None,
+        date_from: Optional[Any] = None,
+        date_to: Optional[Any] = None,
+    ) -> int:
+        return vihara_repo.count(
+            db,
+            search=search,
+            vh_trn=vh_trn,
+            province=province,
+            district=district,
+            divisional_secretariat=divisional_secretariat,
+            gn_division=gn_division,
+            temple=temple,
+            child_temple=child_temple,
+            nikaya=nikaya,
+            parshawaya=parshawaya,
+            category=category,
+            status=status,
+            vh_typ=vh_typ,
+            date_from=date_from,
+            date_to=date_to,
+        )
 
     def get_vihara(self, db: Session, vh_id: int) -> Optional[ViharaData]:
         return vihara_repo.get(db, vh_id)
