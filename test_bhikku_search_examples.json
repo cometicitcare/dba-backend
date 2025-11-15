@@ -1,0 +1,144 @@
+{
+  "description": "Test examples for Bhikku READ_ALL search functionality",
+  "endpoint": "POST /api/v1/bhikkus/manage",
+  "examples": [
+    {
+      "name": "Example 1: Search with all filters",
+      "payload": {
+        "action": "READ_ALL",
+        "payload": {
+          "skip": 0,
+          "limit": 10,
+          "page": 2,
+          "search_key": "",
+          "province": "WP",
+          "vh_trn": "",
+          "district": "DC006",
+          "divisional_secretariat": "DV008",
+          "gn_division": "GN009",
+          "temple": "TRN0000008",
+          "child_temple": "TRN0000008",
+          "nikaya": "NK001",
+          "parshawaya": "PR002",
+          "category": ["CAT01", "CAT02"],
+          "status": ["ST08", "ST09"],
+          "date_from": "2024-01-01",
+          "date_to": "2024-12-31"
+        }
+      }
+    },
+    {
+      "name": "Example 2: Search by nikaya only",
+      "payload": {
+        "action": "READ_ALL",
+        "payload": {
+          "limit": 50,
+          "nikaya": "NK001"
+        }
+      }
+    },
+    {
+      "name": "Example 3: Search by nikaya and parshawaya",
+      "payload": {
+        "action": "READ_ALL",
+        "payload": {
+          "limit": 25,
+          "nikaya": "NK001",
+          "parshawaya": "PR002"
+        }
+      }
+    },
+    {
+      "name": "Example 4: Search by province and nikaya",
+      "payload": {
+        "action": "READ_ALL",
+        "payload": {
+          "limit": 100,
+          "province": "WP",
+          "nikaya": "NK001"
+        }
+      }
+    },
+    {
+      "name": "Example 5: Search by temple and nikaya",
+      "payload": {
+        "action": "READ_ALL",
+        "payload": {
+          "limit": 30,
+          "temple": "TRN0000008",
+          "nikaya": "NK001"
+        }
+      }
+    },
+    {
+      "name": "Example 6: Search by category, status, and nikaya",
+      "payload": {
+        "action": "READ_ALL",
+        "payload": {
+          "limit": 20,
+          "category": ["CAT01"],
+          "status": ["ST08"],
+          "nikaya": "NK001"
+        }
+      }
+    },
+    {
+      "name": "Example 7: Text search with nikaya filter",
+      "payload": {
+        "action": "READ_ALL",
+        "payload": {
+          "limit": 50,
+          "search_key": "Colombo",
+          "nikaya": "NK001"
+        }
+      }
+    },
+    {
+      "name": "Example 8: Date range with nikaya",
+      "payload": {
+        "action": "READ_ALL",
+        "payload": {
+          "limit": 75,
+          "date_from": "2024-01-01",
+          "date_to": "2024-12-31",
+          "nikaya": "NK001"
+        }
+      }
+    },
+    {
+      "name": "Example 9: Geographic filters with nikaya",
+      "payload": {
+        "action": "READ_ALL",
+        "payload": {
+          "limit": 40,
+          "province": "WP",
+          "district": "DC006",
+          "divisional_secretariat": "DV008",
+          "nikaya": "NK001"
+        }
+      }
+    },
+    {
+      "name": "Example 10: No filters (get all)",
+      "payload": {
+        "action": "READ_ALL",
+        "payload": {
+          "limit": 10,
+          "page": 1
+        }
+      }
+    }
+  ],
+  "notes": [
+    "All filter fields are optional",
+    "Empty strings are treated as no filter",
+    "Null/undefined values are ignored",
+    "Multiple filters are combined with AND logic",
+    "List filters (category, status) use OR logic within themselves",
+    "The nikaya field filters by br_nikaya in the database",
+    "Schema validation ensures data types are correct",
+    "Limit is constrained between 1 and 200",
+    "Skip must be >= 0",
+    "Page must be >= 1"
+  ]
+}

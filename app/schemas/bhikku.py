@@ -198,20 +198,20 @@ class BhikkuRequestPayload(BaseModel):
     page: Annotated[Optional[int], Field(ge=1)] = 1
     search_key: Optional[str] = Field(default="", max_length=100)
     # Advanced filters for READ_ALL
-    province: Optional[str] = None
-    vh_trn: Optional[str] = None
-    district: Optional[str] = None
-    divisional_secretariat: Optional[str] = None
-    gn_division: Optional[str] = None
-    temple: Optional[str] = None
-    child_temple: Optional[str] = None
-    nikaya: Optional[str] = None
-    parshawaya: Optional[str] = None
-    category: Optional[List[str]] = None
-    status: Optional[List[str]] = None
-    workflow_status: Optional[List[str]] = None  # Filter by workflow status
-    date_from: Optional[date] = None
-    date_to: Optional[date] = None
+    province: Optional[str] = Field(None, description="Province code filter")
+    vh_trn: Optional[str] = Field(None, description="Vihara TRN filter")
+    district: Optional[str] = Field(None, description="District code filter")
+    divisional_secretariat: Optional[str] = Field(None, description="Divisional secretariat code filter")
+    gn_division: Optional[str] = Field(None, description="GN division code filter")
+    temple: Optional[str] = Field(None, description="Current residence temple TRN filter")
+    child_temple: Optional[str] = Field(None, description="Mahana temple TRN filter")
+    nikaya: Optional[str] = Field(None, description="Nikaya code filter")
+    parshawaya: Optional[str] = Field(None, description="Parshawaya code filter")
+    category: Optional[List[str]] = Field(None, description="List of category codes to filter by")
+    status: Optional[List[str]] = Field(None, description="List of status codes to filter by")
+    workflow_status: Optional[List[str]] = Field(None, description="List of workflow status codes to filter by")
+    date_from: Optional[date] = Field(None, description="Start date for filtering by request date")
+    date_to: Optional[date] = Field(None, description="End date for filtering by request date")
     # For CREATE, UPDATE
     data: Optional[Union[BhikkuCreate, BhikkuUpdate]] = None
     # For workflow actions (APPROVE, REJECT)

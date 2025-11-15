@@ -152,6 +152,9 @@ class BhikkuRepository:
         if child_temple:
             query = query.filter(models.Bhikku.br_mahanatemple == child_temple)
         
+        if nikaya:
+            query = query.filter(models.Bhikku.br_nikaya == nikaya)
+        
         if parshawaya:
             query = query.filter(models.Bhikku.br_parshawaya == parshawaya)
         
@@ -253,6 +256,9 @@ class BhikkuRepository:
         
         if child_temple:
             query = query.filter(models.Bhikku.br_mahanatemple == child_temple)
+        
+        if nikaya:
+            query = query.filter(models.Bhikku.br_nikaya == nikaya)
         
         if parshawaya:
             query = query.filter(models.Bhikku.br_parshawaya == parshawaya)
