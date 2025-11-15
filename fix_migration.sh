@@ -6,20 +6,45 @@ set -euo pipefail
 
 echo "Fixing Alembic migration history..."
 
-# First, clear the alembic_version table and stamp it with the latest revision
-# This tells Alembic to consider the database at the latest state without running migrations
-
 # Get the latest revision
 LATEST_REVISION="20251115160000"
 
 echo "Stamping database with revision: $LATEST_REVISION"
 
-# Option 1: If you have direct database access
-# psql $DATABASE_URL -c "DELETE FROM alembic_version;"
-# alembic stamp $LATEST_REVISION
+# Check if DATABASE_URL is set
+if [ -z "${DATABASE_URL:-}" ]; then
+    echo "ERROR: DATABASE_URL environment variable is not set"
+    echo "Please set it first: export DATABASE_URL='your_database_url'"
+    exit 1
+fi
 
-# Option 2: Use alembic stamp with --purge to clear and set
-alembic stamp --purge head
+echo "Using DATABASE_URL: ${DATABASE_URL%%@*}@***" # Hide password in output
 
+# Option 1: Try using psql if available
+if command -v psql &> /dev/null; then
+    echo "Using psql to fix database..."
+    psql "$DATABASE_URL" -c "DELETE FROM alembic_version;"
+    psql "$DATABASE_URL" -c "INSERT INTO alembic_version (version_num) VALUES ('$LATEST_REVISION');"
+    echo "✓ Database fixed using psql"
+else
+    # Option 2: Use Python
+    echo "Using Python to fix database..."
+    python3 <<EOF
+from sqlalchemy import create_engine, text
+import os
+
+db_url = os.environ.get('DATABASE_URL')
+engine = create_engine(db_url)
+with engine.connect() as conn:
+    conn.execute(text("DELETE FROM alembic_version"))
+    conn.execute(text("INSERT INTO alembic_version (version_num) VALUES ('$LATEST_REVISION')"))
+    conn.commit()
+print("✓ Database fixed using Python")
+EOF
+fi
+
+echo ""
 echo "Migration history fixed!"
-echo "The database is now marked as being at the latest revision."
+echo "The database is now marked as being at revision: $LATEST_REVISION"
+echo ""
+echo "You can now run: alembic upgrade head"
