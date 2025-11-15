@@ -162,7 +162,7 @@ class Bhikku(BhikkuBase):
     br_version_number: int
     
     # Workflow Fields
-    br_workflow_status: str = "PENDING"
+    br_workflow_status: Optional[str] = "PENDING"
     br_approval_status: Optional[str] = None
     br_approved_by: Optional[str] = None
     br_approved_at: Optional[datetime] = None
