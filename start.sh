@@ -73,6 +73,10 @@ EOF
     fi
 fi
 
+# Seed the database with initial admin user
+echo "Seeding database with initial admin user..."
+python3 -m app.db.seed || echo "⚠ Seeding skipped (user may already exist)"
+
 echo "Starting FastAPI application..."
 # Start FastAPI app
 exec uvicorn app.main:app --host 0.0.0.0 --port "$PORT"
