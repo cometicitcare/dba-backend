@@ -3,6 +3,8 @@ Test endpoint to debug RBAC context
 """
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
+from pydantic import BaseModel
+from typing import Optional, Dict, Any
 from app.api.deps import get_db
 from app.models.user import UserAccount
 from app.api.auth_dependencies import get_user_access_context
@@ -10,13 +12,22 @@ from app.api.auth_dependencies import get_user_access_context
 router = APIRouter()
 
 
-@router.get("/debug/user/{username}")
+class DebugUserContextResponse(BaseModel):
+    """Response model for debug user context endpoint"""
+    success: bool
+    user: Optional[Dict[str, Any]] = None
+    context: Optional[Dict[str, Any]] = None
+    error: Optional[str] = None
+    traceback: Optional[str] = None
+
+
+@router.get("/debug/user/{username}", response_model=DebugUserContextResponse)
 def debug_user_context(username: str, db: Session = Depends(get_db)):
     """Debug endpoint to test RBAC context retrieval"""
     try:
         user = db.query(UserAccount).filter(UserAccount.ua_username == username).first()
         if not user:
-            return {"error": f"User {username} not found"}
+            return {"success": False, "error": f"User {username} not found"}
         
         context = get_user_access_context(db, user)
         
@@ -36,3 +47,4 @@ def debug_user_context(username: str, db: Session = Depends(get_db)):
             "error": str(e),
             "traceback": traceback.format_exc()
         }
+

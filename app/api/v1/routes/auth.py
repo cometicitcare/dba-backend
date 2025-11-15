@@ -7,6 +7,13 @@ import logging
 
 from app.api.deps import get_db
 from app.schemas.user import UserCreate, UserLogin, UserResponse
+from app.schemas.auth import (
+    RoleListResponse,
+    LogoutResponse,
+    RefreshResponse,
+    UserContextResponse,
+    UserPermissionsResponse
+)
 from app.repositories import auth_repo
 from app.core.security import create_access_token
 from app.services.auth_service import auth_service
@@ -78,7 +85,8 @@ class OTPStatusResponse(BaseModel):
 # ============================================================================
 
 
-@router.get("/roles")
+
+@router.get("/roles", response_model=RoleListResponse)
 def get_roles(db: Session = Depends(get_db)):
     """Get all available roles"""
     roles = auth_repo.get_all_roles(db)
@@ -149,7 +157,7 @@ def register_user(user: UserCreate, db: Session = Depends(get_db)):
 #     set_auth_cookies(response, access_token=access, refresh_token=refresh)
 #     return response
 
-@router.post("/login")
+@router.post("/login", response_model=UserContextResponse)
 def login(
     request: Request,
     form_data: UserLogin,
@@ -235,7 +243,7 @@ def login(
         print(error_msg)
         return JSONResponse(status_code=500, content={"error": error_msg, "traceback": traceback.format_exc()})
 
-@router.post("/logout")
+@router.post("/logout", response_model=LogoutResponse)
 def logout(db: Session = Depends(get_db)):
     """Logout user by clearing auth cookies"""
     response = JSONResponse(content={"message": "Logout successful"})
@@ -243,7 +251,7 @@ def logout(db: Session = Depends(get_db)):
     return response
 
 
-@router.post("/refresh")
+@router.post("/refresh", response_model=RefreshResponse)
 def refresh_token(request: Request, db: Session = Depends(get_db)):
     """Refresh access token using refresh token from cookie"""
     refresh_token = request.cookies.get("refresh_token")
@@ -281,7 +289,7 @@ def refresh_token(request: Request, db: Session = Depends(get_db)):
 # RBAC CONTEXT ENDPOINTS
 # ============================================================================
 
-@router.get("/me/context")
+@router.get("/me/context", response_model=UserContextResponse)
 def get_my_context(
     request: Request,
     db: Session = Depends(get_db)
@@ -307,7 +315,7 @@ def get_my_context(
     }
 
 
-@router.get("/me/permissions")
+@router.get("/me/permissions", response_model=UserPermissionsResponse)
 def get_my_permissions(
     request: Request,
     db: Session = Depends(get_db)

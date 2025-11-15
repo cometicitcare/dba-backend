@@ -20,7 +20,7 @@ from app.utils.http_exceptions import validation_error
 router = APIRouter()  # Tags defined in router.py
 
 
-@router.post("/manage", response_model=ViharaManagementResponse, dependencies=[has_any_permission("system:create", "system:update", "system:delete")])
+@router.post("/manage", response_model=ViharaManagementResponse, dependencies=[has_any_permission("vihara:create", "vihara:read", "vihara:update", "vihara:delete")])
 def manage_vihara_records(
     request: ViharaManagementRequest,
     db: Session = Depends(get_db),
