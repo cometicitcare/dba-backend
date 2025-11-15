@@ -171,12 +171,34 @@ class ViharaOut(ViharaBase):
 
 
 class ViharaRequestPayload(BaseModel):
+    # Identifiers
     vh_id: Optional[int] = None
     vh_trn: Optional[str] = None
+    
+    # Pagination
     skip: Annotated[int, Field(ge=0)] = 0
     limit: Annotated[int, Field(ge=1, le=200)] = 10
     page: Annotated[Optional[int], Field(default=1, ge=1)] = 1
+    
+    # Search and filters
     search_key: Annotated[Optional[str], Field(default=None, max_length=200)] = None
+    province: Annotated[Optional[str], Field(default=None, max_length=10)] = None
+    district: Annotated[Optional[str], Field(default=None, max_length=10)] = None
+    divisional_secretariat: Annotated[Optional[str], Field(default=None, max_length=10)] = None
+    gn_division: Annotated[Optional[str], Field(default=None, max_length=10)] = None
+    temple: Annotated[Optional[str], Field(default=None, max_length=12)] = None  # vh_ownercd
+    child_temple: Annotated[Optional[str], Field(default=None, max_length=12)] = None
+    nikaya: Annotated[Optional[str], Field(default=None, max_length=10)] = None
+    parshawaya: Annotated[Optional[str], Field(default=None, max_length=10)] = None  # vh_parshawa
+    category: Annotated[Optional[str], Field(default=None, max_length=10)] = None
+    status: Annotated[Optional[str], Field(default=None, max_length=10)] = None
+    vh_typ: Annotated[Optional[str], Field(default=None, max_length=10)] = None  # vihara type
+    
+    # Date range filters
+    date_from: Optional[date] = None
+    date_to: Optional[date] = None
+    
+    # Data payload for CREATE/UPDATE
     data: Optional[Union[ViharaCreate, ViharaUpdate]] = None
 
 

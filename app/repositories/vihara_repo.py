@@ -69,9 +69,24 @@ class ViharaRepository:
         skip: int = 0,
         limit: int = 100,
         search: Optional[str] = None,
+        vh_trn: Optional[str] = None,
+        province: Optional[str] = None,
+        district: Optional[str] = None,
+        divisional_secretariat: Optional[str] = None,
+        gn_division: Optional[str] = None,
+        temple: Optional[str] = None,
+        child_temple: Optional[str] = None,
+        nikaya: Optional[str] = None,
+        parshawaya: Optional[str] = None,
+        category: Optional[str] = None,
+        status: Optional[str] = None,
+        vh_typ: Optional[str] = None,
+        date_from: Optional[Any] = None,
+        date_to: Optional[Any] = None,
     ) -> list[ViharaData]:
         query = db.query(ViharaData).filter(ViharaData.vh_is_deleted.is_(False))
 
+        # General search (existing functionality)
         if search:
             search_term = f"%{search.strip()}%"
             query = query.filter(
@@ -86,16 +101,66 @@ class ViharaRepository:
                     ViharaData.vh_ownercd.ilike(search_term),
                 )
             )
+
+        # Specific field filters
+        if vh_trn:
+            query = query.filter(ViharaData.vh_trn == vh_trn)
+        
+        if gn_division:
+            query = query.filter(ViharaData.vh_gndiv == gn_division)
+        
+        if temple:  # Maps to vh_ownercd
+            query = query.filter(ViharaData.vh_ownercd == temple)
+        
+        if child_temple:  # Also maps to vh_ownercd for child temple filtering
+            query = query.filter(ViharaData.vh_ownercd == child_temple)
+        
+        if parshawaya:  # Maps to vh_parshawa
+            query = query.filter(ViharaData.vh_parshawa == parshawaya)
+        
+        if vh_typ:  # Vihara type
+            query = query.filter(ViharaData.vh_typ == vh_typ)
+        
+        # Date range filtering (on creation date)
+        if date_from:
+            query = query.filter(ViharaData.vh_created_at >= date_from)
+        
+        if date_to:
+            query = query.filter(ViharaData.vh_created_at <= date_to)
+        
+        # Note: province, district, divisional_secretariat, nikaya, category, status
+        # are not currently in the ViharaData model. If they are in related tables,
+        # you'll need to add joins here. For now, we skip them to avoid errors.
 
         return (
             query.order_by(ViharaData.vh_id).offset(max(skip, 0)).limit(limit).all()
         )
 
-    def count(self, db: Session, *, search: Optional[str] = None) -> int:
+    def count(
+        self, 
+        db: Session, 
+        *, 
+        search: Optional[str] = None,
+        vh_trn: Optional[str] = None,
+        province: Optional[str] = None,
+        district: Optional[str] = None,
+        divisional_secretariat: Optional[str] = None,
+        gn_division: Optional[str] = None,
+        temple: Optional[str] = None,
+        child_temple: Optional[str] = None,
+        nikaya: Optional[str] = None,
+        parshawaya: Optional[str] = None,
+        category: Optional[str] = None,
+        status: Optional[str] = None,
+        vh_typ: Optional[str] = None,
+        date_from: Optional[Any] = None,
+        date_to: Optional[Any] = None,
+    ) -> int:
         query = db.query(func.count(ViharaData.vh_id)).filter(
             ViharaData.vh_is_deleted.is_(False)
         )
 
+        # General search
         if search:
             search_term = f"%{search.strip()}%"
             query = query.filter(
@@ -110,6 +175,31 @@ class ViharaRepository:
                     ViharaData.vh_ownercd.ilike(search_term),
                 )
             )
+
+        # Specific field filters (same as list method)
+        if vh_trn:
+            query = query.filter(ViharaData.vh_trn == vh_trn)
+        
+        if gn_division:
+            query = query.filter(ViharaData.vh_gndiv == gn_division)
+        
+        if temple:
+            query = query.filter(ViharaData.vh_ownercd == temple)
+        
+        if child_temple:
+            query = query.filter(ViharaData.vh_ownercd == child_temple)
+        
+        if parshawaya:
+            query = query.filter(ViharaData.vh_parshawa == parshawaya)
+        
+        if vh_typ:
+            query = query.filter(ViharaData.vh_typ == vh_typ)
+        
+        if date_from:
+            query = query.filter(ViharaData.vh_created_at >= date_from)
+        
+        if date_to:
+            query = query.filter(ViharaData.vh_created_at <= date_to)
 
         return query.scalar() or 0
 
