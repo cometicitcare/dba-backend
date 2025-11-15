@@ -17,7 +17,7 @@ from app.schemas.bhikku_category import (
 from app.services.bhikku_category_service import bhikku_category_service
 from app.utils.http_exceptions import validation_error
 
-router = APIRouter(tags=["Bhikku Category"])
+router = APIRouter()  # Tags defined in router.py
 
 
 @router.post("/manage", response_model=BhikkuCategoryManagementResponse, dependencies=[has_any_permission("bhikku:create", "bhikku:update", "bhikku:delete")])

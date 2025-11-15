@@ -17,7 +17,7 @@ from app.schemas.audit_log import (
 )
 from app.utils.http_exceptions import validation_error
 
-router = APIRouter(tags=["Audit Log"])
+router = APIRouter()  # Tags defined in router.py
 
 
 def _is_system_user(user: UserAccount) -> bool:

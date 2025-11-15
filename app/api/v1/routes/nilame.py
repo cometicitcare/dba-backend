@@ -12,7 +12,7 @@ from app.services.nilame_service import nilame_service
 from app.utils.http_exceptions import validation_error
 from pydantic import ValidationError
 
-router = APIRouter(tags=["Nilame"])
+router = APIRouter()  # Tags defined in router.py
 
 
 @router.post("/manage", response_model=schemas.NilameManagementResponse, dependencies=[has_any_permission("system:create", "system:update", "system:delete")])

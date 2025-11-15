@@ -18,7 +18,7 @@ from app.schemas.status import (
 from app.services.status_service import status_service
 from app.utils.http_exceptions import validation_error
 
-router = APIRouter(tags=["Status"])
+router = APIRouter()  # Tags defined in router.py
 
 
 @router.post("/manage", response_model=StatusManagementResponse, dependencies=[has_any_permission("system:create", "system:update", "system:delete")])

@@ -18,7 +18,7 @@ from app.schemas.religion import (
 from app.services.religion_service import religion_service
 from app.utils.http_exceptions import validation_error
 
-router = APIRouter(tags=["Religion"])
+router = APIRouter()  # Tags defined in router.py
 
 
 @router.post("/manage", response_model=ReligionManagementResponse, dependencies=[has_any_permission("system:create", "system:update", "system:delete")])

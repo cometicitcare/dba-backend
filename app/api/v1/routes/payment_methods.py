@@ -11,7 +11,7 @@ from app.schemas import payment_method as schemas
 from app.services.payment_method_service import payment_method_service
 from app.utils.http_exceptions import validation_error
 
-router = APIRouter(tags=["Payment Methods"])
+router = APIRouter()  # Tags defined in router.py
 
 
 @router.post("/manage", response_model=schemas.PaymentMethodManagementResponse, dependencies=[has_any_permission("system:create", "system:update", "system:delete")])

@@ -19,7 +19,7 @@ from app.services.divisional_secretariat_service import (
 )
 from app.utils.http_exceptions import validation_error
 
-router = APIRouter(tags=["Divisional Secretariat"])
+router = APIRouter()  # Tags defined in router.py
 
 
 @router.post("/manage", response_model=DivisionalSecretariatManagementResponse, dependencies=[has_any_permission("div_secretariat:create", "div_secretariat:update", "div_secretariat:delete")])

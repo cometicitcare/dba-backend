@@ -39,104 +39,217 @@ from app.api.v1 import auth_sms_test
 
 api_router = APIRouter()
 
-api_router.include_router(health.router, tags=["Health"])
-api_router.include_router(bhikkus.router, prefix="/bhikkus", tags=["Bhikkus"])
+# ============================================================================
+# HEALTH & STATUS
+# ============================================================================
 api_router.include_router(
-    silmatha_id.router,
-    prefix="/silmatha-id",
-    tags=["Silmatha ID"],
+    health.router, 
+    tags=["🏥 Health & Status"]
+)
+
+# ============================================================================
+# AUTHENTICATION & AUTHORIZATION
+# ============================================================================
+api_router.include_router(
+    auth.router, 
+    prefix="/auth", 
+    tags=["🔐 Authentication & Authorization"]
 )
 api_router.include_router(
-    bhikku_id_card.router,
-    prefix="/bhikku-id-card",
-    tags=["Bhikku ID Card"],
+    auth_sms_test.router, 
+    prefix="/auth", 
+    tags=["🔐 Authentication & Authorization"]
 )
-api_router.include_router(bhikku_high.router, prefix="/bhikkus-high", tags=["Bhikku High"])
+
+# ============================================================================
+# DBA-HRMS: BHIKKU REGISTRATION
+# ============================================================================
 api_router.include_router(
-    bhikku_certification.router,
-    prefix="/bhikkus-certifications",
-    tags=["Bhikku Certification"],
-)
-api_router.include_router(
-    certificates.router,
-    prefix="/certificates",
-    tags=["Certificates"],
+    bhikkus.router, 
+    prefix="/bhikkus", 
+    tags=["👤 DBA-HRMS: Bhikku Registration"]
 )
 api_router.include_router(
-    certificate_changes.router,
-    prefix="/certificate-changes",
-    tags=["Certificate Changes"],
-)
-api_router.include_router(
-    banks.router,
-    prefix="/banks",
-    tags=["Banks"],
-)
-api_router.include_router(
-    bank_branches.router,
-    prefix="/bank-branches",
-    tags=["Bank Branches"],
-)
-api_router.include_router(
-    payment_methods.router,
-    prefix="/payment-methods",
-    tags=["Payment Methods"],
+    bhikku_high.router, 
+    prefix="/bhikkus-high", 
+    tags=["👤 DBA-HRMS: Bhikku Registration"]
 )
 api_router.include_router(
     bhikku_summary.router,
     prefix="/bhikkus-summary",
-    tags=["Bhikku Summary"],
+    tags=["👤 DBA-HRMS: Bhikku Registration"]
 )
-api_router.include_router(dashboard.router, prefix="/dashboard", tags=["Dashboard"])
-api_router.include_router(nilame.router, prefix="/nilame", tags=["Nilame"])
-api_router.include_router(debug.router, tags=["Debug"])
-api_router.include_router(auth.router, prefix="/auth", tags=["Authentication"])
-api_router.include_router(auth_sms_test.router, prefix="/auth", tags=["Authentication"])
+
+# ============================================================================
+# DBA-HRMS: BHIKKU ID CARD
+# ============================================================================
+api_router.include_router(
+    bhikku_id_card.router,
+    prefix="/bhikku-id-card",
+    tags=["🪪 DBA-HRMS: Bhikku ID Card"]
+)
+
+# ============================================================================
+# DBA-HRMS: CERTIFICATIONS & DOCUMENTS
+# ============================================================================
+api_router.include_router(
+    bhikku_certification.router,
+    prefix="/bhikkus-certifications",
+    tags=["📜 DBA-HRMS: Certifications & Documents"]
+)
+api_router.include_router(
+    certificates.router,
+    prefix="/certificates",
+    tags=["📜 DBA-HRMS: Certifications & Documents"]
+)
+api_router.include_router(
+    certificate_changes.router,
+    prefix="/certificate-changes",
+    tags=["📜 DBA-HRMS: Certifications & Documents"]
+)
+
+# ============================================================================
+# SILMATHA MANAGEMENT
+# ============================================================================
+api_router.include_router(
+    silmatha_id.router,
+    prefix="/silmatha-id",
+    tags=["🕉️ Silmatha Management"]
+)
+
+# ============================================================================
+# VIHARA & RELIGIOUS DATA
+# ============================================================================
 api_router.include_router(
     vihara_data.router,
     prefix="/vihara-data",
+    tags=["🏛️ Vihara & Religious Data"]
 )
-api_router.include_router(beneficiary_data.router, prefix="/beneficiary-data")
 api_router.include_router(
     bhikku_parshawa_data.router,
     prefix="/bhikku-parshawa-data",
-    tags=["Bhikku Parshawa Data"],
+    tags=["🏛️ Vihara & Religious Data"]
 )
 api_router.include_router(
     bhikku_nikaya_data.router,
     prefix="/bhikku-nikaya-data",
-    tags=["Bhikku Nikaya Data"],
-)
-api_router.include_router(city.router, prefix="/city", tags=["City"])
-api_router.include_router(
-    gramasewaka.router, prefix="/gramasewaka", tags=["Gramasewaka Management"]
+    tags=["🏛️ Vihara & Religious Data"]
 )
 api_router.include_router(
-    bhikku_category.router, prefix="/bhikku-category", tags=["Bhikku Category"]
-)
-api_router.include_router(district.router, prefix="/district", tags=["District"])
-api_router.include_router(roles.router, prefix="/roles", tags=["Roles"])
-api_router.include_router(
-    audit_log.router, prefix="/audit-log", tags=["Audit Log"]
+    religion.router, 
+    prefix="/religion", 
+    tags=["🏛️ Vihara & Religious Data"]
 )
 api_router.include_router(
-    religion.router, prefix="/religion", tags=["Religion"]
+    nilame.router, 
+    prefix="/nilame", 
+    tags=["🏛️ Vihara & Religious Data"]
+)
+
+# ============================================================================
+# MASTER DATA MANAGEMENT
+# ============================================================================
+api_router.include_router(
+    banks.router,
+    prefix="/banks",
+    tags=["📊 Master Data Management"]
 )
 api_router.include_router(
-    status.router, prefix="/status", tags=["Status"]
+    bank_branches.router,
+    prefix="/bank-branches",
+    tags=["📊 Master Data Management"]
 )
-api_router.include_router(province.router, prefix="/province", tags=["Province"])
+api_router.include_router(
+    payment_methods.router,
+    prefix="/payment-methods",
+    tags=["📊 Master Data Management"]
+)
+api_router.include_router(
+    beneficiary_data.router, 
+    prefix="/beneficiary-data",
+    tags=["📊 Master Data Management"]
+)
+api_router.include_router(
+    bhikku_category.router, 
+    prefix="/bhikku-category", 
+    tags=["📊 Master Data Management"]
+)
+api_router.include_router(
+    status.router, 
+    prefix="/status", 
+    tags=["📊 Master Data Management"]
+)
+
+# ============================================================================
+# LOCATION MANAGEMENT
+# ============================================================================
+api_router.include_router(
+    province.router, 
+    prefix="/province", 
+    tags=["📍 Location Management"]
+)
+api_router.include_router(
+    district.router, 
+    prefix="/district", 
+    tags=["📍 Location Management"]
+)
+api_router.include_router(
+    city.router, 
+    prefix="/city", 
+    tags=["📍 Location Management"]
+)
 api_router.include_router(
     divisional_secretariat.router,
     prefix="/divisional-secretariat",
-    tags=["Divisional Secretariat"],
+    tags=["📍 Location Management"]
+)
+api_router.include_router(
+    gramasewaka.router, 
+    prefix="/gramasewaka", 
+    tags=["📍 Location Management"]
 )
 api_router.include_router(
     location_hierarchy.router,
     prefix="/locations",
+    tags=["📍 Location Management"]
 )
+
+# ============================================================================
+# USER & ROLE MANAGEMENT (RBAC)
+# ============================================================================
 api_router.include_router(
     rbac_admin.router,
     prefix="/admin",
-    tags=["RBAC Administration"],
+    tags=["👥 User & Role Management"]
+)
+api_router.include_router(
+    roles.router, 
+    prefix="/roles", 
+    tags=["👥 User & Role Management"]
+)
+
+# ============================================================================
+# DASHBOARD & REPORTS
+# ============================================================================
+api_router.include_router(
+    dashboard.router, 
+    prefix="/dashboard", 
+    tags=["📈 Dashboard & Reports"]
+)
+
+# ============================================================================
+# AUDIT & MONITORING
+# ============================================================================
+api_router.include_router(
+    audit_log.router, 
+    prefix="/audit-log", 
+    tags=["🔍 Audit & Monitoring"]
+)
+
+# ============================================================================
+# SYSTEM & DEBUG
+# ============================================================================
+api_router.include_router(
+    debug.router, 
+    tags=["🛠️ System & Debug"]
 )

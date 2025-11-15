@@ -17,7 +17,7 @@ from app.schemas.vihara import (
 from app.services.vihara_service import vihara_service
 from app.utils.http_exceptions import validation_error
 
-router = APIRouter(tags=["Vihara Data"])
+router = APIRouter()  # Tags defined in router.py
 
 
 @router.post("/manage", response_model=ViharaManagementResponse, dependencies=[has_any_permission("system:create", "system:update", "system:delete")])

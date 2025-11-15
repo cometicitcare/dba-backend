@@ -7,9 +7,87 @@ from app.api.v1.router import api_router
 from app.api.v1.routes import health  # <-- Import the health router
 from app.middleware.audit import AuditMiddleware
 
+# API Documentation Metadata
+tags_metadata = [
+    {
+        "name": "🏥 Health & Status",
+        "description": "API health check and system status endpoints",
+    },
+    {
+        "name": "🔐 Authentication & Authorization",
+        "description": "User login, registration, password reset, OTP verification, and access control",
+    },
+    {
+        "name": "👤 DBA-HRMS: Bhikku Registration",
+        "description": "Bhikku registration, profile management, search, and workflow operations",
+    },
+    {
+        "name": "🪪 DBA-HRMS: Bhikku ID Card",
+        "description": "Bhikku ID card generation, workflow, printing, and reprint operations",
+    },
+    {
+        "name": "📜 DBA-HRMS: Certifications & Documents",
+        "description": "Bhikku certifications, certificates, and certificate change management",
+    },
+    {
+        "name": "🕉️ Silmatha Management",
+        "description": "Silmatha ID card generation and management system",
+    },
+    {
+        "name": "🏛️ Vihara & Religious Data",
+        "description": "Vihara (temple) data, Nikaya, Parshawa, and religious information",
+    },
+    {
+        "name": "📊 Master Data Management",
+        "description": "Banks, payment methods, beneficiary data, categories, and reference data",
+    },
+    {
+        "name": "📍 Location Management",
+        "description": "Province, district, city, divisional secretariat, and location hierarchy",
+    },
+    {
+        "name": "👥 User & Role Management",
+        "description": "RBAC administration, user management, roles, permissions, and groups",
+    },
+    {
+        "name": "📈 Dashboard & Reports",
+        "description": "Dashboard statistics, summaries, and reporting endpoints",
+    },
+    {
+        "name": "🔍 Audit & Monitoring",
+        "description": "Audit logs, activity tracking, and system monitoring",
+    },
+    {
+        "name": "🛠️ System & Debug",
+        "description": "System utilities, debugging tools, and administrative functions",
+    },
+]
+
 app = FastAPI(
-    title=settings.PROJECT_NAME,
-    version=settings.PROJECT_VERSION
+    title="DBA-HRMS API",
+    description="""
+## Department of Buddhist Affairs - Human Resource Management System
+
+Complete API for managing:
+- **Bhikku Registration & ID Card Workflow** - Complete lifecycle management
+- **Silmatha Management** - Silmatha ID card system
+- **Authentication & Authorization** - Secure user access control
+- **Master Data & Locations** - Reference data and geographic information
+
+### Base URL
+- Production: `https://api.dbagovlk.com`
+- Development: `http://127.0.0.1:8000`
+
+### Authentication
+Most endpoints require JWT authentication. Include the token in the Authorization header:
+```
+Authorization: Bearer <your_token>
+```
+    """,
+    version=settings.PROJECT_VERSION,
+    openapi_tags=tags_metadata,
+    docs_url="/docs",
+    redoc_url="/redoc",
 )
 
 register_exception_handlers(app)

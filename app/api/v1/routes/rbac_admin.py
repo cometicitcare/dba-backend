@@ -21,7 +21,7 @@ from app.schemas.rbac_admin import (
     UserListResponse,
 )
 
-router = APIRouter(tags=["RBAC Administration"], prefix="/rbac")
+router = APIRouter(prefix="/rbac")  # Tags defined in router.py
 
 
 # ==================== User Role Management ====================

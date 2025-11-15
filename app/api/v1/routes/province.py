@@ -19,7 +19,7 @@ from app.schemas.province import (
 from app.services.province_service import province_service
 from app.utils.http_exceptions import validation_error
 
-router = APIRouter(tags=["Province"])
+router = APIRouter()  # Tags defined in router.py
 
 PayloadModel = TypeVar("PayloadModel", bound=BaseModel)
 

@@ -7,7 +7,7 @@ from app.models.group import Group
 from app.services.group_service import group_service
 from app.utils.http_exceptions import validation_error
 
-router = APIRouter(tags=["Groups"])
+router = APIRouter()  # Tags defined in router.py
 
 # Create a new group
 @router.post("/create", response_model=GroupOut, dependencies=[has_permission("system:manage_roles")])
