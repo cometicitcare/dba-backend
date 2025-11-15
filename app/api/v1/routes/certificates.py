@@ -12,7 +12,7 @@ from app.schemas import certificate as schemas
 from app.services.certificate_service import certificate_service
 from app.utils.http_exceptions import validation_error
 
-router = APIRouter(tags=["Certificates"])
+router = APIRouter()  # Tags defined in router.py
 
 
 @router.post("/manage", response_model=schemas.CertificateManagementResponse, dependencies=[has_any_permission("certificate:create", "certificate:update", "certificate:delete")])

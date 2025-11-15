@@ -17,7 +17,7 @@ from app.schemas.parshawadata import (
 from app.services.parshawadata_service import parshawa_service
 from app.utils.http_exceptions import validation_error
 
-router = APIRouter(tags=["Bhikku Parshawa Data"])
+router = APIRouter()  # Tags defined in router.py
 
 
 @router.post("/manage", response_model=ParshawaManagementResponse, dependencies=[has_any_permission("bhikku:create", "bhikku:update", "bhikku:delete")])

@@ -10,7 +10,7 @@ from app.utils.http_exceptions import validation_error
 from app.services.permission_service import permission_service  # New service for permission check
 from pydantic import ValidationError
 
-router = APIRouter(tags=["Bhikku High"])
+router = APIRouter()  # Tags defined in router.py
 
 # Check if the user has permission to perform an action on Bhikku High
 def check_permission(db: Session, user_id: str, permission_name: str):

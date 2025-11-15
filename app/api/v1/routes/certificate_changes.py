@@ -11,7 +11,7 @@ from app.schemas import certificate_change as schemas
 from app.services.certificate_change_service import certificate_change_service
 from app.utils.http_exceptions import validation_error
 
-router = APIRouter(tags=["Certificate Changes"])
+router = APIRouter()  # Tags defined in router.py
 
 
 @router.post("/manage", response_model=schemas.CertificateChangeManagementResponse, dependencies=[has_any_permission("certificate:create", "certificate:update", "certificate:delete")])

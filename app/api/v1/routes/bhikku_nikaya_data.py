@@ -16,7 +16,7 @@ from app.schemas.nikaya import (
 from app.services.nikaya_service import nikaya_service
 from app.utils.http_exceptions import validation_error
 
-router = APIRouter(tags=["Bhikku Nikaya Data"])
+router = APIRouter()  # Tags defined in router.py
 
 
 @router.post("/manage", response_model=NikayaManagementResponse, dependencies=[has_any_permission("bhikku:create", "bhikku:update", "bhikku:delete")])

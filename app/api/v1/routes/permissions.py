@@ -7,7 +7,7 @@ from app.models.permission import Permission
 from app.services.permission_service import permission_service
 from app.utils.http_exceptions import validation_error
 
-router = APIRouter(tags=["Permissions"])
+router = APIRouter()  # Tags defined in router.py
 
 # Create a new permission
 @router.post("/create", response_model=PermissionOut, dependencies=[has_permission("system:manage_permissions")])

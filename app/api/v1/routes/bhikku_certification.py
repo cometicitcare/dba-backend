@@ -10,7 +10,7 @@ from app.repositories.bhikku_certification_repo import bhikku_certification_repo
 from app.schemas import bhikku_certification as schemas
 from app.utils.http_exceptions import validation_error
 
-router = APIRouter(tags=["Bhikku Certification"])
+router = APIRouter()  # Tags defined in router.py
 
 
 @router.post("/manage", response_model=schemas.BhikkuCertificationManagementResponse, dependencies=[has_any_permission("bhikku:create", "bhikku:update", "bhikku:delete")])

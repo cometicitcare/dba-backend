@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends
 from app.api.auth_middleware import get_current_user
 from app.models.user import UserAccount
 
-router = APIRouter(tags=["Dashboard"])
+router = APIRouter()  # Tags defined in router.py
 
 
 @router.get("/session")

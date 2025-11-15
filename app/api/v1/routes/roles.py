@@ -17,7 +17,7 @@ from app.schemas.roles import (
 )
 from app.utils.http_exceptions import validation_error
 
-router = APIRouter(tags=["Roles"])
+router = APIRouter()  # Tags defined in router.py
 
 
 @router.post("/manage", response_model=RoleManagementResponse, dependencies=[has_permission("system:manage_roles")])

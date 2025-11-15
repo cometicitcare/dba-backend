@@ -13,7 +13,7 @@ from app.schemas.location import (
 from app.services.location_service import location_service
 from app.services.gramasewaka_service import gramasewaka_service
 
-router = APIRouter(tags=["Location Hierarchy"])
+router = APIRouter()  # Tags defined in router.py
 
 
 @router.get("/hierarchy", response_model=LocationHierarchyResponse, dependencies=[has_permission("public:view")])

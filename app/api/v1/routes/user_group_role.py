@@ -10,7 +10,7 @@ from app.models.user_roles import UserRole
 from app.schemas.user_group_role import UserGroupRoleResponse
 from app.api.auth_middleware import get_current_user
 
-router = APIRouter(tags=["User Group and Role"])
+router = APIRouter()  # Tags defined in router.py
 
 @router.get("/user_group_role", response_model=UserGroupRoleResponse)
 def get_user_group_role(

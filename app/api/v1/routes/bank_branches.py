@@ -11,7 +11,7 @@ from app.schemas import bank_branch as schemas
 from app.services.bank_branch_service import bank_branch_service
 from app.utils.http_exceptions import validation_error
 
-router = APIRouter(tags=["Bank Branches"])
+router = APIRouter()  # Tags defined in router.py
 
 
 @router.post("/manage", response_model=schemas.BankBranchManagementResponse, dependencies=[has_any_permission("system:create", "system:update", "system:delete")])

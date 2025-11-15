@@ -16,7 +16,7 @@ from app.schemas.beneficiary import (
 from app.services.beneficiary_service import beneficiary_service
 from app.utils.http_exceptions import validation_error
 
-router = APIRouter(tags=["Beneficiary Data"])
+router = APIRouter()  # Tags defined in router.py
 
 
 @router.post("/manage", response_model=BeneficiaryManagementResponse, dependencies=[has_any_permission("system:create", "system:update", "system:delete")])

@@ -8,7 +8,7 @@ from app.models.user import UserAccount
 from app.schemas.silmatha_id import SilmathaIDCardResponse
 from app.services.silmatha_id_service import silmatha_id_service
 
-router = APIRouter(tags=["Silmatha ID"])
+router = APIRouter()  # Tags defined in router.py
 
 
 @router.get("/{regn}", response_model=SilmathaIDCardResponse, dependencies=[has_permission("silmatha:read")])

@@ -7,7 +7,7 @@ from app.models.user_group import UserGroup
 from app.services.user_group_service import user_group_service
 from app.utils.http_exceptions import validation_error
 
-router = APIRouter(tags=["User Groups"])
+router = APIRouter()  # Tags defined in router.py
 
 # Add a user to a group
 @router.post("/add", response_model=UserGroupOut, dependencies=[has_permission("system:manage_users")])

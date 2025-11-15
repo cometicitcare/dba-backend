@@ -16,7 +16,7 @@ from app.schemas.city import (
 from app.services.city_service import city_service
 from app.utils.http_exceptions import validation_error
 
-router = APIRouter(tags=["City"])
+router = APIRouter()  # Tags defined in router.py
 
 
 @router.post("/manage", response_model=CityManagementResponse, dependencies=[has_any_permission("system:create", "system:update", "system:delete")])
