@@ -186,7 +186,7 @@ def remove_permission_override(
 
 # ==================== User RBAC Context Retrieval ====================
 
-@router.get("/user/{user_id}/context", dependencies=[has_any_permission("system:manage_users", "system:view_users")])
+@router.get("/user/{user_id}/context", response_model=dict, dependencies=[has_any_permission("system:manage_users", "system:view_users")])
 def get_user_rbac_context(
     user_id: str,
     db: Session = Depends(get_db),
