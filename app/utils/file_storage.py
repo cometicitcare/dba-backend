@@ -33,14 +33,16 @@ class FileStorageService:
         # Ensure base directory exists
         self.base_storage_path.mkdir(parents=True, exist_ok=True)
     
-    def _get_storage_directory(self, br_regn: str) -> Path:
+    def _get_storage_directory(self, br_regn: str, subdirectory: str = None) -> Path:
         """
         Generate the storage directory path based on current date and br_regn.
         
-        Format: <base>/<year>/<month>/<day>/<br_regn>/
+        Format: <base>/<subdirectory>/<year>/<month>/<day>/<br_regn>/
+        or <base>/<year>/<month>/<day>/<br_regn>/ if subdirectory is None
         
         Args:
             br_regn: Bhikku registration number
+            subdirectory: Optional subdirectory (e.g., 'bhikku_update', 'bhikku_id_card')
             
         Returns:
             Path object for the storage directory
@@ -50,7 +52,10 @@ class FileStorageService:
         month = f"{now.month:02d}"
         day = f"{now.day:02d}"
         
-        storage_dir = self.base_storage_path / year / month / day / br_regn
+        if subdirectory:
+            storage_dir = self.base_storage_path / subdirectory / year / month / day / br_regn
+        else:
+            storage_dir = self.base_storage_path / year / month / day / br_regn
         
         # Create directory if it doesn't exist
         storage_dir.mkdir(parents=True, exist_ok=True)
@@ -70,8 +75,8 @@ class FileStorageService:
         # Get file extension
         file_extension = Path(filename).suffix.lower()
         
-        # Validate extension (only allow images)
-        allowed_extensions = {".jpg", ".jpeg", ".png", ".gif", ".bmp", ".webp"}
+        # Validate extension (only allow images and PDFs)
+        allowed_extensions = {".jpg", ".jpeg", ".png", ".gif", ".bmp", ".webp", ".pdf"}
         if file_extension not in allowed_extensions:
             raise HTTPException(
                 status_code=400,
@@ -89,7 +94,8 @@ class FileStorageService:
         self,
         file: UploadFile,
         br_regn: str,
-        file_type: str = "general"
+        file_type: str = "general",
+        subdirectory: str = None
     ) -> Tuple[str, str]:
         """
         Save an uploaded file to disk.
@@ -97,7 +103,8 @@ class FileStorageService:
         Args:
             file: The uploaded file
             br_regn: Bhikku registration number
-            file_type: Type of file (e.g., 'thumbprint', 'photo')
+            file_type: Type of file (e.g., 'thumbprint', 'photo', 'scanned_document')
+            subdirectory: Optional subdirectory (e.g., 'bhikku_update', 'bhikku_id_card')
             
         Returns:
             Tuple of (relative_path, absolute_path)
@@ -128,8 +135,8 @@ class FileStorageService:
         # Reset file pointer
         await file.seek(0)
         
-        # Generate storage directory
-        storage_dir = self._get_storage_directory(br_regn)
+        # Generate storage directory with optional subdirectory
+        storage_dir = self._get_storage_directory(br_regn, subdirectory)
         
         # Generate safe filename with type prefix
         original_filename = file.filename
@@ -140,8 +147,8 @@ class FileStorageService:
         # Create filename with type prefix
         safe_filename = f"{file_type}_{timestamp}_{unique_id}{file_extension}"
         
-        # Validate extension
-        allowed_extensions = {".jpg", ".jpeg", ".png", ".gif", ".bmp", ".webp"}
+        # Validate extension - support both images and PDFs
+        allowed_extensions = {".jpg", ".jpeg", ".png", ".gif", ".bmp", ".webp", ".pdf"}
         if file_extension not in allowed_extensions:
             raise HTTPException(
                 status_code=400,

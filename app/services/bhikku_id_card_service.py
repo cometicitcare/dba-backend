@@ -367,10 +367,12 @@ class BhikkuIDCardService:
             self.file_storage.delete_file(card.bic_left_thumbprint_url)
         
         # Save new file
+        # File will be stored at: app/storage/bhikku_id/<year>/<month>/<day>/<br_regn>/left_thumbprint_*.*
         relative_path, _ = await self.file_storage.save_file(
             file,
             card.bic_br_regn,
-            "left_thumbprint"
+            "left_thumbprint",
+            subdirectory="bhikku_id"
         )
         
         # Update database
@@ -416,10 +418,12 @@ class BhikkuIDCardService:
             self.file_storage.delete_file(card.bic_applicant_photo_url)
         
         # Save new file
+        # File will be stored at: app/storage/bhikku_id/<year>/<month>/<day>/<br_regn>/applicant_photo_*.*
         relative_path, _ = await self.file_storage.save_file(
             file,
             card.bic_br_regn,
-            "applicant_photo"
+            "applicant_photo",
+            subdirectory="bhikku_id"
         )
         
         # Update database

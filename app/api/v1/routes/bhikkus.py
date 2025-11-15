@@ -1,5 +1,5 @@
 # app/api/v1/routes/bhikkus.py
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_db
@@ -614,8 +614,9 @@ def manage_bhikku_records(
         except RuntimeError as exc:
             raise HTTPException(status_code=500, detail=str(exc)) from exc
 
-        # Convert SQLAlchemy model to Pydantic schema
-        bhikku_schema = schemas.Bhikku.model_validate(created_bhikku)
+        # Convert SQLAlchemy model to Pydantic schema with enriched data
+        enriched_data = bhikku_service.enrich_bhikku_dict(created_bhikku, db=db)
+        bhikku_schema = schemas.Bhikku(**enriched_data)
         
         return schemas.BhikkuManagementResponse(
             status="success",
@@ -633,7 +634,9 @@ def manage_bhikku_records(
         if db_bhikku is None:
             raise HTTPException(status_code=404, detail="Bhikku not found")
         
-        bhikku_schema = schemas.Bhikku.model_validate(db_bhikku)
+        # Enrich with resolved names (names replace codes)
+        enriched_data = bhikku_service.enrich_bhikku_dict(db_bhikku, db=db)
+        bhikku_schema = schemas.Bhikku(**enriched_data)
         return schemas.BhikkuManagementResponse(
             status="success",
             message="Bhikku retrieved successfully.",
@@ -696,8 +699,8 @@ def manage_bhikku_records(
             date_to=payload.date_to
         )
         
-        # Convert SQLAlchemy models to Pydantic schemas
-        bhikku_schemas = [schemas.Bhikku.model_validate(bhikku) for bhikku in bhikkus]
+        # Convert SQLAlchemy models to Pydantic schemas with enriched data (names replace codes)
+        bhikku_schemas = [schemas.Bhikku(**bhikku_service.enrich_bhikku_dict(bhikku, db=db)) for bhikku in bhikkus]
         
         return schemas.BhikkuManagementResponse(
             status="success",
@@ -750,7 +753,9 @@ def manage_bhikku_records(
         except RuntimeError as exc:
             raise HTTPException(status_code=500, detail=str(exc)) from exc
 
-        bhikku_schema = schemas.Bhikku.model_validate(updated_bhikku)
+        # Return enriched data with resolved names
+        enriched_data = bhikku_service.enrich_bhikku_dict(updated_bhikku, db=db)
+        bhikku_schema = schemas.Bhikku(**enriched_data)
         return schemas.BhikkuManagementResponse(
             status="success",
             message="Bhikku updated successfully.",
@@ -799,7 +804,8 @@ def manage_bhikku_records(
         except RuntimeError as exc:
             raise HTTPException(status_code=500, detail=str(exc)) from exc
 
-        bhikku_schema = schemas.Bhikku.model_validate(approved_bhikku)
+        enriched_data = bhikku_service.enrich_bhikku_dict(approved_bhikku, db=db)
+        bhikku_schema = schemas.Bhikku(**enriched_data)
         return schemas.BhikkuManagementResponse(
             status="success",
             message="Bhikku approved successfully.",
@@ -827,7 +833,8 @@ def manage_bhikku_records(
         except RuntimeError as exc:
             raise HTTPException(status_code=500, detail=str(exc)) from exc
 
-        bhikku_schema = schemas.Bhikku.model_validate(rejected_bhikku)
+        enriched_data = bhikku_service.enrich_bhikku_dict(rejected_bhikku, db=db)
+        bhikku_schema = schemas.Bhikku(**enriched_data)
         return schemas.BhikkuManagementResponse(
             status="success",
             message="Bhikku rejected successfully.",
@@ -852,7 +859,8 @@ def manage_bhikku_records(
         except RuntimeError as exc:
             raise HTTPException(status_code=500, detail=str(exc)) from exc
 
-        bhikku_schema = schemas.Bhikku.model_validate(printed_bhikku)
+        enriched_data = bhikku_service.enrich_bhikku_dict(printed_bhikku, db=db)
+        bhikku_schema = schemas.Bhikku(**enriched_data)
         return schemas.BhikkuManagementResponse(
             status="success",
             message="Bhikku certificate marked as printed successfully.",
@@ -877,7 +885,8 @@ def manage_bhikku_records(
         except RuntimeError as exc:
             raise HTTPException(status_code=500, detail=str(exc)) from exc
 
-        bhikku_schema = schemas.Bhikku.model_validate(scanned_bhikku)
+        enriched_data = bhikku_service.enrich_bhikku_dict(scanned_bhikku, db=db)
+        bhikku_schema = schemas.Bhikku(**enriched_data)
         return schemas.BhikkuManagementResponse(
             status="success",
             message="Bhikku certificate marked as scanned successfully.",
@@ -1021,3 +1030,83 @@ def update_bhikku_workflow(
         message=message,
         data=bhikku_schema,
     )
+
+@router.post(
+    "/{br_regn}/upload-scanned-document",
+    response_model=schemas.BhikkuManagementResponse,
+    dependencies=[has_any_permission("bhikku:update")],
+)
+async def upload_scanned_document(
+    br_regn: str,
+    file: UploadFile = File(..., description="Scanned document file (max 5MB, PDF, JPG, PNG)"),
+    db: Session = Depends(get_db),
+    current_user: UserAccount = Depends(get_current_user),
+):
+    """
+    Upload a scanned document for a Bhikku record.
+    
+    This endpoint allows uploading a scanned document (up to 5MB) for a specific bhikku.
+    The file will be stored at: `app/storage/bhikku_update/<year>/<month>/<day>/<br_regn>/scanned_document_*.ext`
+    
+    **Requirements:**
+    - Maximum file size: 5MB
+    - Allowed formats: PDF, JPG, JPEG, PNG
+    - Requires: bhikku:update permission
+    
+    **Path Parameters:**
+    - br_regn: Bhikku registration number (e.g., BH202500001)
+    
+    **Form Data:**
+    - file: The scanned document file to upload
+    
+    **Response:**
+    Returns the updated Bhikku record with the file path stored in br_scanned_document_path
+    
+    **Example Usage (Postman):**
+    1. Method: POST
+    2. URL: {{base_url}}/api/v1/bhikkus/BH202500001/upload-scanned-document
+    3. Headers: Authorization: Bearer <token>
+    4. Body: form-data
+       - file: (select file)
+    """
+    username = current_user.ua_user_id if current_user else None
+    
+    try:
+        # Validate file size (5MB = 5 * 1024 * 1024 bytes)
+        MAX_FILE_SIZE = 5 * 1024 * 1024  # 5MB
+        
+        # Read file content to check size
+        file_content = await file.read()
+        file_size = len(file_content)
+        
+        if file_size > MAX_FILE_SIZE:
+            raise HTTPException(
+                status_code=400,
+                detail=f"File size ({file_size / 1024 / 1024:.2f}MB) exceeds maximum allowed size (5MB)"
+            )
+        
+        # Reset file pointer for later processing
+        await file.seek(0)
+        
+        # Upload the file and update the bhikku record
+        updated_bhikku = await bhikku_service.upload_scanned_document(
+            db, br_regn=br_regn, file=file, actor_id=username
+        )
+        
+        # Return enriched data
+        enriched_data = bhikku_service.enrich_bhikku_dict(updated_bhikku, db=db)
+        bhikku_schema = schemas.Bhikku(**enriched_data)
+        
+        return schemas.BhikkuManagementResponse(
+            status="success",
+            message="Scanned document uploaded successfully.",
+            data=bhikku_schema,
+        )
+        
+    except ValueError as exc:
+        message = str(exc)
+        if "not found" in message.lower():
+            raise HTTPException(status_code=404, detail=message) from exc
+        raise HTTPException(status_code=400, detail=message) from exc
+    except RuntimeError as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc

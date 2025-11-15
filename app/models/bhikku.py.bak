@@ -1,6 +1,6 @@
 # app/models/bhikku.py
-from sqlalchemy import Boolean, Column, Integer, String, Date, TIMESTAMP, text
-from sqlalchemy.orm import relationship, foreign, remote
+from sqlalchemy import Boolean, Column, Integer, String, Date, TIMESTAMP, text, ForeignKey
+from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from app.db.base import Base
 
@@ -11,7 +11,7 @@ class Bhikku(Base):
     br_regn = Column(String(20), unique=True, nullable=False, index=True)
     br_reqstdate = Column(Date, nullable=False)
     
-    # Geographic/Birth Information
+    # Geographic/Birth Information (NEW FIELDS)
     br_birthpls = Column(String(50))
     br_province = Column(String(50))
     br_district = Column(String(50))
@@ -33,7 +33,7 @@ class Bhikku(Base):
     
     # Temple/Religious Information
     br_parshawaya = Column(String(10), nullable=False)
-    br_livtemple = Column(String(10))
+    br_livtemple = Column(String(10))  # Made nullable - not always provided in payload
     br_mahanatemple = Column(String(10), nullable=False)
     br_mahanaacharyacd = Column(String(12), nullable=False)
     br_multi_mahanaacharyacd = Column(String(200))
@@ -42,14 +42,14 @@ class Bhikku(Base):
     br_cat = Column(String(5))
     
     # Additional Religious/Administrative Fields
-    br_viharadhipathi = Column(String(20))
-    br_nikaya = Column(String(10))
-    br_mahanayaka_name = Column(String(200))
-    br_mahanayaka_address = Column(String(500))
-    br_residence_at_declaration = Column(String(500))
-    br_declaration_date = Column(Date)
-    br_robing_tutor_residence = Column(String(20))
-    br_robing_after_residence_temple = Column(String(20))
+    br_viharadhipathi = Column(String(20))  # Viharadhipathi registration number
+    br_nikaya = Column(String(10))  # Nikaya code
+    br_mahanayaka_name = Column(String(200))  # Mahanayaka name in Sinhala/Tamil
+    br_mahanayaka_address = Column(String(500))  # Mahanayaka address
+    br_residence_at_declaration = Column(String(500))  # Residence at time of declaration
+    br_declaration_date = Column(Date)  # Declaration date
+    br_robing_tutor_residence = Column(String(20))  # Robing tutor's residence temple
+    br_robing_after_residence_temple = Column(String(20))  # Residence temple after robing
     
     # Contact Information
     br_mobile = Column(String(10))
@@ -60,12 +60,9 @@ class Bhikku(Base):
     # Serial Number
     br_upasampada_serial_no = Column(String(20))
     
-    # Document Storage
-    br_scanned_document_path = Column(String(500))
-    
     # Workflow Fields
     br_workflow_status = Column(String(20), server_default=text("'PENDING'"), nullable=False, index=True)
-    br_approval_status = Column(String(20))
+    br_approval_status = Column(String(20))  # APPROVED, REJECTED
     br_approved_by = Column(String(25))
     br_approved_at = Column(TIMESTAMP)
     br_rejected_by = Column(String(25))
@@ -77,7 +74,7 @@ class Bhikku(Base):
     br_scanned_by = Column(String(25))
     
     # Reprint Workflow Fields
-    br_reprint_status = Column(String(20))
+    br_reprint_status = Column(String(20))  # REPRINT_PENDING, REPRINT_ACCEPTED, REPRINT_REJECTED, REPRINT_COMPLETED
     br_reprint_requested_by = Column(String(25))
     br_reprint_requested_at = Column(TIMESTAMP)
     br_reprint_request_reason = Column(String(500))
@@ -97,20 +94,19 @@ class Bhikku(Base):
     br_created_by = Column(String(25))
     br_updated_by = Column(String(25))
     br_version_number = Column(Integer, server_default=text('1'))
-    
     # Relationships
-    province_rel = relationship("Province", primaryjoin="foreign(Bhikku.br_province) == Province.cp_code", viewonly=True, lazy="joined")
-    district_rel = relationship("District", primaryjoin="foreign(Bhikku.br_district) == District.dd_dcode", viewonly=True, lazy="joined")
-    division_rel = relationship("DivisionalSecretariat", primaryjoin="foreign(Bhikku.br_division) == DivisionalSecretariat.dv_dvcode", viewonly=True, lazy="joined")
-    gndiv_rel = relationship("Gramasewaka", primaryjoin="foreign(Bhikku.br_gndiv) == Gramasewaka.gn_gnc", viewonly=True, lazy="joined")
-    status_rel = relationship("StatusData", primaryjoin="foreign(Bhikku.br_currstat) == StatusData.st_statcd", viewonly=True, lazy="joined")
-    parshawaya_rel = relationship("ParshawaData", primaryjoin="foreign(Bhikku.br_parshawaya) == ParshawaData.pr_prn", viewonly=True, lazy="joined")
-    livtemple_rel = relationship("ViharaData", primaryjoin="foreign(Bhikku.br_livtemple) == ViharaData.vh_trn", viewonly=True, lazy="joined")
-    mahanatemple_rel = relationship("ViharaData", primaryjoin="foreign(Bhikku.br_mahanatemple) == ViharaData.vh_trn", viewonly=True, lazy="joined")
-    mahanaacharyacd_rel = relationship("Bhikku", primaryjoin="foreign(Bhikku.br_mahanaacharyacd) == remote(Bhikku.br_regn)", viewonly=True, lazy="joined")
-    category_rel = relationship("BhikkuCategory", primaryjoin="foreign(Bhikku.br_cat) == BhikkuCategory.cc_code", viewonly=True, lazy="joined")
-    viharadhipathi_rel = relationship("Bhikku", primaryjoin="foreign(Bhikku.br_viharadhipathi) == remote(Bhikku.br_regn)", viewonly=True, lazy="joined")
-    nikaya_rel = relationship("NikayaData", primaryjoin="foreign(Bhikku.br_nikaya) == NikayaData.nk_nkn", viewonly=True, lazy="joined")
-    mahanayaka_rel = relationship("Bhikku", primaryjoin="foreign(Bhikku.br_mahanayaka_name) == remote(Bhikku.br_regn)", viewonly=True, lazy="joined")
-    robing_tutor_residence_rel = relationship("ViharaData", primaryjoin="foreign(Bhikku.br_robing_tutor_residence) == ViharaData.vh_trn", viewonly=True, lazy="joined")
-    robing_after_residence_temple_rel = relationship("ViharaData", primaryjoin="foreign(Bhikku.br_robing_after_residence_temple) == ViharaData.vh_trn", viewonly=True, lazy="joined")
+    province_rel = relationship("Province", foreign_keys=[br_province])
+    district_rel = relationship("District", foreign_keys=[br_district])
+    division_rel = relationship("DivisionalSecretariat", foreign_keys=[br_division])
+    gndiv_rel = relationship("Gramasewaka", foreign_keys=[br_gndiv])
+    status_rel = relationship("StatusData", foreign_keys=[br_currstat])
+    parshawaya_rel = relationship("ParshawaData", foreign_keys=[br_parshawaya])
+    livtemple_rel = relationship("ViharaData", foreign_keys=[br_livtemple])
+    mahanatemple_rel = relationship("ViharaData", foreign_keys=[br_mahanatemple])
+    mahanaacharyacd_rel = relationship("Bhikku", foreign_keys=[br_mahanaacharyacd], remote_side=[br_regn])
+    category_rel = relationship("BhikkuCategory", foreign_keys=[br_cat])
+    viharadhipathi_rel = relationship("Bhikku", foreign_keys=[br_viharadhipathi], remote_side=[br_regn])
+    nikaya_rel = relationship("NikayaData", foreign_keys=[br_nikaya])
+    mahanayaka_rel = relationship("Bhikku", foreign_keys=[br_mahanayaka_name], remote_side=[br_regn])
+    robing_tutor_residence_rel = relationship("ViharaData", foreign_keys=[br_robing_tutor_residence])
+    robing_after_residence_temple_rel = relationship("ViharaData", foreign_keys=[br_robing_after_residence_temple])
