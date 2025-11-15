@@ -48,11 +48,13 @@ from sqlalchemy import create_engine, text
 
 db_url = os.environ.get('DATABASE_URL')
 if db_url:
+    # Use psycopg2 instead of asyncpg for sync operations
+    if db_url.startswith('postgresql+asyncpg://'):
+        db_url = db_url.replace('postgresql+asyncpg://', 'postgresql://')
     engine = create_engine(db_url)
-    with engine.connect() as conn:
+    with engine.begin() as conn:
         conn.execute(text("DELETE FROM alembic_version"))
         conn.execute(text("INSERT INTO alembic_version (version_num) VALUES ('$HEAD_REVISION')"))
-        conn.commit()
     print("✓ Database fixed using Python")
 else:
     print("✗ DATABASE_URL not set")

@@ -34,10 +34,13 @@ def main():
     print(f"   Using: {':'.join(safe_url)}:***@{db_url.split('@')[1]}")
     
     try:
-        # Create database engine
+        # Create database engine using sync driver
+        if db_url.startswith('postgresql+asyncpg://'):
+            db_url = db_url.replace('postgresql+asyncpg://', 'postgresql://')
+        
         engine = create_engine(db_url)
         
-        with engine.connect() as conn:
+        with engine.begin() as conn:
             # Check current version
             print("\n📋 Checking current alembic_version...")
             result = conn.execute(text("SELECT version_num FROM alembic_version"))
@@ -55,9 +58,6 @@ def main():
             # Insert the latest revision
             print(f"📌 Stamping database with revision: {LATEST_REVISION}")
             conn.execute(text(f"INSERT INTO alembic_version (version_num) VALUES ('{LATEST_REVISION}')"))
-            
-            # Commit the changes
-            conn.commit()
             
             # Verify
             result = conn.execute(text("SELECT version_num FROM alembic_version"))
