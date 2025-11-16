@@ -34,6 +34,8 @@ from app.api.v1.routes import (
     roles,
     status,
     silmatha_id,
+    silmatha_id_card,
+    silmatha_regist,
     vihara_data,
 )
 from app.api.v1 import auth_sms_test
@@ -115,6 +117,16 @@ api_router.include_router(
 api_router.include_router(
     silmatha_id.router,
     prefix="/silmatha-id",
+    tags=["🕉️ Silmatha Management"]
+)
+api_router.include_router(
+    silmatha_id_card.router,
+    prefix="/silmatha-id-card",
+    tags=["🕉️ Silmatha Management"]
+)
+api_router.include_router(
+    silmatha_regist.router,
+    prefix="/silmatha-regist",
     tags=["🕉️ Silmatha Management"]
 )
 
