@@ -203,7 +203,7 @@ class BhikkuService:
     # Public API
     # --------------------------------------------------------------------- #
     def create_bhikku(
-        self, db: Session, *, payload: BhikkuCreate, actor_id: Optional[str]
+        self, db: Session, *, payload: BhikkuCreate, actor_id: Optional[str], current_user: Optional[UserAccount] = None
     ) -> Bhikku:
         payload_dict = payload.model_dump()
         payload_dict["br_created_by"] = actor_id
@@ -211,6 +211,24 @@ class BhikkuService:
         payload_dict = self._strip_strings(payload_dict)
         payload_dict = self._normalize_contact_fields(payload_dict)
         self._validate_contact_formats(payload_dict)
+
+        # Auto-assign district from user's location if user is a DISTRICT_BRANCH user
+        if current_user:
+            from app.services.location_access_control_service import LocationAccessControlService
+            user_district_codes = LocationAccessControlService.get_user_district_codes(db, current_user)
+            
+            # If user has a specific district assignment, auto-assign it to the bhikku record
+            if user_district_codes and len(user_district_codes) == 1:
+                # Only auto-assign if br_district is not explicitly provided in payload
+                if not payload_dict.get("br_district"):
+                    payload_dict["br_district"] = user_district_codes[0]
+            
+            # Auto-assign province from user's location if available
+            user_province_codes = LocationAccessControlService.get_user_province_codes(db, current_user)
+            if user_province_codes and len(user_province_codes) == 1:
+                # Only auto-assign if br_province is not explicitly provided in payload
+                if not payload_dict.get("br_province"):
+                    payload_dict["br_province"] = user_province_codes[0]
 
         explicit_regn = payload_dict.get("br_regn")
         if explicit_regn:
@@ -231,7 +249,7 @@ class BhikkuService:
             current_regn=None,
         )
 
-        # Create the enriched payload WITHOUT workflow_status (it will be set by the repository/model default)
+        # Create the enriched payload WITHOUT workflow_status (it will be set by the repository/model default to PENDING)
         enriched_payload = BhikkuCreate(**payload_dict)
         created = bhikku_repo.create(db, enriched_payload)
         return created

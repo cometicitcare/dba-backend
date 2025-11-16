@@ -102,7 +102,7 @@ class BhikkuRepository:
         """Get paginated bhikkus with optional search functionality across all text fields."""
         query = db.query(models.Bhikku).filter(models.Bhikku.br_is_deleted.is_(False))
 
-        # Apply location-based access control
+        # Apply location-based access control FIRST
         if current_user:
             query = LocationAccessControlService.apply_location_filter_to_query(
                 query=query,
@@ -111,6 +111,35 @@ class BhikkuRepository:
                 province_field='br_province',
                 district_field='br_district'
             )
+        
+        # Additional restriction: PENDING records only visible to district-level users in the same district
+        # Province-level users can see all records (PENDING and COMPLETED) in their province
+        # COMPLETED records are visible to all users
+        if current_user and current_user.ua_location_type:
+            from app.models.user import UserLocationType
+            from sqlalchemy import and_
+            
+            # Only apply PENDING restriction for DISTRICT_BRANCH users
+            if current_user.ua_location_type == UserLocationType.DISTRICT_BRANCH:
+                user_district_codes = LocationAccessControlService.get_user_district_codes(db, current_user)
+                
+                if user_district_codes is not None:  # None means access to all districts
+                    # Build condition: Either record is COMPLETED OR (record is PENDING and in user's district)
+                    pending_condition = and_(
+                        models.Bhikku.br_workflow_status == "PENDING",
+                        models.Bhikku.br_district.in_(user_district_codes) if user_district_codes else False
+                    )
+                    completed_condition = models.Bhikku.br_workflow_status == "COMPLETED"
+                    other_statuses_condition = models.Bhikku.br_workflow_status.notin_(["PENDING", "COMPLETED"])
+                    
+                    query = query.filter(
+                        or_(
+                            completed_condition,  # COMPLETED records visible to all
+                            pending_condition,    # PENDING records only if in user's district
+                            other_statuses_condition  # Other statuses follow standard location access control
+                        )
+                    )
+            # PROVINCE_BRANCH and MAIN_BRANCH users see all records in their province/all provinces
 
         # Apply search filter
         if search_key and search_key.strip():
@@ -177,8 +206,17 @@ class BhikkuRepository:
         if status and len(status) > 0:
             query = query.filter(models.Bhikku.br_currstat.in_(status))
         
+        # Workflow status filter with automatic inclusion of COMPLETED records
+        # All users should be able to see COMPLETED records regardless of workflow_status filter
         if workflow_status and len(workflow_status) > 0:
-            query = query.filter(models.Bhikku.br_workflow_status.in_(workflow_status))
+            # If COMPLETED is not already in the list, add it
+            if "COMPLETED" not in workflow_status:
+                workflow_status_with_completed = list(workflow_status) + ["COMPLETED"]
+                query = query.filter(models.Bhikku.br_workflow_status.in_(workflow_status_with_completed))
+            else:
+                query = query.filter(models.Bhikku.br_workflow_status.in_(workflow_status))
+        # If no workflow_status filter is provided, no additional filtering needed
+        # (all records including COMPLETED will be returned)
         
         if date_from:
             query = query.filter(models.Bhikku.br_reqstdate >= date_from)
@@ -229,6 +267,33 @@ class BhikkuRepository:
                 province_field='br_province',
                 district_field='br_district'
             )
+            
+            # Additional restriction: PENDING records only visible to district-level users in the same district
+            # Province-level users can see all records (PENDING and COMPLETED) in their province
+            if current_user.ua_location_type:
+                from app.models.user import UserLocationType
+                from sqlalchemy import and_
+                
+                # Only apply PENDING restriction for DISTRICT_BRANCH users
+                if current_user.ua_location_type == UserLocationType.DISTRICT_BRANCH:
+                    user_district_codes = LocationAccessControlService.get_user_district_codes(db, current_user)
+                    
+                    if user_district_codes is not None:
+                        pending_condition = and_(
+                            models.Bhikku.br_workflow_status == "PENDING",
+                            models.Bhikku.br_district.in_(user_district_codes) if user_district_codes else False
+                        )
+                        completed_condition = models.Bhikku.br_workflow_status == "COMPLETED"
+                        other_statuses_condition = models.Bhikku.br_workflow_status.notin_(["PENDING", "COMPLETED"])
+                        
+                        base_query = base_query.filter(
+                            or_(
+                                completed_condition,
+                                pending_condition,
+                                other_statuses_condition
+                            )
+                        )
+            
             # Extract filters from the base query and apply to count query
             query = db.query(func.count(models.Bhikku.br_id)).select_from(base_query.subquery())
 
@@ -297,8 +362,17 @@ class BhikkuRepository:
         if status and len(status) > 0:
             query = query.filter(models.Bhikku.br_currstat.in_(status))
         
+        # Workflow status filter with automatic inclusion of COMPLETED records
+        # All users should be able to see COMPLETED records regardless of workflow_status filter
         if workflow_status and len(workflow_status) > 0:
-            query = query.filter(models.Bhikku.br_workflow_status.in_(workflow_status))
+            # If COMPLETED is not already in the list, add it
+            if "COMPLETED" not in workflow_status:
+                workflow_status_with_completed = list(workflow_status) + ["COMPLETED"]
+                query = query.filter(models.Bhikku.br_workflow_status.in_(workflow_status_with_completed))
+            else:
+                query = query.filter(models.Bhikku.br_workflow_status.in_(workflow_status))
+        # If no workflow_status filter is provided, no additional filtering needed
+        # (all records including COMPLETED will be returned)
         
         if date_from:
             query = query.filter(models.Bhikku.br_reqstdate >= date_from)
