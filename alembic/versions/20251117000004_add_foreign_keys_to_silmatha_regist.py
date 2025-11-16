@@ -35,7 +35,7 @@ def upgrade() -> None:
         UPDATE silmatha_regist 
         SET sil_district = NULL 
         WHERE sil_district IS NOT NULL 
-        AND sil_district NOT IN (SELECT dd_dcode FROM cmm_district WHERE dd_is_deleted = false)
+        AND sil_district NOT IN (SELECT dd_dcode FROM cmm_districtdata WHERE dd_is_deleted = false)
     """)
     
     # Clean invalid division references (nullable)
@@ -43,7 +43,7 @@ def upgrade() -> None:
         UPDATE silmatha_regist 
         SET sil_division = NULL 
         WHERE sil_division IS NOT NULL 
-        AND sil_division NOT IN (SELECT dv_dvcode FROM cmm_divsec WHERE dv_is_deleted = false)
+        AND sil_division NOT IN (SELECT dv_dvcode FROM cmm_dvsec WHERE dv_is_deleted = false)
     """)
     
     # Clean invalid GN division references (NOT NULL - set to a default value or fail if no valid data)
@@ -113,18 +113,18 @@ def upgrade() -> None:
         ondelete='SET NULL'
     )
     
-    # sil_district -> cmm_district.dd_dcode
+    # sil_district -> cmm_districtdata.dd_dcode
     op.create_foreign_key(
         'fk_silmatha_regist_district',
-        'silmatha_regist', 'cmm_district',
+        'silmatha_regist', 'cmm_districtdata',
         ['sil_district'], ['dd_dcode'],
         ondelete='SET NULL'
     )
     
-    # sil_division -> cmm_divsec.dv_dvcode
+    # sil_division -> cmm_dvsec.dv_dvcode
     op.create_foreign_key(
         'fk_silmatha_regist_division',
-        'silmatha_regist', 'cmm_divsec',
+        'silmatha_regist', 'cmm_dvsec',
         ['sil_division'], ['dv_dvcode'],
         ondelete='SET NULL'
     )
