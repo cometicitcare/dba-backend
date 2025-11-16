@@ -84,15 +84,14 @@ class BhikkuBase(BaseModel):
     
     # Serial Number
     br_upasampada_serial_no: Optional[str] = None
-    
-    # Audit Fields
-    br_created_by: Optional[str] = None
-    br_updated_by: Optional[str] = None
 
 class BhikkuCreate(BhikkuBase):
     """Schema for creating a new Bhikku record - br_regn is auto-generated
     Only includes fields that should be provided during creation based on the payload structure"""
     # Workflow fields are set automatically - not included in create
+    # Audit fields will be set from user context
+    br_created_by: Optional[str] = None
+    br_updated_by: Optional[str] = None
     pass
 
 class BhikkuUpdate(BaseModel):
@@ -152,18 +151,20 @@ class BhikkuUpdate(BaseModel):
     # Document Storage
     br_scanned_document_path: Optional[str] = None
     
-    # Audit Fields
+    # Audit Fields (only for update)
     br_created_by: Optional[str] = None
     br_updated_by: Optional[str] = None
 
-class Bhikku(BhikkuBase):
-    """Schema for returning a Bhikku record with resolved names in place of codes"""
+class BhikkuInternal(BhikkuBase):
+    """Schema for internal use with ALL fields including workflow and audit fields"""
     model_config = ConfigDict(from_attributes=True)
     
     br_id: int
     br_regn: str  # Required in response
     br_is_deleted: bool
     br_version_number: int
+    br_created_by: Optional[str] = None
+    br_updated_by: Optional[str] = None
     
     # Workflow Fields
     br_workflow_status: Optional[str] = "PENDING"
@@ -193,6 +194,12 @@ class Bhikku(BhikkuBase):
     
     # Document Storage
     br_scanned_document_path: Optional[str] = None
+
+class Bhikku(BhikkuBase):
+    """Schema for returning a Bhikku record - PUBLIC API (excludes internal/workflow/audit fields)"""
+    model_config = ConfigDict(from_attributes=True)
+    
+    br_regn: str  # Required in response
 
 # --- Schemas for the Single Endpoint ---
 class BhikkuRequestPayload(BaseModel):
