@@ -79,6 +79,114 @@ class BhikkuHighService:
     ) -> Optional[BhikkuHighRegist]:
         return bhikku_high_repo.get_by_regn(db, bhr_regn)
 
+    def enrich_bhikku_high_dict(self, bhikku_high: BhikkuHighRegist) -> dict:
+        """Transform BhikkuHighRegist model to dictionary with resolved nested objects"""
+        
+        # Get candidate bhikku's location and status data through the relationship
+        candidate = bhikku_high.candidate_rel
+        
+        bhikku_high_dict = {
+            "bhr_id": bhikku_high.bhr_id,
+            "bhr_regn": bhikku_high.bhr_regn,
+            "bhr_reqstdate": bhikku_high.bhr_reqstdate,
+            "bhr_samanera_serial_no": bhikku_high.bhr_samanera_serial_no,
+            "bhr_remarks": bhikku_high.bhr_remarks,
+            
+            # Status with nested object
+            "bhr_currstat": {
+                "st_statcd": bhikku_high.status_rel.st_statcd,
+                "st_descr": bhikku_high.status_rel.st_descr
+            } if bhikku_high.status_rel else bhikku_high.bhr_currstat,
+            
+            # Parshawaya with nested object
+            "bhr_parshawaya": {
+                "code": bhikku_high.parshawaya_rel.pr_prn,
+                "name": bhikku_high.parshawaya_rel.pr_pname
+            } if bhikku_high.parshawaya_rel else bhikku_high.bhr_parshawaya,
+            
+            # Livtemple with nested object
+            "bhr_livtemple": {
+                "vh_trn": bhikku_high.livtemple_rel.vh_trn,
+                "vh_vname": bhikku_high.livtemple_rel.vh_vname
+            } if bhikku_high.livtemple_rel else bhikku_high.bhr_livtemple,
+            
+            "bhr_cc_code": bhikku_high.bhr_cc_code,
+            "bhr_candidate_regn": bhikku_high.bhr_candidate_regn,
+            "bhr_higher_ordination_place": bhikku_high.bhr_higher_ordination_place,
+            "bhr_higher_ordination_date": bhikku_high.bhr_higher_ordination_date,
+            "bhr_karmacharya_name": bhikku_high.bhr_karmacharya_name,
+            "bhr_upaddhyaya_name": bhikku_high.bhr_upaddhyaya_name,
+            "bhr_assumed_name": bhikku_high.bhr_assumed_name,
+            
+            # Residence temples with nested objects
+            "bhr_residence_higher_ordination_trn": {
+                "vh_trn": bhikku_high.residence_higher_ordination_rel.vh_trn,
+                "vh_vname": bhikku_high.residence_higher_ordination_rel.vh_vname
+            } if bhikku_high.residence_higher_ordination_rel else bhikku_high.bhr_residence_higher_ordination_trn,
+            
+            "bhr_residence_permanent_trn": {
+                "vh_trn": bhikku_high.residence_permanent_rel.vh_trn,
+                "vh_vname": bhikku_high.residence_permanent_rel.vh_vname
+            } if bhikku_high.residence_permanent_rel else bhikku_high.bhr_residence_permanent_trn,
+            
+            "bhr_declaration_residence_address": bhikku_high.bhr_declaration_residence_address,
+            
+            # Bhikku references with nested objects
+            "bhr_tutors_tutor_regn": {
+                "br_regn": bhikku_high.tutors_tutor_rel.br_regn,
+                "br_mahananame": bhikku_high.tutors_tutor_rel.br_mahananame or "",
+                "br_upasampadaname": ""
+            } if bhikku_high.tutors_tutor_rel else bhikku_high.bhr_tutors_tutor_regn,
+            
+            "bhr_presiding_bhikshu_regn": {
+                "br_regn": bhikku_high.presiding_bhikshu_rel.br_regn,
+                "br_mahananame": bhikku_high.presiding_bhikshu_rel.br_mahananame or "",
+                "br_upasampadaname": ""
+            } if bhikku_high.presiding_bhikshu_rel else bhikku_high.bhr_presiding_bhikshu_regn,
+            
+            "bhr_declaration_date": bhikku_high.bhr_declaration_date,
+            "bhr_version": bhikku_high.bhr_version,
+            "bhr_is_deleted": bhikku_high.bhr_is_deleted,
+            "bhr_created_at": bhikku_high.bhr_created_at,
+            "bhr_updated_at": bhikku_high.bhr_updated_at,
+            "bhr_created_by": bhikku_high.bhr_created_by,
+            "bhr_updated_by": bhikku_high.bhr_updated_by,
+            "bhr_version_number": bhikku_high.bhr_version_number,
+        }
+        
+        # Add nested objects from candidate bhikku record if available
+        if candidate:
+            bhikku_high_dict["br_birthpls"] = candidate.br_birthpls
+            bhikku_high_dict["br_province"] = {
+                "cp_code": candidate.province_rel.cp_code,
+                "cp_name": candidate.province_rel.cp_name
+            } if candidate.province_rel else candidate.br_province
+            bhikku_high_dict["br_district"] = {
+                "dd_dcode": candidate.district_rel.dd_dcode,
+                "dd_dname": candidate.district_rel.dd_dname
+            } if candidate.district_rel else candidate.br_district
+            bhikku_high_dict["br_korale"] = candidate.br_korale
+            bhikku_high_dict["br_pattu"] = candidate.br_pattu
+            bhikku_high_dict["br_division"] = {
+                "dv_dvcode": candidate.division_rel.dv_dvcode,
+                "dv_dvname": candidate.division_rel.dv_dvname
+            } if candidate.division_rel else candidate.br_division
+            bhikku_high_dict["br_vilage"] = candidate.br_vilage
+            bhikku_high_dict["br_gndiv"] = {
+                "gn_gnc": candidate.gndiv_rel.gn_gnc,
+                "gn_gnname": candidate.gndiv_rel.gn_gnname
+            } if candidate.gndiv_rel else candidate.br_gndiv
+            bhikku_high_dict["br_gihiname"] = candidate.br_gihiname
+            bhikku_high_dict["br_dofb"] = candidate.br_dofb
+            bhikku_high_dict["br_fathrname"] = candidate.br_fathrname
+            bhikku_high_dict["br_remarks"] = candidate.br_remarks
+            bhikku_high_dict["br_currstat"] = {
+                "st_statcd": candidate.status_rel.st_statcd,
+                "st_descr": candidate.status_rel.st_descr
+            } if candidate.status_rel else candidate.br_currstat
+        
+        return bhikku_high_dict
+
     def update_bhikku_high(
         self,
         db: Session,
@@ -156,17 +264,39 @@ class BhikkuHighService:
         db: Session,
         payload: Dict[str, Any],
     ) -> None:
+        # Validate bhr_samanera_serial_no -> bhikku_regist.br_regn
         self._validate_bhikku_reference(
             db, payload.get("bhr_samanera_serial_no"), "bhr_samanera_serial_no"
         )
-        self._validate_bhikku_reference(
-            db, payload.get("bhr_mahanaacharyacd"), "bhr_mahanaacharyacd"
+        
+        # Validate bhr_cc_code -> cmm_cat.cc_code
+        self._validate_category_reference(
+            db, payload.get("bhr_cc_code"), "bhr_cc_code"
         )
+        
+        # Validate bhr_candidate_regn -> bhikku_regist.br_regn
         self._validate_bhikku_reference(
-            db, payload.get("bhr_karmacharya"), "bhr_karmacharya"
+            db, payload.get("bhr_candidate_regn"), "bhr_candidate_regn"
         )
+        
+        # Validate bhr_residence_higher_ordination_trn -> vihaddata.vh_trn
         self._validate_vihara_reference(
-            db, payload.get("bhr_ordination_temple"), "bhr_ordination_temple"
+            db, payload.get("bhr_residence_higher_ordination_trn"), "bhr_residence_higher_ordination_trn"
+        )
+        
+        # Validate bhr_residence_permanent_trn -> vihaddata.vh_trn
+        self._validate_vihara_reference(
+            db, payload.get("bhr_residence_permanent_trn"), "bhr_residence_permanent_trn"
+        )
+        
+        # Validate bhr_tutors_tutor_regn -> bhikku_regist.br_regn
+        self._validate_bhikku_reference(
+            db, payload.get("bhr_tutors_tutor_regn"), "bhr_tutors_tutor_regn"
+        )
+        
+        # Validate bhr_presiding_bhikshu_regn -> bhikku_regist.br_regn
+        self._validate_bhikku_reference(
+            db, payload.get("bhr_presiding_bhikshu_regn"), "bhr_presiding_bhikshu_regn"
         )
 
         for field, target in self.FK_TABLE_MAP.items():
@@ -213,6 +343,21 @@ class BhikkuHighService:
         )
         if not exists:
             raise ValueError(f"Invalid reference: {field_name} '{value}' not found.")
+
+    def _validate_category_reference(
+        self, db: Session, value: Optional[str], field_name: str
+    ) -> None:
+        if not self._has_meaningful_value(value):
+            return
+
+        from sqlalchemy import text
+        exists = db.execute(
+            text("SELECT 1 FROM cmm_cat WHERE cc_code = :code AND cc_is_deleted = false LIMIT 1"),
+            {"code": value}
+        ).first()
+        
+        if not exists:
+            raise ValueError(f"Invalid category code: {field_name} '{value}' not found in cmm_cat table.")
 
     def _validate_bhikku_reference(
         self, db: Session, value: Optional[str], field_name: str

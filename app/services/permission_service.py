@@ -59,9 +59,9 @@ class PermissionService:
         db.commit()
         return permission_to_delete
     
-    def get_user_permissions(db: Session, user_id: str):
+    def get_user_permissions(self, db: Session, user_id: str):
         # Get user's role
-        user_role = db.query(UserRole).filter(UserRole.user_id == user_id).first()
+        user_role = db.query(UserRole).filter(UserRole.ur_user_id == user_id).first()
         if not user_role:
             raise Exception("User role not found")
 
@@ -69,7 +69,7 @@ class PermissionService:
         permissions = db.query(Permission.pe_name).join(
             RolePermission,
             RolePermission.rp_permission_id == Permission.pe_permission_id
-        ).filter(RolePermission.rp_role_id == user_role.role_id).all()
+        ).filter(RolePermission.rp_role_id == user_role.ur_role_id).all()
 
         return [permission.pe_name for permission in permissions]
 
