@@ -578,7 +578,7 @@ class BhikkuService:
         return bhikku_repo.get_by_id(db, br_id)
     
     def enrich_bhikku_dict(self, bhikku: Bhikku, db: Session = None) -> dict:
-        """Transform Bhikku model to dictionary with resolved foreign key names replacing codes"""
+        """Transform Bhikku model to dictionary with resolved foreign key names as nested objects"""
         
         # Handle multi_mahanaacharyacd - split and resolve names
         multi_mahanaacharyacd_value = bhikku.br_multi_mahanaacharyacd
@@ -601,36 +601,80 @@ class BhikkuService:
             "br_regn": bhikku.br_regn,
             "br_reqstdate": bhikku.br_reqstdate,
             "br_birthpls": bhikku.br_birthpls,
-            # Replace codes with names from relationships
-            "br_province": bhikku.province_rel.cp_name if bhikku.province_rel else bhikku.br_province,
-            "br_district": bhikku.district_rel.dd_dname if bhikku.district_rel else bhikku.br_district,
+            # Replace codes with nested objects containing code and name
+            "br_province": {
+                "cp_code": bhikku.province_rel.cp_code,
+                "cp_name": bhikku.province_rel.cp_name
+            } if bhikku.province_rel else bhikku.br_province,
+            "br_district": {
+                "dd_dcode": bhikku.district_rel.dd_dcode,
+                "dd_dname": bhikku.district_rel.dd_dname
+            } if bhikku.district_rel else bhikku.br_district,
             "br_korale": bhikku.br_korale,
             "br_pattu": bhikku.br_pattu,
-            "br_division": bhikku.division_rel.dv_dvname if bhikku.division_rel else bhikku.br_division,
+            "br_division": {
+                "dv_dvcode": bhikku.division_rel.dv_dvcode,
+                "dv_dvname": bhikku.division_rel.dv_dvname
+            } if bhikku.division_rel else bhikku.br_division,
             "br_vilage": bhikku.br_vilage,
-            "br_gndiv": bhikku.gndiv_rel.gn_gnname if bhikku.gndiv_rel else bhikku.br_gndiv,
+            "br_gndiv": {
+                "gn_gnc": bhikku.gndiv_rel.gn_gnc,
+                "gn_gnname": bhikku.gndiv_rel.gn_gnname
+            } if bhikku.gndiv_rel else bhikku.br_gndiv,
             "br_gihiname": bhikku.br_gihiname,
             "br_dofb": bhikku.br_dofb,
             "br_fathrname": bhikku.br_fathrname,
             "br_remarks": bhikku.br_remarks,
-            "br_currstat": bhikku.status_rel.st_descr if bhikku.status_rel else bhikku.br_currstat,
+            "br_currstat": {
+                "st_statcd": bhikku.status_rel.st_statcd,
+                "st_descr": bhikku.status_rel.st_descr
+            } if bhikku.status_rel else bhikku.br_currstat,
             "br_effctdate": bhikku.br_effctdate,
-            "br_parshawaya": bhikku.parshawaya_rel.pr_pname if bhikku.parshawaya_rel else bhikku.br_parshawaya,
-            "br_livtemple": bhikku.livtemple_rel.vh_vname if bhikku.livtemple_rel else bhikku.br_livtemple,
-            "br_mahanatemple": bhikku.mahanatemple_rel.vh_vname if bhikku.mahanatemple_rel else bhikku.br_mahanatemple,
-            "br_mahanaacharyacd": bhikku.mahanaacharyacd_rel.br_mahananame if bhikku.mahanaacharyacd_rel else bhikku.br_mahanaacharyacd,
+            "br_parshawaya": {
+                "code": bhikku.parshawaya_rel.pr_prn,
+                "name": bhikku.parshawaya_rel.pr_pname
+            } if bhikku.parshawaya_rel else bhikku.br_parshawaya,
+            "br_livtemple": {
+                "vh_trn": bhikku.livtemple_rel.vh_trn,
+                "vh_vname": bhikku.livtemple_rel.vh_vname
+            } if bhikku.livtemple_rel else bhikku.br_livtemple,
+            "br_mahanatemple": {
+                "vh_trn": bhikku.mahanatemple_rel.vh_trn,
+                "vh_vname": bhikku.mahanatemple_rel.vh_vname
+            } if bhikku.mahanatemple_rel else bhikku.br_mahanatemple,
+            "br_mahanaacharyacd": {
+                "br_regn": bhikku.mahanaacharyacd_rel.br_regn,
+                "br_mahananame": bhikku.mahanaacharyacd_rel.br_mahananame or "",
+                "br_upasampadaname": ""
+            } if bhikku.mahanaacharyacd_rel else bhikku.br_mahanaacharyacd,
             "br_multi_mahanaacharyacd": multi_mahanaacharyacd_value,
             "br_mahananame": bhikku.br_mahananame,
             "br_mahanadate": bhikku.br_mahanadate,
-            "br_cat": bhikku.category_rel.cc_catogry if bhikku.category_rel else bhikku.br_cat,
-            "br_viharadhipathi": bhikku.viharadhipathi_rel.br_mahananame if bhikku.viharadhipathi_rel else bhikku.br_viharadhipathi,
-            "br_nikaya": bhikku.nikaya_rel.nk_nname if bhikku.nikaya_rel else bhikku.br_nikaya,
+            "br_cat": {
+                "cc_code": bhikku.category_rel.cc_code,
+                "cc_catogry": bhikku.category_rel.cc_catogry
+            } if bhikku.category_rel else bhikku.br_cat,
+            "br_viharadhipathi": {
+                "br_regn": bhikku.viharadhipathi_rel.br_regn,
+                "br_mahananame": bhikku.viharadhipathi_rel.br_mahananame or "",
+                "br_upasampadaname": ""
+            } if bhikku.viharadhipathi_rel else bhikku.br_viharadhipathi,
+            "br_nikaya": {
+                "code": bhikku.nikaya_rel.nk_nkn,
+                "name": bhikku.nikaya_rel.nk_nname
+            } if bhikku.nikaya_rel else bhikku.br_nikaya,
             "br_mahanayaka_name": bhikku.mahanayaka_rel.br_mahananame if bhikku.mahanayaka_rel else bhikku.br_mahanayaka_name,
             "br_mahanayaka_address": bhikku.br_mahanayaka_address,
             "br_residence_at_declaration": bhikku.br_residence_at_declaration,
             "br_declaration_date": bhikku.br_declaration_date,
-            "br_robing_tutor_residence": bhikku.robing_tutor_residence_rel.vh_vname if bhikku.robing_tutor_residence_rel else bhikku.br_robing_tutor_residence,
-            "br_robing_after_residence_temple": bhikku.robing_after_residence_temple_rel.vh_vname if bhikku.robing_after_residence_temple_rel else bhikku.br_robing_after_residence_temple,
+            "br_robing_tutor_residence": {
+                "vh_trn": bhikku.robing_tutor_residence_rel.vh_trn,
+                "vh_vname": bhikku.robing_tutor_residence_rel.vh_vname
+            } if bhikku.robing_tutor_residence_rel else bhikku.br_robing_tutor_residence,
+            "br_robing_after_residence_temple": {
+                "vh_trn": bhikku.robing_after_residence_temple_rel.vh_trn,
+                "vh_vname": bhikku.robing_after_residence_temple_rel.vh_vname
+            } if bhikku.robing_after_residence_temple_rel else bhikku.br_robing_after_residence_temple,
             "br_mobile": bhikku.br_mobile,
             "br_email": bhikku.br_email,
             "br_fathrsaddrs": bhikku.br_fathrsaddrs,
