@@ -607,7 +607,7 @@ def manage_bhikku_records(
 
         try:
             created_bhikku = bhikku_service.create_bhikku(
-                db, payload=create_payload, actor_id=user_id
+                db, payload=create_payload, actor_id=user_id, current_user=current_user
             )
         except ValueError as exc:
             raise validation_error([(None, str(exc))]) from exc
