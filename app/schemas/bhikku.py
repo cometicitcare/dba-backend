@@ -195,11 +195,79 @@ class BhikkuInternal(BhikkuBase):
     # Document Storage
     br_scanned_document_path: Optional[str] = None
 
+# --- Nested Response Schemas for Foreign Key Fields ---
+class ProvinceResponse(BaseModel):
+    """Nested response for province"""
+    cp_code: str
+    cp_name: str
+
+class DistrictResponse(BaseModel):
+    """Nested response for district"""
+    dd_dcode: str
+    dd_dname: str
+
+class DivisionResponse(BaseModel):
+    """Nested response for divisional secretariat"""
+    dv_dvcode: str
+    dv_dvname: str
+
+class GNDivisionResponse(BaseModel):
+    """Nested response for GN division"""
+    gn_gnc: str
+    gn_gnname: str
+
+class StatusResponse(BaseModel):
+    """Nested response for status"""
+    st_statcd: str
+    st_descr: str
+
+class NikayaResponse(BaseModel):
+    """Nested response for nikaya"""
+    code: str
+    name: str
+
+class ParshawaResponse(BaseModel):
+    """Nested response for parshawa"""
+    code: str
+    name: str
+
+class CategoryResponse(BaseModel):
+    """Nested response for category"""
+    cc_code: str
+    cc_catogry: str
+
+class ViharaResponse(BaseModel):
+    """Nested response for vihara/temple"""
+    vh_trn: str
+    vh_vname: str
+
+class BhikkuRefResponse(BaseModel):
+    """Nested response for bhikku references (viharadhipathi, mahanaacharyacd, etc.)"""
+    br_regn: str
+    br_mahananame: str
+    br_upasampadaname: Optional[str] = ""
+
 class Bhikku(BhikkuBase):
     """Schema for returning a Bhikku record - PUBLIC API (excludes internal/workflow/audit fields)"""
     model_config = ConfigDict(from_attributes=True)
     
     br_regn: str  # Required in response
+    
+    # Override base fields to use nested response objects
+    br_province: Optional[Union[ProvinceResponse, str]] = None
+    br_district: Optional[Union[DistrictResponse, str]] = None
+    br_division: Optional[Union[DivisionResponse, str]] = None
+    br_gndiv: Union[GNDivisionResponse, str]
+    br_currstat: Union[StatusResponse, str]
+    br_parshawaya: Union[ParshawaResponse, str]
+    br_livtemple: Optional[Union[ViharaResponse, str]] = None
+    br_mahanatemple: Optional[Union[ViharaResponse, str]] = None
+    br_mahanaacharyacd: Optional[Union[BhikkuRefResponse, str]] = None
+    br_cat: Optional[Union[CategoryResponse, str]] = None
+    br_viharadhipathi: Optional[Union[BhikkuRefResponse, str]] = None
+    br_nikaya: Optional[Union[NikayaResponse, str]] = None
+    br_robing_tutor_residence: Optional[Union[ViharaResponse, str]] = None
+    br_robing_after_residence_temple: Optional[Union[ViharaResponse, str]] = None
 
 # --- Schemas for the Single Endpoint ---
 class BhikkuRequestPayload(BaseModel):
