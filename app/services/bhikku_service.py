@@ -727,6 +727,22 @@ class BhikkuService:
         base_data = BhikkuSchema.model_validate(entity).model_dump()
         for field in self.ENRICHED_NAME_FIELDS:
             base_data[field] = getattr(row, field, None)
+        
+        # Add nested bhikku references
+        # Presiding Bhikshu (Acharya/Mahanaacharyacd)
+        base_data["bhr_presiding_bhikshu_regn"] = {
+            "br_regn": getattr(row, "br_mahanaacharyacd_regn", None),
+            "br_mahananame": getattr(row, "br_mahanaacharyacd_mahananame", None),
+            "br_upasampadaname": getattr(row, "br_mahanaacharyacd_upasampadaname", None),
+        }
+        
+        # Tutor (Viharadhipathi)
+        base_data["bhr_tutors_tutor_regn"] = {
+            "br_regn": getattr(row, "br_viharadhipathi_regn", None),
+            "br_mahananame": getattr(row, "br_viharadhipathi_mahananame", None),
+            "br_upasampadaname": getattr(row, "br_viharadhipathi_upasampadaname", None),
+        }
+        
         return BhikkuSchema(**base_data)
 
     def _validate_unique_contact_fields(

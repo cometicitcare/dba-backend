@@ -21,6 +21,16 @@ class CRUDAction(str, Enum):
     UPDATE = "UPDATE"
     DELETE = "DELETE"
 
+# --- Nested Bhikku Reference Schema ---
+class BhikkuReference(BaseModel):
+    """Schema for nested bhikku references (acharya, viharadhipathi, etc.)"""
+    br_regn: Optional[str] = None
+    br_mahananame: Optional[str] = None
+    br_upasampadaname: Optional[str] = None
+
+    class Config:
+        from_attributes = True
+
 # --- Bhikku Schemas with ALL Fields ---
 class BhikkuBase(BaseModel):
     br_regn: Optional[str] = None  # Made optional - will be auto-generated
@@ -160,6 +170,9 @@ class Bhikku(BhikkuBase):
     br_cat_name: Optional[str] = None
     br_robing_tutor_residence_name: Optional[str] = None
     br_robing_after_residence_temple_name: Optional[str] = None
+    # Nested bhikku references
+    bhr_tutors_tutor_regn: Optional[BhikkuReference] = None
+    bhr_presiding_bhikshu_regn: Optional[BhikkuReference] = None
 
     class Config:
         from_attributes = True

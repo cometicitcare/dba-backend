@@ -392,6 +392,14 @@ class BhikkuRepository:
                     viharadhipathi_alias.br_mahananame,
                     viharadhipathi_alias.br_gihiname,
                 ).label("br_viharadhipathi_name"),
+                # Presiding Bhikshu (Acharya) details
+                acharya_alias.br_regn.label("br_mahanaacharyacd_regn"),
+                acharya_alias.br_mahananame.label("br_mahanaacharyacd_mahananame"),
+                acharya_alias.br_upasampada_serial_no.label("br_mahanaacharyacd_upasampadaname"),
+                # Viharadhipathi details
+                viharadhipathi_alias.br_regn.label("br_viharadhipathi_regn"),
+                viharadhipathi_alias.br_mahananame.label("br_viharadhipathi_mahananame"),
+                viharadhipathi_alias.br_upasampada_serial_no.label("br_viharadhipathi_upasampadaname"),
             )
             .outerjoin(
                 province_alias,
