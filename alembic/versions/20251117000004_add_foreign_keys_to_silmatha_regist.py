@@ -103,87 +103,103 @@ def upgrade() -> None:
         AND sil_robing_after_residence_temple NOT IN (SELECT vh_trn FROM vihaddata WHERE vh_is_deleted = false)
     """)
     
-    # Add foreign key constraints
+    # Add foreign key constraints (with existence checks to handle partial migrations)
+    
+    # Helper function to check if constraint exists
+    from sqlalchemy import inspect
+    bind = op.get_bind()
+    inspector = inspect(bind)
+    existing_fks = {fk['name'] for fk in inspector.get_foreign_keys('silmatha_regist')}
     
     # sil_province -> cmm_province.cp_code
-    op.create_foreign_key(
-        'fk_silmatha_regist_province',
-        'silmatha_regist', 'cmm_province',
-        ['sil_province'], ['cp_code'],
-        ondelete='SET NULL'
-    )
+    if 'fk_silmatha_regist_province' not in existing_fks:
+        op.create_foreign_key(
+            'fk_silmatha_regist_province',
+            'silmatha_regist', 'cmm_province',
+            ['sil_province'], ['cp_code'],
+            ondelete='SET NULL'
+        )
     
     # sil_district -> cmm_districtdata.dd_dcode
-    op.create_foreign_key(
-        'fk_silmatha_regist_district',
-        'silmatha_regist', 'cmm_districtdata',
-        ['sil_district'], ['dd_dcode'],
-        ondelete='SET NULL'
-    )
+    if 'fk_silmatha_regist_district' not in existing_fks:
+        op.create_foreign_key(
+            'fk_silmatha_regist_district',
+            'silmatha_regist', 'cmm_districtdata',
+            ['sil_district'], ['dd_dcode'],
+            ondelete='SET NULL'
+        )
     
     # sil_division -> cmm_dvsec.dv_dvcode
-    op.create_foreign_key(
-        'fk_silmatha_regist_division',
-        'silmatha_regist', 'cmm_dvsec',
-        ['sil_division'], ['dv_dvcode'],
-        ondelete='SET NULL'
-    )
+    if 'fk_silmatha_regist_division' not in existing_fks:
+        op.create_foreign_key(
+            'fk_silmatha_regist_division',
+            'silmatha_regist', 'cmm_dvsec',
+            ['sil_division'], ['dv_dvcode'],
+            ondelete='SET NULL'
+        )
     
     # sil_gndiv -> cmm_gndata.gn_gnc
-    op.create_foreign_key(
-        'fk_silmatha_regist_gndiv',
-        'silmatha_regist', 'cmm_gndata',
-        ['sil_gndiv'], ['gn_gnc'],
-        ondelete='RESTRICT'  # NOT NULL, so restrict deletion
-    )
+    if 'fk_silmatha_regist_gndiv' not in existing_fks:
+        op.create_foreign_key(
+            'fk_silmatha_regist_gndiv',
+            'silmatha_regist', 'cmm_gndata',
+            ['sil_gndiv'], ['gn_gnc'],
+            ondelete='RESTRICT'  # NOT NULL, so restrict deletion
+        )
     
     # sil_viharadhipathi -> bhikku_regist.br_regn
-    op.create_foreign_key(
-        'fk_silmatha_regist_viharadhipathi',
-        'silmatha_regist', 'bhikku_regist',
-        ['sil_viharadhipathi'], ['br_regn'],
-        ondelete='SET NULL'
-    )
+    if 'fk_silmatha_regist_viharadhipathi' not in existing_fks:
+        op.create_foreign_key(
+            'fk_silmatha_regist_viharadhipathi',
+            'silmatha_regist', 'bhikku_regist',
+            ['sil_viharadhipathi'], ['br_regn'],
+            ondelete='SET NULL'
+        )
     
     # sil_cat -> cmm_cat.cc_code
-    op.create_foreign_key(
-        'fk_silmatha_regist_cat',
-        'silmatha_regist', 'cmm_cat',
-        ['sil_cat'], ['cc_code'],
-        ondelete='SET NULL'
-    )
+    if 'fk_silmatha_regist_cat' not in existing_fks:
+        op.create_foreign_key(
+            'fk_silmatha_regist_cat',
+            'silmatha_regist', 'cmm_cat',
+            ['sil_cat'], ['cc_code'],
+            ondelete='SET NULL'
+        )
     
     # sil_currstat -> statusdata.st_statcd
-    op.create_foreign_key(
-        'fk_silmatha_regist_currstat',
-        'silmatha_regist', 'statusdata',
-        ['sil_currstat'], ['st_statcd'],
-        ondelete='RESTRICT'  # NOT NULL, so restrict deletion
-    )
+    if 'fk_silmatha_regist_currstat' not in existing_fks:
+        op.create_foreign_key(
+            'fk_silmatha_regist_currstat',
+            'silmatha_regist', 'statusdata',
+            ['sil_currstat'], ['st_statcd'],
+            ondelete='RESTRICT'  # NOT NULL, so restrict deletion
+        )
     
     # sil_robing_tutor_residence -> vihaddata.vh_trn
-    op.create_foreign_key(
-        'fk_silmatha_regist_robing_tutor_residence',
-        'silmatha_regist', 'vihaddata',
-        ['sil_robing_tutor_residence'], ['vh_trn'],
-        ondelete='SET NULL'
-    )
+    if 'fk_silmatha_regist_robing_tutor_residence' not in existing_fks:
+        op.create_foreign_key(
+            'fk_silmatha_regist_robing_tutor_residence',
+            'silmatha_regist', 'vihaddata',
+            ['sil_robing_tutor_residence'], ['vh_trn'],
+            ondelete='SET NULL'
+        )
     
     # sil_mahanatemple -> vihaddata.vh_trn
-    op.create_foreign_key(
-        'fk_silmatha_regist_mahanatemple',
-        'silmatha_regist', 'vihaddata',
-        ['sil_mahanatemple'], ['vh_trn'],
-        ondelete='SET NULL'
-    )
+    if 'fk_silmatha_regist_mahanatemple' not in existing_fks:
+        op.create_foreign_key(
+            'fk_silmatha_regist_mahanatemple',
+            'silmatha_regist', 'vihaddata',
+            ['sil_mahanatemple'], ['vh_trn'],
+            ondelete='SET NULL'
+        )
     
     # sil_robing_after_residence_temple -> vihaddata.vh_trn
-    op.create_foreign_key(
-        'fk_silmatha_regist_robing_after_residence_temple',
-        'silmatha_regist', 'vihaddata',
-        ['sil_robing_after_residence_temple'], ['vh_trn'],
-        ondelete='SET NULL'
-    )
+    if 'fk_silmatha_regist_robing_after_residence_temple' not in existing_fks:
+        op.create_foreign_key(
+            'fk_silmatha_regist_robing_after_residence_temple',
+            'silmatha_regist', 'vihaddata',
+            ['sil_robing_after_residence_temple'], ['vh_trn'],
+            ondelete='SET NULL'
+        )
     
     # Note: sil_mahanaacharyacd can contain comma-separated br_regn values,
     # so we cannot create a direct foreign key constraint for it.
@@ -193,13 +209,30 @@ def upgrade() -> None:
 def downgrade() -> None:
     """Remove foreign key constraints from silmatha_regist table"""
     
-    op.drop_constraint('fk_silmatha_regist_robing_after_residence_temple', 'silmatha_regist', type_='foreignkey')
-    op.drop_constraint('fk_silmatha_regist_mahanatemple', 'silmatha_regist', type_='foreignkey')
-    op.drop_constraint('fk_silmatha_regist_robing_tutor_residence', 'silmatha_regist', type_='foreignkey')
-    op.drop_constraint('fk_silmatha_regist_currstat', 'silmatha_regist', type_='foreignkey')
-    op.drop_constraint('fk_silmatha_regist_cat', 'silmatha_regist', type_='foreignkey')
-    op.drop_constraint('fk_silmatha_regist_viharadhipathi', 'silmatha_regist', type_='foreignkey')
-    op.drop_constraint('fk_silmatha_regist_gndiv', 'silmatha_regist', type_='foreignkey')
-    op.drop_constraint('fk_silmatha_regist_division', 'silmatha_regist', type_='foreignkey')
-    op.drop_constraint('fk_silmatha_regist_district', 'silmatha_regist', type_='foreignkey')
-    op.drop_constraint('fk_silmatha_regist_province', 'silmatha_regist', type_='foreignkey')
+    # Check which constraints exist before dropping
+    from sqlalchemy import inspect
+    bind = op.get_bind()
+    inspector = inspect(bind)
+    existing_fks = {fk['name'] for fk in inspector.get_foreign_keys('silmatha_regist')}
+    
+    # Drop constraints only if they exist
+    if 'fk_silmatha_regist_robing_after_residence_temple' in existing_fks:
+        op.drop_constraint('fk_silmatha_regist_robing_after_residence_temple', 'silmatha_regist', type_='foreignkey')
+    if 'fk_silmatha_regist_mahanatemple' in existing_fks:
+        op.drop_constraint('fk_silmatha_regist_mahanatemple', 'silmatha_regist', type_='foreignkey')
+    if 'fk_silmatha_regist_robing_tutor_residence' in existing_fks:
+        op.drop_constraint('fk_silmatha_regist_robing_tutor_residence', 'silmatha_regist', type_='foreignkey')
+    if 'fk_silmatha_regist_currstat' in existing_fks:
+        op.drop_constraint('fk_silmatha_regist_currstat', 'silmatha_regist', type_='foreignkey')
+    if 'fk_silmatha_regist_cat' in existing_fks:
+        op.drop_constraint('fk_silmatha_regist_cat', 'silmatha_regist', type_='foreignkey')
+    if 'fk_silmatha_regist_viharadhipathi' in existing_fks:
+        op.drop_constraint('fk_silmatha_regist_viharadhipathi', 'silmatha_regist', type_='foreignkey')
+    if 'fk_silmatha_regist_gndiv' in existing_fks:
+        op.drop_constraint('fk_silmatha_regist_gndiv', 'silmatha_regist', type_='foreignkey')
+    if 'fk_silmatha_regist_division' in existing_fks:
+        op.drop_constraint('fk_silmatha_regist_division', 'silmatha_regist', type_='foreignkey')
+    if 'fk_silmatha_regist_district' in existing_fks:
+        op.drop_constraint('fk_silmatha_regist_district', 'silmatha_regist', type_='foreignkey')
+    if 'fk_silmatha_regist_province' in existing_fks:
+        op.drop_constraint('fk_silmatha_regist_province', 'silmatha_regist', type_='foreignkey')
