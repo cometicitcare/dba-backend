@@ -7,11 +7,20 @@ from sqlalchemy import (
     DateTime,
     Text,
     ForeignKey,
+    Enum,
 )
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from app.db.base import Base
 from .roles import Role
+import enum
+
+
+class UserLocationType(str, enum.Enum):
+    """Enum for user location types/levels"""
+    MAIN_BRANCH = "MAIN_BRANCH"
+    PROVINCE_BRANCH = "PROVINCE_BRANCH"
+    DISTRICT_BRANCH = "DISTRICT_BRANCH"
 
 
 class UserAccount(Base):
@@ -42,6 +51,31 @@ class UserAccount(Base):
     ua_updated_by = Column(String(50))
     ua_version_number = Column(Integer, default=1)
     
+    # Location-based access control fields
+    ua_location_type = Column(
+        Enum(UserLocationType),
+        nullable=True,  # Made nullable for backward compatibility
+        index=True
+    )
+    ua_main_branch_id = Column(
+        Integer,
+        ForeignKey("main_branches.mb_id"),
+        nullable=True,
+        index=True
+    )
+    ua_province_branch_id = Column(
+        Integer,
+        ForeignKey("province_branches.pb_id"),
+        nullable=True,
+        index=True
+    )
+    ua_district_branch_id = Column(
+        Integer,
+        ForeignKey("district_branches.db_id"),
+        nullable=True,
+        index=True
+    )
+    
     # Relationships (many-to-many through junction tables)
     # User can have multiple roles via UserRole table
     user_roles = relationship("UserRole", back_populates="user", cascade="all, delete-orphan")
@@ -49,6 +83,11 @@ class UserAccount(Base):
     user_groups = relationship("UserGroup", back_populates="user", cascade="all, delete-orphan")
     # User can have permission overrides via UserPermission table
     user_permissions = relationship("UserPermission", back_populates="user", cascade="all, delete-orphan")
+    
+    # Location relationships
+    main_branch = relationship("MainBranch", back_populates="users")
+    province_branch = relationship("ProvinceBranch", back_populates="users")
+    district_branch = relationship("DistrictBranch", back_populates="users")
 
 
 class LoginHistory(Base):

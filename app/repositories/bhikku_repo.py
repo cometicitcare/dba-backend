@@ -6,7 +6,9 @@ from sqlalchemy import func, or_
 from sqlalchemy.orm import Session, joinedload, selectinload
 
 from app.models import bhikku as models
+from app.models.user import UserAccount
 from app.schemas import bhikku as schemas
+from app.services.location_access_control_service import LocationAccessControlService
 
 
 class BhikkuRepository:
@@ -95,9 +97,20 @@ class BhikkuRepository:
         workflow_status: Optional[list[str]] = None,
         date_from: Optional[str] = None,
         date_to: Optional[str] = None,
+        current_user: Optional[UserAccount] = None,
     ):
         """Get paginated bhikkus with optional search functionality across all text fields."""
         query = db.query(models.Bhikku).filter(models.Bhikku.br_is_deleted.is_(False))
+
+        # Apply location-based access control
+        if current_user:
+            query = LocationAccessControlService.apply_location_filter_to_query(
+                query=query,
+                db=db,
+                user=current_user,
+                province_field='br_province',
+                district_field='br_district'
+            )
 
         # Apply search filter
         if search_key and search_key.strip():
@@ -198,11 +211,26 @@ class BhikkuRepository:
         workflow_status: Optional[list[str]] = None,
         date_from: Optional[str] = None,
         date_to: Optional[str] = None,
+        current_user: Optional[UserAccount] = None,
     ):
         """Get total count of non-deleted bhikkus for pagination with optional search."""
         query = db.query(func.count(models.Bhikku.br_id)).filter(
             models.Bhikku.br_is_deleted.is_(False)
         )
+
+        # Apply location-based access control
+        # Note: For count queries, we need to get the base query first
+        if current_user:
+            base_query = db.query(models.Bhikku).filter(models.Bhikku.br_is_deleted.is_(False))
+            base_query = LocationAccessControlService.apply_location_filter_to_query(
+                query=base_query,
+                db=db,
+                user=current_user,
+                province_field='br_province',
+                district_field='br_district'
+            )
+            # Extract filters from the base query and apply to count query
+            query = db.query(func.count(models.Bhikku.br_id)).select_from(base_query.subquery())
 
         # Apply search filter
         if search_key and search_key.strip():

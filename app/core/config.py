@@ -51,6 +51,16 @@ class Settings:
     RESET_PASSWORD_TOKEN_EXPIRE_MINUTES: int = int(os.getenv("RESET_PASSWORD_TOKEN_EXPIRE_MINUTES", "30"))
     OTP_EXPIRE_MINUTES: int = int(os.getenv("OTP_EXPIRE_MINUTES", "10"))
     OTP_LENGTH: int = int(os.getenv("OTP_LENGTH", "6"))
+    OTP_MAX_ATTEMPTS: int = int(os.getenv("OTP_MAX_ATTEMPTS", "3"))
+    OTP_MAX_REQUESTS_PER_HOUR: int = int(os.getenv("OTP_MAX_REQUESTS_PER_HOUR", "5"))
+    OTP_MAX_REQUESTS_PER_DAY: int = int(os.getenv("OTP_MAX_REQUESTS_PER_DAY", "10"))
+    
+    # Redis Configuration (for OTP storage in production)
+    REDIS_ENABLED: bool = os.getenv("REDIS_ENABLED", "false").lower() == "true"
+    REDIS_HOST: str = os.getenv("REDIS_HOST", "localhost")
+    REDIS_PORT: int = int(os.getenv("REDIS_PORT", "6379"))
+    REDIS_PASSWORD: str = os.getenv("REDIS_PASSWORD", "")
+    REDIS_DB: int = int(os.getenv("REDIS_DB", "0"))
 
     # SMS / Text service configuration (text.lk example)
     SMS_ENABLED: bool = os.getenv("SMS_ENABLED", "false").lower() == "true"

@@ -1,8 +1,16 @@
 # app/schemas/user.py
 from datetime import datetime
 from typing import Annotated, Optional
+from enum import Enum
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator, model_validator
+
+
+class UserLocationType(str, Enum):
+    """Enum for user location types/levels"""
+    MAIN_BRANCH = "MAIN_BRANCH"
+    PROVINCE_BRANCH = "PROVINCE_BRANCH"
+    DISTRICT_BRANCH = "DISTRICT_BRANCH"
 
 
 class RoleBase(BaseModel):
@@ -41,6 +49,12 @@ class UserCreate(BaseModel):
     ua_last_name: Annotated[Optional[str], Field(default=None, max_length=50)] = None
     ua_phone: Annotated[Optional[str], Field(default=None, max_length=15)] = None
     ro_role_id: Annotated[str, Field(min_length=1, max_length=20)]
+    
+    # Location-based access control fields
+    ua_location_type: Optional[UserLocationType] = None
+    ua_main_branch_id: Optional[int] = None
+    ua_province_branch_id: Optional[int] = None
+    ua_district_branch_id: Optional[int] = None
 
     @field_validator("ua_username", "ro_role_id", mode="before")
     @classmethod
@@ -77,6 +91,25 @@ class UserCreate(BaseModel):
         if self.ua_password != self.confirm_password:
             raise ValueError("Passwords do not match.")
         return self
+    
+    @model_validator(mode="after")
+    def _validate_location_fields(self):
+        """Validate that location fields are consistent with location type"""
+        if self.ua_location_type:
+            if self.ua_location_type == UserLocationType.MAIN_BRANCH:
+                if not self.ua_main_branch_id:
+                    raise ValueError("Main branch ID is required for MAIN_BRANCH type users")
+                if self.ua_province_branch_id or self.ua_district_branch_id:
+                    raise ValueError("MAIN_BRANCH type users should not have province or district branch IDs")
+            elif self.ua_location_type == UserLocationType.PROVINCE_BRANCH:
+                if not self.ua_province_branch_id:
+                    raise ValueError("Province branch ID is required for PROVINCE_BRANCH type users")
+                if self.ua_district_branch_id:
+                    raise ValueError("PROVINCE_BRANCH type users should not have district branch ID")
+            elif self.ua_location_type == UserLocationType.DISTRICT_BRANCH:
+                if not self.ua_district_branch_id:
+                    raise ValueError("District branch ID is required for DISTRICT_BRANCH type users")
+        return self
 
 
 class UserLogin(BaseModel):
@@ -105,6 +138,12 @@ class UserResponse(BaseModel):
     ua_status: str
     ro_role_id: Optional[str] = None  # Made optional for RBAC - roles returned separately
     role: Optional[RoleBase] = None
+    
+    # Location-based access control fields
+    ua_location_type: Optional[UserLocationType] = None
+    ua_main_branch_id: Optional[int] = None
+    ua_province_branch_id: Optional[int] = None
+    ua_district_branch_id: Optional[int] = None
 
     class Config:
         from_attributes = True
