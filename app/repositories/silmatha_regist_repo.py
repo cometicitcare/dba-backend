@@ -83,10 +83,14 @@ class SilmathaRegistRepository:
         skip: int = 0,
         limit: int = 100,
         search_key: Optional[str] = None,
+        vh_trn: Optional[str] = None,
         province: Optional[str] = None,
         district: Optional[str] = None,
         divisional_secretariat: Optional[str] = None,
         gn_division: Optional[str] = None,
+        temple: Optional[str] = None,
+        child_temple: Optional[str] = None,
+        parshawaya: Optional[str] = None,
         category: Optional[str] = None,
         status: Optional[str] = None,
         workflow_status: Optional[str] = None,
@@ -161,6 +165,9 @@ class SilmathaRegistRepository:
             )
 
         # Apply advanced filters
+        if vh_trn:
+            query = query.filter(SilmathaRegist.sil_robing_tutor_residence == vh_trn)
+        
         if province:
             query = query.filter(SilmathaRegist.sil_province == province)
         
@@ -172,6 +179,14 @@ class SilmathaRegistRepository:
         
         if gn_division:
             query = query.filter(SilmathaRegist.sil_gndiv == gn_division)
+        
+        if temple:
+            query = query.filter(SilmathaRegist.sil_robing_after_residence_temple == temple)
+        
+        if child_temple:
+            query = query.filter(SilmathaRegist.sil_mahanatemple == child_temple)
+        
+        # Note: parshawaya is not applicable to silmatha records, so we ignore this filter
         
         if category:
             query = query.filter(SilmathaRegist.sil_cat == category)
@@ -209,10 +224,14 @@ class SilmathaRegistRepository:
         self, 
         db: Session, 
         search_key: Optional[str] = None,
+        vh_trn: Optional[str] = None,
         province: Optional[str] = None,
         district: Optional[str] = None,
         divisional_secretariat: Optional[str] = None,
         gn_division: Optional[str] = None,
+        temple: Optional[str] = None,
+        child_temple: Optional[str] = None,
+        parshawaya: Optional[str] = None,
         category: Optional[str] = None,
         status: Optional[str] = None,
         workflow_status: Optional[str] = None,
@@ -289,6 +308,9 @@ class SilmathaRegistRepository:
             )
 
         # Apply advanced filters (same as get_all)
+        if vh_trn:
+            query = query.filter(SilmathaRegist.sil_robing_tutor_residence == vh_trn)
+        
         if province:
             query = query.filter(SilmathaRegist.sil_province == province)
         
@@ -300,6 +322,14 @@ class SilmathaRegistRepository:
         
         if gn_division:
             query = query.filter(SilmathaRegist.sil_gndiv == gn_division)
+        
+        if temple:
+            query = query.filter(SilmathaRegist.sil_robing_after_residence_temple == temple)
+        
+        if child_temple:
+            query = query.filter(SilmathaRegist.sil_mahanatemple == child_temple)
+        
+        # Note: parshawaya is not applicable to silmatha records, so we ignore this filter
         
         if category:
             query = query.filter(SilmathaRegist.sil_cat == category)

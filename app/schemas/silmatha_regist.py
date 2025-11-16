@@ -244,13 +244,17 @@ class SilmathaRegistRequestPayload(BaseModel):
     search_key: Optional[str] = Field(default="", max_length=100)
     
     # Advanced filters for READ_ALL
+    vh_trn: Optional[str] = Field(None, description="Temple TRN filter (robing tutor residence)")
     province: Optional[str] = Field(None, description="Province code filter")
     district: Optional[str] = Field(None, description="District code filter")
     divisional_secretariat: Optional[str] = Field(None, description="Divisional secretariat code filter")
     gn_division: Optional[str] = Field(None, description="GN division code filter")
-    category: Optional[List[str]] = Field(None, description="List of category codes to filter by")
-    status: Optional[List[str]] = Field(None, description="List of status codes to filter by")
-    workflow_status: Optional[List[str]] = Field(None, description="List of workflow status codes to filter by")
+    temple: Optional[str] = Field(None, description="Temple filter (robing after residence temple)")
+    child_temple: Optional[str] = Field(None, description="Child temple filter (mahana temple)")
+    parshawaya: Optional[str] = Field(None, description="Parshawaya filter (not applicable to silmatha)")
+    category: Optional[str] = Field(None, description="Category code filter")
+    status: Optional[str] = Field(None, description="Status code filter")
+    workflow_status: Optional[str] = Field(None, description="Workflow status filter")
     date_from: Optional[date] = Field(None, description="Start date for filtering by request date")
     date_to: Optional[date] = Field(None, description="End date for filtering by request date")
     
