@@ -1,5 +1,5 @@
 # app/models/silmatha_regist.py
-from sqlalchemy import Boolean, Column, Integer, String, Date, TIMESTAMP, text
+from sqlalchemy import Boolean, Column, Integer, String, Date, TIMESTAMP, text, ForeignKey
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from app.db.base import Base
@@ -22,26 +22,26 @@ class SilmathaRegist(Base):
     
     # Geographic/Birth Information
     sil_birthpls = Column(String(50))
-    sil_province = Column(String(50))
-    sil_district = Column(String(50))
+    sil_province = Column(String(50), ForeignKey('cmm_province.cp_code'))
+    sil_district = Column(String(50), ForeignKey('cmm_district.dd_dcode'))
     sil_korale = Column(String(50))
     sil_pattu = Column(String(50))
-    sil_division = Column(String(50))
+    sil_division = Column(String(50), ForeignKey('cmm_divsec.dv_dvcode'))
     sil_vilage = Column(String(50))
-    sil_gndiv = Column(String(10), nullable=False)
+    sil_gndiv = Column(String(10), ForeignKey('cmm_gndata.gn_gnc'), nullable=False)
     
     # Temple/Religious Information
-    sil_viharadhipathi = Column(String(20))
-    sil_cat = Column(String(5))
-    sil_currstat = Column(String(5), nullable=False)
+    sil_viharadhipathi = Column(String(20), ForeignKey('bhikku_regist.br_regn'))
+    sil_cat = Column(String(5), ForeignKey('cmm_cat.cc_code'))
+    sil_currstat = Column(String(5), ForeignKey('cmm_status.st_statcd'), nullable=False)
     sil_declaration_date = Column(Date)
     sil_remarks = Column(String(100))
     sil_mahanadate = Column(Date)
     sil_mahananame = Column(String(50))
-    sil_mahanaacharyacd = Column(String(12))
-    sil_robing_tutor_residence = Column(String(20))
-    sil_mahanatemple = Column(String(10))
-    sil_robing_after_residence_temple = Column(String(20))
+    sil_mahanaacharyacd = Column(String(12))  # Can be comma-separated br_regn values
+    sil_robing_tutor_residence = Column(String(20), ForeignKey('vihaddata.vh_trn'))
+    sil_mahanatemple = Column(String(10), ForeignKey('vihaddata.vh_trn'))
+    sil_robing_after_residence_temple = Column(String(20), ForeignKey('vihaddata.vh_trn'))
     
     # Document Storage
     sil_scanned_document_path = Column(String(500))
@@ -81,4 +81,15 @@ class SilmathaRegist(Base):
     sil_updated_by = Column(String(25))
     sil_version_number = Column(Integer, server_default=text('1'))
     
-    # Relationships can be added here if needed
+    # Relationships - SQLAlchemy ORM relationships for nested responses
+    province_rel = relationship("Province", foreign_keys=[sil_province], lazy="joined")
+    district_rel = relationship("District", foreign_keys=[sil_district], lazy="joined")
+    division_rel = relationship("DivisionalSecretariat", foreign_keys=[sil_division], lazy="joined")
+    gndiv_rel = relationship("Gramasewaka", foreign_keys=[sil_gndiv], lazy="joined")
+    viharadhipathi_rel = relationship("Bhikku", foreign_keys=[sil_viharadhipathi], lazy="joined")
+    category_rel = relationship("BhikkuCategory", foreign_keys=[sil_cat], lazy="joined")
+    status_rel = relationship("StatusData", foreign_keys=[sil_currstat], lazy="joined")
+    robing_tutor_residence_rel = relationship("ViharaData", foreign_keys=[sil_robing_tutor_residence], lazy="joined")
+    mahanatemple_rel = relationship("ViharaData", foreign_keys=[sil_mahanatemple], lazy="joined")
+    robing_after_residence_temple_rel = relationship("ViharaData", foreign_keys=[sil_robing_after_residence_temple], lazy="joined")
+

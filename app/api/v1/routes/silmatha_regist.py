@@ -89,11 +89,13 @@ def manage_silmatha_records(
         if db_silmatha is None:
             raise HTTPException(status_code=404, detail="Silmatha record not found")
         
-        silmatha_schema = schemas.Silmatha.model_validate(db_silmatha)
+        # Enrich with nested FK objects
+        silmatha_enriched = silmatha_regist_service.enrich_silmatha_dict(db_silmatha, db)
+        
         return schemas.SilmathaRegistManagementResponse(
             status="success",
             message="Silmatha record retrieved successfully.",
-            data=silmatha_schema,
+            data=silmatha_enriched,
         )
 
     elif action == schemas.CRUDAction.READ_ALL:
@@ -109,13 +111,19 @@ def manage_silmatha_records(
             skip=skip, 
             limit=limit, 
             search_key=search_key,
+            vh_trn=payload.vh_trn if payload and hasattr(payload, 'vh_trn') else None,
             province=payload.province if payload and hasattr(payload, 'province') else None,
             district=payload.district if payload and hasattr(payload, 'district') else None,
             divisional_secretariat=payload.divisional_secretariat if payload and hasattr(payload, 'divisional_secretariat') else None,
             gn_division=payload.gn_division if payload and hasattr(payload, 'gn_division') else None,
+            temple=payload.temple if payload and hasattr(payload, 'temple') else None,
+            child_temple=payload.child_temple if payload and hasattr(payload, 'child_temple') else None,
+            parshawaya=payload.parshawaya if payload and hasattr(payload, 'parshawaya') else None,
             category=payload.category if payload and hasattr(payload, 'category') else None,
             status=payload.status if payload and hasattr(payload, 'status') else None,
             workflow_status=payload.workflow_status if payload and hasattr(payload, 'workflow_status') else None,
+            date_from=payload.date_from if payload and hasattr(payload, 'date_from') else None,
+            date_to=payload.date_to if payload and hasattr(payload, 'date_to') else None,
             current_user=current_user
         )
         
@@ -123,23 +131,29 @@ def manage_silmatha_records(
         total_count = silmatha_regist_repo.get_total_count(
             db, 
             search_key=search_key,
+            vh_trn=payload.vh_trn if payload and hasattr(payload, 'vh_trn') else None,
             province=payload.province if payload and hasattr(payload, 'province') else None,
             district=payload.district if payload and hasattr(payload, 'district') else None,
             divisional_secretariat=payload.divisional_secretariat if payload and hasattr(payload, 'divisional_secretariat') else None,
             gn_division=payload.gn_division if payload and hasattr(payload, 'gn_division') else None,
+            temple=payload.temple if payload and hasattr(payload, 'temple') else None,
+            child_temple=payload.child_temple if payload and hasattr(payload, 'child_temple') else None,
+            parshawaya=payload.parshawaya if payload and hasattr(payload, 'parshawaya') else None,
             category=payload.category if payload and hasattr(payload, 'category') else None,
             status=payload.status if payload and hasattr(payload, 'status') else None,
             workflow_status=payload.workflow_status if payload and hasattr(payload, 'workflow_status') else None,
+            date_from=payload.date_from if payload and hasattr(payload, 'date_from') else None,
+            date_to=payload.date_to if payload and hasattr(payload, 'date_to') else None,
             current_user=current_user
         )
         
-        # Convert SQLAlchemy models to Pydantic schemas
-        silmatha_schemas = [schemas.Silmatha.model_validate(record) for record in silmatha_records]
+        # Enrich each record with nested FK objects
+        silmatha_enriched = [silmatha_regist_service.enrich_silmatha_dict(record, db) for record in silmatha_records]
         
         return schemas.SilmathaRegistManagementResponse(
             status="success",
             message="Silmatha records retrieved successfully.",
-            data=silmatha_schemas,
+            data=silmatha_enriched,
             totalRecords=total_count,
             page=page,
             limit=limit,
