@@ -74,9 +74,9 @@ def upgrade() -> None:
     # Clean invalid status references (NOT NULL - set to a default value)
     op.execute("""
         UPDATE silmatha_regist 
-        SET sil_currstat = (SELECT st_statcd FROM cmm_status WHERE st_is_deleted = false LIMIT 1)
+        SET sil_currstat = (SELECT st_statcd FROM statusdata WHERE st_is_deleted = false LIMIT 1)
         WHERE sil_currstat IS NOT NULL 
-        AND sil_currstat NOT IN (SELECT st_statcd FROM cmm_status WHERE st_is_deleted = false)
+        AND sil_currstat NOT IN (SELECT st_statcd FROM statusdata WHERE st_is_deleted = false)
     """)
     
     # Clean invalid robing_tutor_residence references (nullable)
@@ -153,10 +153,10 @@ def upgrade() -> None:
         ondelete='SET NULL'
     )
     
-    # sil_currstat -> cmm_status.st_statcd
+    # sil_currstat -> statusdata.st_statcd
     op.create_foreign_key(
         'fk_silmatha_regist_currstat',
-        'silmatha_regist', 'cmm_status',
+        'silmatha_regist', 'statusdata',
         ['sil_currstat'], ['st_statcd'],
         ondelete='RESTRICT'  # NOT NULL, so restrict deletion
     )
