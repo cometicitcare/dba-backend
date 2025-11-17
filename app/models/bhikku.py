@@ -1,5 +1,5 @@
 # app/models/bhikku.py
-from sqlalchemy import Boolean, Column, Integer, String, Date, TIMESTAMP, text
+from sqlalchemy import Boolean, Column, Integer, String, Date, TIMESTAMP, Numeric, text
 from sqlalchemy.orm import relationship, foreign, remote
 from sqlalchemy.sql import func
 from app.db.base import Base
@@ -81,6 +81,8 @@ class Bhikku(Base):
     br_reprint_requested_by = Column(String(25))
     br_reprint_requested_at = Column(TIMESTAMP)
     br_reprint_request_reason = Column(String(500))
+    br_reprint_amount = Column(Numeric(10, 2))
+    br_reprint_remarks = Column(String(500))
     br_reprint_approved_by = Column(String(25))
     br_reprint_approved_at = Column(TIMESTAMP)
     br_reprint_rejected_by = Column(String(25))

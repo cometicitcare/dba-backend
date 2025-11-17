@@ -967,6 +967,8 @@ class BhikkuService:
         br_regn: str,
         actor_id: Optional[str],
         reprint_reason: str,
+        reprint_amount: Optional[float] = None,
+        reprint_remarks: Optional[str] = None,
     ) -> Bhikku:
         """Request a reprint for a bhikku certificate - initiates reprint workflow"""
         entity = bhikku_repo.get_by_regn(db, br_regn)
@@ -986,6 +988,8 @@ class BhikkuService:
         entity.br_reprint_requested_by = actor_id
         entity.br_reprint_requested_at = datetime.utcnow()
         entity.br_reprint_request_reason = reprint_reason
+        entity.br_reprint_amount = reprint_amount
+        entity.br_reprint_remarks = reprint_remarks
         # Clear previous reprint approval/rejection data
         entity.br_reprint_approved_by = None
         entity.br_reprint_approved_at = None
