@@ -919,7 +919,7 @@ def update_bhikku_workflow(
     - RESET_TO_PENDING: Reset workflow to pending state (for corrections)
     
     Reprint Workflow Actions:
-    - REQUEST_REPRINT: Request a certificate reprint (requires reprint_reason)
+    - REQUEST_REPRINT: Request a certificate reprint (requires reprint_reason, reprint_amount, optional reprint_remarks)
     - ACCEPT_REPRINT: Accept a reprint request
     - REJECT_REPRINT: Reject a reprint request (requires rejection_reason)
     - COMPLETE_REPRINT: Mark reprint as completed
@@ -980,11 +980,17 @@ def update_bhikku_workflow(
                 raise validation_error(
                     [("reprint_reason", "Reprint reason is required when requesting reprint")]
                 )
+            if not request.reprint_amount:
+                raise validation_error(
+                    [("reprint_amount", "Reprint amount is required when requesting reprint")]
+                )
             updated_bhikku = bhikku_service.request_reprint(
                 db, 
                 br_regn=br_regn, 
                 actor_id=user_id,
-                reprint_reason=request.reprint_reason
+                reprint_reason=request.reprint_reason,
+                reprint_amount=request.reprint_amount,
+                reprint_remarks=request.reprint_remarks
             )
             message = "Reprint request submitted successfully."
 

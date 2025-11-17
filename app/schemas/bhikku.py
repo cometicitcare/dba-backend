@@ -184,6 +184,8 @@ class BhikkuInternal(BhikkuBase):
     br_reprint_requested_by: Optional[str] = None
     br_reprint_requested_at: Optional[datetime] = None
     br_reprint_request_reason: Optional[str] = None
+    br_reprint_amount: Optional[float] = None
+    br_reprint_remarks: Optional[str] = None
     br_reprint_approved_by: Optional[str] = None
     br_reprint_approved_at: Optional[datetime] = None
     br_reprint_rejected_by: Optional[str] = None
@@ -745,6 +747,8 @@ class BhikkuWorkflowRequest(BaseModel):
     action: WorkflowActionType
     rejection_reason: Optional[str] = Field(None, max_length=500, description="Required when action is REJECT or REJECT_REPRINT")
     reprint_reason: Optional[str] = Field(None, max_length=500, description="Required when action is REQUEST_REPRINT")
+    reprint_amount: Optional[float] = Field(None, description="Reprint amount - required when action is REQUEST_REPRINT")
+    reprint_remarks: Optional[str] = Field(None, max_length=500, description="Reprint remarks - optional when action is REQUEST_REPRINT")
     
     class Config:
         json_schema_extra = {
