@@ -34,6 +34,7 @@ from app.api.v1.routes import (
     status,
     silmatha_id,
     vihara_data,
+    webhooks,
 )
 from app.api.v1 import auth_sms_test
 
@@ -92,6 +93,7 @@ api_router.include_router(nilame.router, prefix="/nilame", tags=["Nilame"])
 api_router.include_router(debug.router, tags=["Debug"])
 api_router.include_router(auth.router, prefix="/auth", tags=["Authentication"])
 api_router.include_router(auth_sms_test.router, prefix="/auth", tags=["Authentication"])
+api_router.include_router(webhooks.router, prefix="/webhooks", tags=["Webhooks"])
 api_router.include_router(
     vihara_data.router,
     prefix="/vihara-data",

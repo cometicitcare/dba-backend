@@ -13,6 +13,8 @@ Notes:
 from pathlib import Path
 import logging
 from typing import Optional
+from concurrent.futures import ThreadPoolExecutor, Future
+import time
 
 import httpx
 
@@ -22,6 +24,7 @@ logger = logging.getLogger(__name__)
 
 
 class SMSService:
+    _executor = ThreadPoolExecutor(max_workers=4, thread_name_prefix="sms-sender")
     def __init__(self):
         self.api_url = settings.SMS_API_URL
         self.bearer_token = settings.SMS_BEARER_TOKEN
@@ -84,8 +87,22 @@ class SMSService:
         }
 
         try:
-            with httpx.Client(timeout=10.0) as client:
-                resp = client.post(self.api_url, json=payload, headers=headers)
+            max_retries = settings.SMS_MAX_RETRIES
+            backoff = settings.SMS_RETRY_BACKOFF_BASE
+            attempt = 0
+            while True:
+                try:
+                    with httpx.Client(timeout=10.0) as client:
+                        resp = client.post(self.api_url, json=payload, headers=headers)
+                except (httpx.ConnectError, httpx.ReadTimeout) as e:
+                    attempt += 1
+                    if attempt > max_retries:
+                        logger.error(f"SMS connection retry exhausted to {recipient}: {e}")
+                        raise
+                    sleep_for = backoff * (2 ** (attempt - 1))
+                    logger.warning(f"SMS connection issue; retrying in {sleep_for:.2f}s")
+                    time.sleep(sleep_for)
+                    continue
 
             # Try to parse provider JSON response but fall back to text
             provider_payload = None
@@ -111,6 +128,15 @@ class SMSService:
             else:
                 result["provider_text"] = str(provider_payload)
 
+            # Retry on 429 or 5xx
+            if resp.status_code in (429,) or 500 <= resp.status_code < 600:
+                attempt += 1
+                if attempt <= max_retries:
+                    sleep_for = backoff * (2 ** (attempt - 1))
+                    logger.warning(f"SMS provider {resp.status_code}; retrying in {sleep_for:.2f}s")
+                    time.sleep(sleep_for)
+                    return self.send_sms(recipient, message, sender_id)
+
             if result["success"]:
                 logger.info(f"SMS sent to {recipient} (status={resp.status_code})")
                 return result
@@ -122,6 +148,29 @@ class SMSService:
         except Exception as e:
             logger.error(f"Exception when sending SMS to {recipient}: {e}")
             return {"success": False, "error": str(e)}
+
+    def submit_sms(self, recipient: str, message: str, sender_id: Optional[str] = None) -> Future:
+        """
+        Schedule an SMS send on a background thread and return a Future.
+        """
+        try:
+            fut = self._executor.submit(self.send_sms, recipient, message, sender_id)
+            def _cb(f: Future):
+                try:
+                    res = f.result()
+                    if isinstance(res, dict) and res.get("success"):
+                        logger.info(f"SMS send completed to {recipient}")
+                    else:
+                        logger.error(f"SMS send failed to {recipient}: {res}")
+                except Exception as e:
+                    logger.error(f"SMS future raised for {recipient}: {e}")
+            fut.add_done_callback(_cb)
+            return fut
+        except Exception as e:
+            logger.error(f"Failed to submit SMS to background executor: {e}")
+            fut: Future = Future()
+            fut.set_result({"success": False, "error": str(e)})
+            return fut
 
 
 # Singleton instance

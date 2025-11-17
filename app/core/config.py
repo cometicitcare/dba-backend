@@ -48,6 +48,9 @@ class Settings:
     RESET_PASSWORD_TOKEN_EXPIRE_MINUTES: int = int(os.getenv("RESET_PASSWORD_TOKEN_EXPIRE_MINUTES", "30"))
     OTP_EXPIRE_MINUTES: int = int(os.getenv("OTP_EXPIRE_MINUTES", "10"))
     OTP_LENGTH: int = int(os.getenv("OTP_LENGTH", "6"))
+    # OTP rate limiting
+    OTP_RESEND_INTERVAL_SECONDS: int = int(os.getenv("OTP_RESEND_INTERVAL_SECONDS", "60"))
+    OTP_MAX_SENDS_PER_WINDOW: int = int(os.getenv("OTP_MAX_SENDS_PER_WINDOW", "3"))
 
     # SMS / Text service configuration (text.lk example)
     SMS_ENABLED: bool = os.getenv("SMS_ENABLED", "false").lower() == "true"
@@ -57,6 +60,16 @@ class Settings:
     SMS_MAX_LENGTH: int = int(os.getenv("SMS_MAX_LENGTH", "160"))
     # Protected test key for triggering test SMS via a dev-only endpoint
     SMS_TEST_KEY: str = os.getenv("SMS_TEST_KEY", "")
+
+    # Delivery robustness
+    EMAIL_MAX_RETRIES: int = int(os.getenv("EMAIL_MAX_RETRIES", "2"))
+    EMAIL_RETRY_BACKOFF_BASE: float = float(os.getenv("EMAIL_RETRY_BACKOFF_BASE", "0.5"))
+    SMS_MAX_RETRIES: int = int(os.getenv("SMS_MAX_RETRIES", "2"))
+    SMS_RETRY_BACKOFF_BASE: float = float(os.getenv("SMS_RETRY_BACKOFF_BASE", "0.5"))
+
+    # Suppression list / webhook
+    SUPPRESSION_TTL_MINUTES: int = int(os.getenv("SUPPRESSION_TTL_MINUTES", "60"))
+    SMTP2GO_WEBHOOK_TOKEN: str = os.getenv("SMTP2GO_WEBHOOK_TOKEN", "")
 
     def __init__(self) -> None:
         # Normalize DATABASE_URL for SQLAlchemy/psycopg2 and Railway

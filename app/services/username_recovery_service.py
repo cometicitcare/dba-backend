@@ -73,13 +73,17 @@ class UsernameRecoveryService:
                 terms_url="https://your-app.com/terms",
             )
 
-            # Send email
-            success = email_service.send_email(
-                to_email=email,
-                subject="Your DBA HRMS Username",
-                html_content=html_content,
-                plain_text=f"Your username is: {username}",
-            )
+            # Send email (skip if policy blocks destination)
+            if email_service.can_send_to(email):
+                success = email_service.send_email(
+                    to_email=email,
+                    subject="Your DBA HRMS Username",
+                    html_content=html_content,
+                    plain_text=f"Your username is: {username}",
+                )
+            else:
+                logger.warning(f"Skipping username recovery email due to deliverability policy: {email}")
+                success = False
 
             if success:
                 logger.info(f"Username recovery email sent to {email}")

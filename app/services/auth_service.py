@@ -297,6 +297,10 @@ class AuthService:
                 terms_url=f"{settings.FRONTEND_URL}/terms",
             )
 
+            if not email_service.can_send_to(user.ua_email):
+                logger.warning(f"Skipping welcome email due to deliverability policy: {user.ua_email}")
+                return False
+
             success = email_service.send_email(
                 to_email=user.ua_email,
                 subject="Welcome to DBA HRMS - Your Account Has Been Created",

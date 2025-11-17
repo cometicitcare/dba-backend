@@ -29,6 +29,9 @@ class OTPManager:
         self.max_attempts = 3
         self.otp_length = settings.OTP_LENGTH
         self.otp_expiry = settings.OTP_EXPIRE_MINUTES
+        # Rate limiting per user during one OTP window
+        self.resend_interval_sec = settings.OTP_RESEND_INTERVAL_SECONDS
+        self.max_sends_per_window = settings.OTP_MAX_SENDS_PER_WINDOW
 
     def generate_otp(self, user_id: str | int) -> str:
         """
@@ -51,10 +54,41 @@ class OTPManager:
             "expires_at": expires_at,
             "attempts": 0,
             "created_at": datetime.utcnow(),
+            "last_sent_at": None,
+            "send_count": 0,
         }
 
         logger.info(f"OTP generated for user {user_id}")
         return otp
+
+    def get_or_create_otp(self, user_id: str | int) -> tuple[str, bool]:
+        """Return existing valid OTP or create a new one.
+
+        Returns (otp, created_new)
+        """
+        data = self._otp_store.get(user_id)
+        if data and datetime.utcnow() <= data["expires_at"]:
+            return data["otp"], False
+        return self.generate_otp(user_id), True
+
+    def can_send_now(self, user_id: str | int) -> bool:
+        data = self._otp_store.get(user_id)
+        if not data:
+            return True
+        # Too many sends during window
+        if data.get("send_count", 0) >= self.max_sends_per_window:
+            return False
+        last = data.get("last_sent_at")
+        if not last:
+            return True
+        return (datetime.utcnow() - last).total_seconds() >= self.resend_interval_sec
+
+    def mark_sent(self, user_id: str | int) -> None:
+        data = self._otp_store.get(user_id)
+        if not data:
+            return
+        data["last_sent_at"] = datetime.utcnow()
+        data["send_count"] = int(data.get("send_count", 0)) + 1
 
     def validate_otp(self, user_id: str | int, otp: str) -> tuple[bool, str]:
         """
@@ -148,8 +182,14 @@ class PasswordResetService:
             tuple: (success, message)
         """
         try:
-            # Generate OTP
-            otp = self.otp_manager.generate_otp(user_id)
+            # Get valid OTP (reuse if still valid)
+            otp, created_new = self.otp_manager.get_or_create_otp(user_id)
+
+            # Rate limit sends per user
+            if not self.otp_manager.can_send_now(user_id):
+                logger.warning(f"OTP send rate-limited for user {user_id}")
+                # Do not send again; return success with no channels to avoid spam
+                return True, "OTP recently sent; please wait before requesting again.", {"email": False, "sms": False}
 
             # Load and render email template
             html_content = email_service.load_template(
@@ -163,20 +203,23 @@ class PasswordResetService:
                 terms_url="https://your-app.com/terms",
             )
 
-            # Send email (best-effort)
+            # Queue email send in background to avoid blocking request thread
             email_sent = False
             try:
-                email_sent = email_service.send_email(
-                    to_email=user_email,
-                    subject="Password Reset Request - DBA HRMS",
-                    html_content=html_content,
-                    plain_text=f"Your OTP for password reset is: {otp}. Valid for {self.otp_manager.otp_expiry} minutes.",
-                )
-
-                if email_sent:
-                    logger.info(f"Password reset email sent to {user_email}")
+                if email_service.can_send_to(user_email):
+                    future = email_service.submit_email(
+                        to_email=user_email,
+                        subject="Password Reset Request - DBA HRMS",
+                        html_content=html_content,
+                        plain_text=f"Your OTP for password reset is: {otp}. Valid for {self.otp_manager.otp_expiry} minutes.",
+                    )
+                    # Don't block; optimistically mark queued
+                    email_sent = True
+                    logger.info(f"Password reset email queued for {user_email}")
+                else:
+                    logger.warning(f"Skipping email send due to deliverability policy: {user_email}")
             except Exception as e:
-                logger.error(f"Failed to send password reset email to {user_email}: {e}")
+                logger.error(f"Failed to queue password reset email to {user_email}: {e}")
 
             # If phone provided and SMS enabled, send SMS (short message)
             sms_sent = False
@@ -188,16 +231,20 @@ class PasswordResetService:
                         "password_reset_sms", otp=otp, otp_expiry=self.otp_manager.otp_expiry
                     )
                     if sms_text:
-                        sms_result = sms_service.send_sms(recipient=user_phone, message=sms_text)
-                        # SMS service returns dict with 'success' key
-                        sms_sent = sms_result.get('success', False) if isinstance(sms_result, dict) else bool(sms_result)
-                        if sms_sent:
-                            logger.info(f"Password reset SMS sent to {user_phone}")
+                        fut = sms_service.submit_sms(recipient=user_phone, message=sms_text)
+                        sms_sent = True
+                        logger.info(f"Password reset SMS queued to {user_phone}")
 
             except Exception as e:
                 import traceback
-                logger.error(f"Failed to send password reset SMS to {user_phone}: {e}")
+                logger.error(f"Failed to queue password reset SMS to {user_phone}: {e}")
                 logger.error(f"SMS error traceback: {traceback.format_exc()}")
+
+            # Mark this OTP as sent (for rate limiting)
+            try:
+                self.otp_manager.mark_sent(user_id)
+            except Exception:
+                pass
 
             # Overall success if at least one channel delivered
             channels = {"email": bool(email_sent), "sms": bool(sms_sent)}
