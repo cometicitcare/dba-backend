@@ -23,17 +23,17 @@ class SilmathaRegist(Base):
     # Geographic/Birth Information
     sil_birthpls = Column(String(50))
     sil_province = Column(String(50), ForeignKey('cmm_province.cp_code'))
-    sil_district = Column(String(50), ForeignKey('cmm_district.dd_dcode'))
+    sil_district = Column(String(50), ForeignKey('cmm_districtdata.dd_dcode'))
     sil_korale = Column(String(50))
     sil_pattu = Column(String(50))
-    sil_division = Column(String(50), ForeignKey('cmm_divsec.dv_dvcode'))
+    sil_division = Column(String(50), ForeignKey('cmm_dvsec.dv_dvcode'))
     sil_vilage = Column(String(50))
     sil_gndiv = Column(String(10), ForeignKey('cmm_gndata.gn_gnc'), nullable=False)
     
     # Temple/Religious Information
     sil_viharadhipathi = Column(String(20), ForeignKey('bhikku_regist.br_regn'))
     sil_cat = Column(String(5), ForeignKey('cmm_cat.cc_code'))
-    sil_currstat = Column(String(5), ForeignKey('cmm_status.st_statcd'), nullable=False)
+    sil_currstat = Column(String(5), ForeignKey('statusdata.st_statcd'), nullable=False)
     sil_declaration_date = Column(Date)
     sil_remarks = Column(String(100))
     sil_mahanadate = Column(Date)
