@@ -76,6 +76,9 @@ class BhikkuBase(BaseModel):
     br_mahanatemple: Optional[str] = None
     br_robing_after_residence_temple: Optional[str] = None
     
+    # Location tracking (location-based access control)
+    br_created_by_district: Optional[str] = None
+    
     @field_validator('br_email', mode='before')
     @classmethod
     def empty_string_to_none(cls, v):
@@ -275,6 +278,9 @@ class Bhikku(BhikkuBase):
     br_approved_at: Optional[datetime] = None
     br_rejected_at: Optional[datetime] = None
     br_rejection_reason: Optional[str] = None
+    
+    # Location tracking field (for location-based access control)
+    br_created_by_district: Optional[str] = None
 
 # --- Schemas for the Single Endpoint ---
 class BhikkuRequestPayload(BaseModel):

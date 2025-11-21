@@ -54,6 +54,9 @@ class BhikkuHighRegist(Base):
     bhr_scanned_at = Column(TIMESTAMP)
     bhr_scanned_document_path = Column(String(500))
     
+    # Location-based access control - stores district code of creating user
+    bhr_created_by_district = Column(String(10), index=True)
+    
     # Relationships for foreign keys
     # Bhikku relationships
     candidate_rel = relationship(

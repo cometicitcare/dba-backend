@@ -5,6 +5,8 @@ from sqlalchemy.orm import Session
 
 from app.core.security import generate_salt, get_password_hash
 from app.models.user import Role, UserAccount
+from app.models.main_branch import MainBranch
+from app.models.district_branch import DistrictBranch
 from app.schemas.users import UserCreate
 
 
@@ -41,6 +43,23 @@ class UserService:
         )
         if not role:
             raise ValueError(f"Invalid role ID: {payload.ro_role_id}")
+        
+        # Validate branch assignment if location is specified
+        if payload.ua_location_type == "MAIN_BRANCH" and payload.ua_main_branch_id:
+            main_branch = db.query(MainBranch).filter(
+                MainBranch.mb_id == payload.ua_main_branch_id,
+                MainBranch.mb_is_deleted == False
+            ).first()
+            if not main_branch:
+                raise ValueError(f"Invalid main branch ID: {payload.ua_main_branch_id}")
+        
+        if payload.ua_location_type == "DISTRICT_BRANCH" and payload.ua_district_branch_id:
+            district_branch = db.query(DistrictBranch).filter(
+                DistrictBranch.db_id == payload.ua_district_branch_id,
+                DistrictBranch.db_is_deleted == False
+            ).first()
+            if not district_branch:
+                raise ValueError(f"Invalid district branch ID: {payload.ua_district_branch_id}")
 
         salt = generate_salt()
         password_hash = get_password_hash(payload.ua_password + salt)

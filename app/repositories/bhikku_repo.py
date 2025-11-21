@@ -101,8 +101,16 @@ class BhikkuRepository:
         """Get paginated bhikkus with optional search functionality across all text fields."""
         query = db.query(models.Bhikku).filter(models.Bhikku.br_is_deleted.is_(False))
 
-        # Location-based access control removed - use RBAC permissions instead
-        # Access control is now handled by FastAPI dependencies (has_permission, has_role, etc.)
+        # Apply location-based filtering for all workflow stages except COMPLETED
+        if current_user:
+            from app.api.auth_dependencies import apply_location_filter_for_workflow
+            query = apply_location_filter_for_workflow(
+                query=query,
+                user=current_user,
+                db=db,
+                location_field_name='br_created_by_district',
+                workflow_status_field_name='br_workflow_status'
+            )
 
         # Apply search filter
         if search_key and search_key.strip():

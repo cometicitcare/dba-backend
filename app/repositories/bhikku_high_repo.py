@@ -6,6 +6,7 @@ from sqlalchemy import func, or_
 from sqlalchemy.orm import Session
 
 from app.models.bhikku_high import BhikkuHighRegist
+from app.models.user import UserAccount
 from app.schemas.bhikku_high import BhikkuHighCreate, BhikkuHighUpdate
 
 
@@ -93,10 +94,22 @@ class BhikkuHighRepository:
         skip: int = 0,
         limit: int = 100,
         search: Optional[str] = None,
+        current_user: Optional[UserAccount] = None,
     ) -> list[BhikkuHighRegist]:
         query = db.query(BhikkuHighRegist).filter(
             BhikkuHighRegist.bhr_is_deleted.is_(False)
         )
+
+        # Apply location-based filtering for all workflow stages except COMPLETED
+        if current_user:
+            from app.api.auth_dependencies import apply_location_filter_for_workflow
+            query = apply_location_filter_for_workflow(
+                query=query,
+                user=current_user,
+                db=db,
+                location_field_name='bhr_created_by_district',
+                workflow_status_field_name='bhr_workflow_status'
+            )
 
         if search:
             term = f"%{search.strip()}%"

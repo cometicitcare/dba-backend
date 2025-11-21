@@ -41,6 +41,11 @@ class UserCreate(BaseModel):
     ua_last_name: Annotated[Optional[str], Field(default=None, max_length=50)] = None
     ua_phone: Annotated[Optional[str], Field(default=None, max_length=15)] = None
     ro_role_id: Annotated[str, Field(min_length=1, max_length=20)]
+    
+    # Location-based access control fields
+    ua_location_type: Annotated[Optional[str], Field(default=None, pattern="^(MAIN_BRANCH|DISTRICT_BRANCH)$")] = None
+    ua_main_branch_id: Annotated[Optional[int], Field(default=None, gt=0)] = None
+    ua_district_branch_id: Annotated[Optional[int], Field(default=None, gt=0)] = None
 
     @field_validator("ua_username", "ro_role_id", mode="before")
     @classmethod
@@ -77,6 +82,21 @@ class UserCreate(BaseModel):
         if self.ua_password != self.confirm_password:
             raise ValueError("Passwords do not match.")
         return self
+    
+    @model_validator(mode="after")
+    def _validate_location_assignment(self):
+        """Ensure location_type matches branch assignment"""
+        if self.ua_location_type == "MAIN_BRANCH":
+            if not self.ua_main_branch_id:
+                raise ValueError("ua_main_branch_id is required when location_type is MAIN_BRANCH")
+            if self.ua_district_branch_id:
+                raise ValueError("ua_district_branch_id must be null when location_type is MAIN_BRANCH")
+        elif self.ua_location_type == "DISTRICT_BRANCH":
+            if not self.ua_district_branch_id:
+                raise ValueError("ua_district_branch_id is required when location_type is DISTRICT_BRANCH")
+            if self.ua_main_branch_id:
+                raise ValueError("ua_main_branch_id must be null when location_type is DISTRICT_BRANCH")
+        return self
 
 
 class UserLogin(BaseModel):
@@ -105,6 +125,9 @@ class UserResponse(BaseModel):
     ua_status: str
     ro_role_id: Optional[str] = None  # Made optional for RBAC - roles returned separately
     role: Optional[RoleBase] = None
+    ua_location_type: Optional[str] = None
+    ua_main_branch_id: Optional[int] = None
+    ua_district_branch_id: Optional[int] = None
 
     class Config:
         from_attributes = True

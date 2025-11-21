@@ -84,6 +84,9 @@ class SilmathaRegist(Base):
     sil_updated_by = Column(String(25))
     sil_version_number = Column(Integer, server_default=text('1'))
     
+    # Location-based access control - stores district code of creating user
+    sil_created_by_district = Column(String(10), index=True)
+    
     # Relationships - SQLAlchemy ORM relationships for nested responses
     province_rel = relationship("Province", foreign_keys=[sil_province], lazy="joined")
     district_rel = relationship("District", foreign_keys=[sil_district], lazy="joined")

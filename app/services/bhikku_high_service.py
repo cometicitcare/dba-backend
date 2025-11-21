@@ -29,9 +29,18 @@ class BhikkuHighService:
     # Public API
     # ------------------------------------------------------------------ #
     def create_bhikku_high(
-        self, db: Session, *, payload: BhikkuHighCreate, actor_id: Optional[str]
+        self, db: Session, *, payload: BhikkuHighCreate, actor_id: Optional[str], current_user: Optional[UserAccount] = None
     ) -> BhikkuHighRegist:
         payload_dict = self._strip_strings(payload.model_dump())
+
+        # Auto-populate location from current user (location-based access control)
+        if current_user and current_user.ua_location_type == "DISTRICT_BRANCH" and current_user.ua_district_branch_id:
+            from app.models.district_branch import DistrictBranch
+            district_branch = db.query(DistrictBranch).filter(
+                DistrictBranch.db_id == current_user.ua_district_branch_id
+            ).first()
+            if district_branch and district_branch.db_district_code:
+                payload_dict["bhr_created_by_district"] = district_branch.db_district_code
 
         explicit_regn = payload_dict.get("bhr_regn")
         if explicit_regn:
@@ -63,10 +72,11 @@ class BhikkuHighService:
         skip: int = 0,
         limit: int = 100,
         search: Optional[str] = None,
+        current_user: Optional[UserAccount] = None,
     ) -> list[BhikkuHighRegist]:
         limit = max(1, min(limit, 200))
         skip = max(0, skip)
-        return bhikku_high_repo.list(db, skip=skip, limit=limit, search=search)
+        return bhikku_high_repo.list(db, skip=skip, limit=limit, search=search, current_user=current_user)
 
     def count_bhikku_highs(self, db: Session, *, search: Optional[str] = None) -> int:
         total = bhikku_high_repo.count(db, search=search)

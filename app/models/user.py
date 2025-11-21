@@ -42,6 +42,11 @@ class UserAccount(Base):
     ua_updated_by = Column(String(50))
     ua_version_number = Column(Integer, default=1)
     
+    # Location-based access control fields
+    ua_location_type = Column(String(20))  # 'MAIN_BRANCH', 'DISTRICT_BRANCH'
+    ua_main_branch_id = Column(Integer, ForeignKey("main_branches.mb_id"), nullable=True, index=True)
+    ua_district_branch_id = Column(Integer, ForeignKey("district_branches.db_id"), nullable=True, index=True)
+    
     # Relationships (many-to-many through junction tables)
     # User can have multiple roles via UserRole table
     user_roles = relationship("UserRole", back_populates="user", cascade="all, delete-orphan")
@@ -49,6 +54,10 @@ class UserAccount(Base):
     user_groups = relationship("UserGroup", back_populates="user", cascade="all, delete-orphan")
     # User can have permission overrides via UserPermission table
     user_permissions = relationship("UserPermission", back_populates="user", cascade="all, delete-orphan")
+    
+    # Location relationships
+    main_branch = relationship("MainBranch", back_populates="users", foreign_keys=[ua_main_branch_id])
+    district_branch = relationship("DistrictBranch", back_populates="users", foreign_keys=[ua_district_branch_id])
 
 
 class LoginHistory(Base):
