@@ -783,3 +783,23 @@ class BhikkuRejectRequest(BaseModel):
                 "rejection_reason": "Incomplete documentation"
             }
         }
+
+
+# --- QR Search Schemas ---
+class QRSearchRequest(BaseModel):
+    """Request schema for QR search lookup"""
+    id: str  # Can be br_regn, sil_regn, or bhr_regn
+    record_type: Optional[str] = None  # Optional: "bhikku", "silmatha", or "bhikku_high"
+
+
+class QRSearchDataItem(BaseModel):
+    """Individual data item in QR search response"""
+    titel: str
+    text: Optional[str] = None
+
+
+class QRSearchResponseWrapper(BaseModel):
+    """Wrapper for QR search response"""
+    status: str
+    message: str
+    data: List[QRSearchDataItem]
