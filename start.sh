@@ -24,8 +24,8 @@ else
         echo "⚠ This usually means the alembic_version table has multiple or incorrect entries"
         echo "⚠ Clearing alembic_version table and stamping with current head..."
         
-        # Get the current head revision
-        HEAD_REVISION=$(alembic heads | grep -oE '[a-f0-9]{12}' | head -1)
+        # Get the current head revision (extract just the revision hash/number)
+        HEAD_REVISION=$(alembic heads | awk '{print $1}' | head -1)
         
         if [ -z "$HEAD_REVISION" ]; then
             echo "✗ Could not determine HEAD revision"
@@ -68,12 +68,12 @@ EOF
         echo "⚠ Found missing revision in database history"
         echo "⚠ Clearing alembic_version table and stamping with head..."
         
-        # Get the current head revision
-        HEAD_REVISION=$(alembic heads | grep -oE '[a-f0-9]{12}' | head -1)
+        # Get the current head revision (extract just the revision hash/number)
+        HEAD_REVISION=$(alembic heads | awk '{print $1}' | head -1)
         
         if [ -z "$HEAD_REVISION" ]; then
             # Fallback to hardcoded latest revision
-            HEAD_REVISION="20251115160000"
+            HEAD_REVISION="20251120000003"
         fi
         
         echo "⚠ Using revision: $HEAD_REVISION"
