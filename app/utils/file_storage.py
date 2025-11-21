@@ -5,7 +5,6 @@ from datetime import datetime
 from pathlib import Path
 from typing import Optional, Tuple
 from fastapi import UploadFile, HTTPException
-from app.core.config import settings
 
 
 class FileStorageService:
@@ -13,30 +12,22 @@ class FileStorageService:
     Service for handling file uploads and storage.
     
     Files are stored in a structured directory:
-    <storage_path>/<year>/<month>/<day>/<br_regn>/<filename>
+    app/storage/<year>/<month>/<day>/<br_regn>/<filename>
     
     Industry best practices:
     - Store files on disk (not in database) for better performance
     - Use structured directory hierarchy for organization
     - Generate unique filenames to prevent conflicts
     - Return relative paths for database storage
-    
-    Railway Deployment:
-    - Uses persistent volumes to prevent file loss on restarts
-    - Storage path configurable via FILE_STORAGE_PATH environment variable
     """
     
-    def __init__(self, base_storage_path: str = None):
+    def __init__(self, base_storage_path: str = "app/storage"):
         """
         Initialize the file storage service.
         
         Args:
-            base_storage_path: Base directory for file storage (defaults to settings.FILE_STORAGE_PATH)
+            base_storage_path: Base directory for file storage
         """
-        # Use provided path or fall back to settings, or default
-        if base_storage_path is None:
-            base_storage_path = getattr(settings, 'FILE_STORAGE_PATH', 'app/storage')
-        
         self.base_storage_path = Path(base_storage_path)
         
         # Ensure base directory exists
