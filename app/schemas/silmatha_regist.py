@@ -216,9 +216,12 @@ class SilmathaRegistInternal(SilmathaRegistBase):
     
     # Reprint Workflow Fields
     sil_reprint_status: Optional[str] = None
+    sil_reprint_form_no: Optional[str] = None
     sil_reprint_requested_by: Optional[str] = None
     sil_reprint_requested_at: Optional[datetime] = None
     sil_reprint_request_reason: Optional[str] = None
+    sil_reprint_amount: Optional[float] = None
+    sil_reprint_remarks: Optional[str] = None
     sil_reprint_approved_by: Optional[str] = None
     sil_reprint_approved_at: Optional[datetime] = None
     sil_reprint_rejected_by: Optional[str] = None
@@ -261,8 +264,9 @@ class SilmathaRegistRequestPayload(BaseModel):
     # For CREATE, UPDATE
     data: Optional[Union[SilmathaRegistCreate, SilmathaRegistUpdate]] = None
     
-    # For workflow actions (APPROVE, REJECT)
+    # For workflow actions (APPROVE, REJECT, MARK_SCANNED)
     rejection_reason: Optional[str] = Field(None, max_length=500)
+    scanned_document_path: Optional[str] = Field(None, max_length=500, description="Path to scanned document (optional for MARK_SCANNED action)")
 
 
 class SilmathaRegistPaginatedResponse(BaseModel):
@@ -331,6 +335,8 @@ class SilmathaRegistWorkflowRequest(BaseModel):
     action: WorkflowActionType
     rejection_reason: Optional[str] = Field(None, max_length=500, description="Required when action is REJECT or REJECT_REPRINT")
     reprint_reason: Optional[str] = Field(None, max_length=500, description="Required when action is REQUEST_REPRINT")
+    reprint_amount: Optional[float] = Field(None, description="Reprint amount - required when action is REQUEST_REPRINT")
+    reprint_remarks: Optional[str] = Field(None, max_length=500, description="Reprint remarks - optional when action is REQUEST_REPRINT")
     
     model_config = ConfigDict(
         json_schema_extra={

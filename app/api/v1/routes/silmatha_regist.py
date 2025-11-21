@@ -319,16 +319,15 @@ def manage_silmatha_records(
             raise validation_error(
                 [("payload.sil_regn", "sil_regn is required for MARK_SCANNED action")]
             )
-        if not hasattr(payload, 'scanned_document_path'):
-            raise validation_error(
-                [("payload.scanned_document_path", "scanned_document_path is required for MARK_SCANNED action")]
-            )
+        
+        # scanned_document_path is optional - can be empty string
+        scanned_path = payload.scanned_document_path if hasattr(payload, 'scanned_document_path') else ""
         
         try:
             scanned_silmatha = silmatha_regist_service.mark_scanned(
                 db, 
                 sil_regn=payload.sil_regn, 
-                scanned_document_path=payload.scanned_document_path,
+                scanned_document_path=scanned_path,
                 actor_id=user_id
             )
         except ValueError as exc:
@@ -452,7 +451,7 @@ def update_silmatha_workflow(
     - RESET_TO_PENDING: Reset workflow to pending state (for corrections)
     
     Reprint Workflow Actions:
-    - REQUEST_REPRINT: Request a certificate reprint (requires reprint_reason)
+    - REQUEST_REPRINT: Request a certificate reprint (requires reprint_reason, reprint_amount, optional reprint_remarks)
     - ACCEPT_REPRINT: Accept a reprint request
     - REJECT_REPRINT: Reject a reprint request (requires rejection_reason)
     - COMPLETE_REPRINT: Mark reprint as completed
@@ -513,11 +512,17 @@ def update_silmatha_workflow(
                 raise validation_error(
                     [("reprint_reason", "Reprint reason is required when requesting reprint")]
                 )
+            if not request.reprint_amount:
+                raise validation_error(
+                    [("reprint_amount", "Reprint amount is required when requesting reprint")]
+                )
             updated_silmatha = silmatha_regist_service.request_reprint(
                 db, 
                 sil_regn=sil_regn, 
                 actor_id=user_id,
-                reprint_reason=request.reprint_reason
+                reprint_reason=request.reprint_reason,
+                reprint_amount=request.reprint_amount,
+                reprint_remarks=request.reprint_remarks
             )
             message = "Reprint request submitted successfully."
 

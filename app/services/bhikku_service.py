@@ -212,23 +212,7 @@ class BhikkuService:
         payload_dict = self._normalize_contact_fields(payload_dict)
         self._validate_contact_formats(payload_dict)
 
-        # Auto-assign district from user's location if user is a DISTRICT_BRANCH user
-        if current_user:
-            from app.services.location_access_control_service import LocationAccessControlService
-            user_district_codes = LocationAccessControlService.get_user_district_codes(db, current_user)
-            
-            # If user has a specific district assignment, auto-assign it to the bhikku record
-            if user_district_codes and len(user_district_codes) == 1:
-                # Only auto-assign if br_district is not explicitly provided in payload
-                if not payload_dict.get("br_district"):
-                    payload_dict["br_district"] = user_district_codes[0]
-            
-            # Auto-assign province from user's location if available
-            user_province_codes = LocationAccessControlService.get_user_province_codes(db, current_user)
-            if user_province_codes and len(user_province_codes) == 1:
-                # Only auto-assign if br_province is not explicitly provided in payload
-                if not payload_dict.get("br_province"):
-                    payload_dict["br_province"] = user_province_codes[0]
+        # Location-based auto-assignment removed - use RBAC permissions instead
 
         explicit_regn = payload_dict.get("br_regn")
         if explicit_regn:
@@ -795,16 +779,16 @@ class BhikkuService:
         br_regn: str,
         actor_id: Optional[str],
     ) -> Bhikku:
-        """Approve a bhikku registration - transitions workflow to APPROVED status"""
+        """Approve a bhikku registration - transitions workflow from SCANNED to APPROVED and then to COMPLETED status"""
         entity = bhikku_repo.get_by_regn(db, br_regn)
         if not entity:
             raise ValueError("Bhikku record not found.")
         
-        if entity.br_workflow_status != "PENDING":
-            raise ValueError(f"Cannot approve bhikku with workflow status: {entity.br_workflow_status}. Must be PENDING.")
+        if entity.br_workflow_status != "SCANNED":
+            raise ValueError(f"Cannot approve bhikku with workflow status: {entity.br_workflow_status}. Must be SCANNED.")
         
-        # Update workflow fields
-        entity.br_workflow_status = "APPROVED"
+        # Update workflow fields - goes to APPROVED then COMPLETED
+        entity.br_workflow_status = "COMPLETED"
         entity.br_approval_status = "APPROVED"
         entity.br_approved_by = actor_id
         entity.br_approved_at = datetime.utcnow()
@@ -824,13 +808,13 @@ class BhikkuService:
         actor_id: Optional[str],
         rejection_reason: Optional[str] = None,
     ) -> Bhikku:
-        """Reject a bhikku registration - transitions workflow to REJECTED status"""
+        """Reject a bhikku registration - transitions workflow from SCANNED to REJECTED status"""
         entity = bhikku_repo.get_by_regn(db, br_regn)
         if not entity:
             raise ValueError("Bhikku record not found.")
         
-        if entity.br_workflow_status != "PENDING":
-            raise ValueError(f"Cannot reject bhikku with workflow status: {entity.br_workflow_status}. Must be PENDING.")
+        if entity.br_workflow_status != "SCANNED":
+            raise ValueError(f"Cannot reject bhikku with workflow status: {entity.br_workflow_status}. Must be SCANNED.")
         
         # Update workflow fields
         entity.br_workflow_status = "REJECTED"
@@ -853,13 +837,13 @@ class BhikkuService:
         br_regn: str,
         actor_id: Optional[str],
     ) -> Bhikku:
-        """Mark bhikku certificate as printed - transitions workflow to PRINTED status"""
+        """Mark bhikku certificate as printed - transitions workflow from PENDING to PRINTED status"""
         entity = bhikku_repo.get_by_regn(db, br_regn)
         if not entity:
             raise ValueError("Bhikku record not found.")
         
-        if entity.br_workflow_status not in ["APPROVED", "PRINTING"]:
-            raise ValueError(f"Cannot mark as printed bhikku with workflow status: {entity.br_workflow_status}. Must be APPROVED or PRINTING.")
+        if entity.br_workflow_status != "PENDING":
+            raise ValueError(f"Cannot mark as printed bhikku with workflow status: {entity.br_workflow_status}. Must be PENDING.")
         
         # Update workflow fields
         entity.br_workflow_status = "PRINTED"
@@ -880,7 +864,7 @@ class BhikkuService:
         br_regn: str,
         actor_id: Optional[str],
     ) -> Bhikku:
-        """Mark bhikku certificate as scanned - transitions workflow to COMPLETED status"""
+        """Mark bhikku certificate as scanned - transitions workflow from PRINTED to SCANNED status"""
         entity = bhikku_repo.get_by_regn(db, br_regn)
         if not entity:
             raise ValueError("Bhikku record not found.")
@@ -889,7 +873,7 @@ class BhikkuService:
             raise ValueError(f"Cannot mark as scanned bhikku with workflow status: {entity.br_workflow_status}. Must be PRINTED.")
         
         # Update workflow fields
-        entity.br_workflow_status = "COMPLETED"
+        entity.br_workflow_status = "SCANNED"
         entity.br_scanned_by = actor_id
         entity.br_scanned_at = datetime.utcnow()
         entity.br_updated_by = actor_id
@@ -907,13 +891,13 @@ class BhikkuService:
         br_regn: str,
         actor_id: Optional[str],
     ) -> Bhikku:
-        """Mark bhikku certificate as in printing process - transitions workflow to PRINTING status"""
+        """Mark bhikku certificate as in printing process - transitions workflow from PENDING to PRINTING status"""
         entity = bhikku_repo.get_by_regn(db, br_regn)
         if not entity:
             raise ValueError("Bhikku record not found.")
         
-        if entity.br_workflow_status != "APPROVED":
-            raise ValueError(f"Cannot mark as printing bhikku with workflow status: {entity.br_workflow_status}. Must be APPROVED.")
+        if entity.br_workflow_status != "PENDING":
+            raise ValueError(f"Cannot mark as printing bhikku with workflow status: {entity.br_workflow_status}. Must be PENDING.")
         
         # Update workflow fields
         entity.br_workflow_status = "PRINTING"
@@ -1337,12 +1321,12 @@ class BhikkuService:
             file_storage_service.delete_file(entity.br_scanned_document_path)
         
         # Save new file using the file storage service
-        # File will be stored at: app/storage/bhikku_update/<year>/<month>/<day>/<br_regn>/scanned_document_*.*
+        # File will be stored at: app/storage/bhikku_regist/<year>/<month>/<day>/<br_regn>/scanned_document_*.*
         relative_path, _ = await file_storage_service.save_file(
             file,
             br_regn,
             "scanned_document",
-            subdirectory="bhikku_update"
+            subdirectory="bhikku_regist"
         )
         
         # Update the bhikku record with the file path

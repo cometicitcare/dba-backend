@@ -25,7 +25,6 @@ from app.api.v1.routes import (
     gramasewaka,
     health,
     location_hierarchy,
-    location_branches,
     nilame,
     payment_methods,
     province,
@@ -224,11 +223,6 @@ api_router.include_router(
 api_router.include_router(
     location_hierarchy.router,
     prefix="/locations",
-    tags=["📍 Location Management"]
-)
-api_router.include_router(
-    location_branches.router,
-    prefix="/location-branches",
     tags=["📍 Location Management"]
 )
 

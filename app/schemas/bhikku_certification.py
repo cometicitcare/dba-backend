@@ -20,7 +20,7 @@ class BhikkuCertificationBase(BaseModel):
 
     bc_issuedate: date
     bc_paydate: date
-    bc_payamount: Decimal = Field(gt=0, max_digits=6, decimal_places=2)
+    bc_payamount: Decimal = Field(gt=0, le=9999.99)
 
     bc_reqstdate: Optional[date] = None
     bc_adminautho: Optional[str] = Field(default=None, max_length=200)
@@ -55,7 +55,7 @@ class BhikkuCertificationUpdate(BaseModel):
     bc_regno: Optional[str] = Field(default=None, max_length=12)
     bc_issuedate: Optional[date] = None
     bc_paydate: Optional[date] = None
-    bc_payamount: Optional[Decimal] = Field(default=None, gt=0, max_digits=6, decimal_places=2)
+    bc_payamount: Optional[Decimal] = Field(default=None, gt=0, le=9999.99)
 
     bc_reqstdate: Optional[date] = None
     bc_adminautho: Optional[str] = Field(default=None, max_length=200)

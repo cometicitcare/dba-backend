@@ -15,11 +15,11 @@ class Bhikku(Base):
     br_birthpls = Column(String(50))
     br_province = Column(String(50))
     br_district = Column(String(50))
-    br_korale = Column(String(50))
-    br_pattu = Column(String(50))
-    br_division = Column(String(50))
-    br_vilage = Column(String(50))
-    br_gndiv = Column(String(10), nullable=False)
+    br_korale = Column(String(50))  # Optional
+    br_pattu = Column(String(50))  # Optional
+    br_division = Column(String(50))  # Optional - Divisional Secretariat
+    br_vilage = Column(String(50))  # Optional
+    br_gndiv = Column(String(10))  # Optional - GN Division (changed from nullable=False)
     
     # Personal Information
     br_gihiname = Column(String(50))
@@ -33,9 +33,9 @@ class Bhikku(Base):
     
     # Temple/Religious Information
     br_parshawaya = Column(String(10), nullable=False)
-    br_livtemple = Column(String(10))
-    br_mahanatemple = Column(String(10), nullable=False)
-    br_mahanaacharyacd = Column(String(12), nullable=False)
+    br_livtemple = Column(String(10))  # Removed - not in payload
+    br_mahanatemple = Column(String(10))  # Made optional
+    br_mahanaacharyacd = Column(String(12))  # Made optional
     br_multi_mahanaacharyacd = Column(String(200))
     br_mahananame = Column(String(50))
     br_mahanadate = Column(Date)

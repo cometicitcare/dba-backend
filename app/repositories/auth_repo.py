@@ -1,6 +1,8 @@
 # app/repositories/auth_repo.py
 from sqlalchemy.orm import Session
-from app.models.user import UserAccount, LoginHistory, Role
+from app.models.user import UserAccount, LoginHistory
+from app.models.roles import Role
+from app.models.user_roles import UserRole
 from app.schemas.user import UserCreate
 from app.core.security import get_password_hash, generate_salt
 from datetime import datetime
@@ -11,13 +13,13 @@ def get_role_by_id(db: Session, role_id: str):
     """Get role by ID"""
     return db.query(Role).filter(
         Role.ro_role_id == role_id,
-        Role.ro_is_deleted == False
+        Role.ro_is_active == True
     ).first()
 
 
 def get_all_roles(db: Session):
     """Get all active roles"""
-    return db.query(Role).filter(Role.ro_is_deleted == False).all()
+    return db.query(Role).filter(Role.ro_is_active == True).all()
 
 
 def create_user(db: Session, user: UserCreate):
@@ -40,7 +42,6 @@ def create_user(db: Session, user: UserCreate):
         ua_password_hash=hashed_password,
         ua_salt=salt,
         ua_email=user.ua_email,
-        ro_role_id=user.ro_role_id,
         
         # Optional personal info from registration
         ua_first_name=user.ua_first_name,
@@ -66,6 +67,19 @@ def create_user(db: Session, user: UserCreate):
         ua_two_factor_secret=None,
     )
     db.add(db_user)
+    db.flush()  # Flush to get the user_id before creating UserRole
+    
+    # Create the UserRole relationship
+    user_role = UserRole(
+        ur_user_id=user_id,
+        ur_role_id=user.ro_role_id,
+        ur_is_active=True,
+        ur_assigned_by=user_id,  # Self-assigned during registration
+        ur_assigned_date=datetime.utcnow(),
+        ur_expires_date=None  # No expiration by default
+    )
+    db.add(user_role)
+    
     db.commit()
     db.refresh(db_user)
     return db_user

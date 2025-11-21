@@ -1,5 +1,5 @@
 # app/schemas/bhikku.py
-from pydantic import BaseModel, Field, EmailStr, ConfigDict
+from pydantic import BaseModel, Field, EmailStr, ConfigDict, field_validator
 from datetime import date, datetime
 from typing import Annotated, Optional, List, Union, Any
 from enum import Enum
@@ -36,54 +36,53 @@ class BhikkuBase(BaseModel):
     br_regn: Optional[str] = None  # Made optional - will be auto-generated
     br_reqstdate: date
     
-    # Geographic/Birth Information
-    br_birthpls: Optional[str] = None
-    br_province: Optional[str] = None
-    br_district: Optional[str] = None
-    br_korale: Optional[str] = None
-    br_pattu: Optional[str] = None
-    br_division: Optional[str] = None
-    br_vilage: Optional[str] = None
-    br_gndiv: str
-    
     # Personal Information
     br_gihiname: Optional[str] = None
     br_dofb: Optional[date] = None
     br_fathrname: Optional[str] = None
-    br_remarks: Optional[str] = None
+    br_email: Optional[EmailStr] = None
+    br_mobile: Optional[str] = Field(None, max_length=10)
+    br_fathrsaddrs: Optional[str] = None
+    br_fathrsmobile: Optional[str] = Field(None, max_length=10)
+    
+    # Geographic/Birth Information - All Optional
+    br_birthpls: Optional[str] = None
+    br_province: Optional[str] = None
+    br_district: Optional[str] = None
+    br_korale: Optional[str] = None  # Optional
+    br_pattu: Optional[str] = None  # Optional
+    br_division: Optional[str] = None  # Optional (Divisional Secretariat)
+    br_vilage: Optional[str] = None  # Optional
+    br_gndiv: Optional[str] = None  # Optional (GN Division)
     
     # Status Information
     br_currstat: str
     br_effctdate: Optional[date] = None
     
     # Temple/Religious Information
-    br_parshawaya: str
-    br_livtemple: Optional[str] = None  # Made optional to match payload requirements
-    br_mahanatemple: Optional[str] = None  # Made optional to match payload requirements
-    br_mahanaacharyacd: Optional[str] = None  # Made optional to match payload requirements
-    br_multi_mahanaacharyacd: Optional[str] = None
-    br_mahananame: Optional[str] = None
-    br_mahanadate: Optional[date] = None
-    br_cat: Optional[str] = None
-    
-    # Additional Religious/Administrative Fields
     br_viharadhipathi: Optional[str] = None
     br_nikaya: Optional[str] = None
+    br_parshawaya: str
     br_mahanayaka_name: Optional[str] = None
     br_mahanayaka_address: Optional[str] = None
+    br_cat: Optional[str] = None
     br_residence_at_declaration: Optional[str] = None
     br_declaration_date: Optional[date] = None
+    br_remarks: Optional[str] = None
+    br_mahanadate: Optional[date] = None
+    br_mahananame: Optional[str] = None
+    br_mahanaacharyacd: Optional[str] = None
     br_robing_tutor_residence: Optional[str] = None
+    br_mahanatemple: Optional[str] = None
     br_robing_after_residence_temple: Optional[str] = None
     
-    # Contact Information
-    br_mobile: Optional[str] = Field(None, max_length=10)
-    br_email: Optional[EmailStr] = None
-    br_fathrsaddrs: Optional[str] = None
-    br_fathrsmobile: Optional[str] = Field(None, max_length=10)
-    
-    # Serial Number
-    br_upasampada_serial_no: Optional[str] = None
+    @field_validator('br_email', mode='before')
+    @classmethod
+    def empty_string_to_none(cls, v):
+        """Convert empty string to None for email validation"""
+        if v == '' or (isinstance(v, str) and v.strip() == ''):
+            return None
+        return v
 
 class BhikkuCreate(BhikkuBase):
     """Schema for creating a new Bhikku record - br_regn is auto-generated
@@ -99,7 +98,16 @@ class BhikkuUpdate(BaseModel):
     br_regn: Optional[str] = None
     br_reqstdate: Optional[date] = None
     
-    # Geographic/Birth Information
+    # Personal Information
+    br_gihiname: Optional[str] = None
+    br_dofb: Optional[date] = None
+    br_fathrname: Optional[str] = None
+    br_email: Optional[EmailStr] = None
+    br_mobile: Optional[str] = Field(None, max_length=10)
+    br_fathrsaddrs: Optional[str] = None
+    br_fathrsmobile: Optional[str] = Field(None, max_length=10)
+    
+    # Geographic/Birth Information - All Optional
     br_birthpls: Optional[str] = None
     br_province: Optional[str] = None
     br_district: Optional[str] = None
@@ -109,44 +117,26 @@ class BhikkuUpdate(BaseModel):
     br_vilage: Optional[str] = None
     br_gndiv: Optional[str] = None
     
-    # Personal Information
-    br_gihiname: Optional[str] = None
-    br_dofb: Optional[date] = None
-    br_fathrname: Optional[str] = None
-    br_remarks: Optional[str] = None
-    
     # Status Information
     br_currstat: Optional[str] = None
     br_effctdate: Optional[date] = None
     
     # Temple/Religious Information
-    br_parshawaya: Optional[str] = None
-    br_livtemple: Optional[str] = None
-    br_mahanatemple: Optional[str] = None
-    br_mahanaacharyacd: Optional[str] = None
-    br_multi_mahanaacharyacd: Optional[str] = None
-    br_mahananame: Optional[str] = None
-    br_mahanadate: Optional[date] = None
-    br_cat: Optional[str] = None
-    
-    # Additional Religious/Administrative Fields
     br_viharadhipathi: Optional[str] = None
     br_nikaya: Optional[str] = None
+    br_parshawaya: Optional[str] = None
     br_mahanayaka_name: Optional[str] = None
     br_mahanayaka_address: Optional[str] = None
+    br_cat: Optional[str] = None
     br_residence_at_declaration: Optional[str] = None
     br_declaration_date: Optional[date] = None
+    br_remarks: Optional[str] = None
+    br_mahanadate: Optional[date] = None
+    br_mahananame: Optional[str] = None
+    br_mahanaacharyacd: Optional[str] = None
     br_robing_tutor_residence: Optional[str] = None
+    br_mahanatemple: Optional[str] = None
     br_robing_after_residence_temple: Optional[str] = None
-    
-    # Contact Information
-    br_mobile: Optional[str] = Field(None, max_length=10)
-    br_email: Optional[EmailStr] = None
-    br_fathrsaddrs: Optional[str] = None
-    br_fathrsmobile: Optional[str] = Field(None, max_length=10)
-    
-    # Serial Number
-    br_upasampada_serial_no: Optional[str] = None
     
     # Document Storage
     br_scanned_document_path: Optional[str] = None
@@ -165,6 +155,11 @@ class BhikkuInternal(BhikkuBase):
     br_version_number: int
     br_created_by: Optional[str] = None
     br_updated_by: Optional[str] = None
+    
+    # Additional fields from database model not in payload
+    br_livtemple: Optional[str] = None  # Current residence temple
+    br_multi_mahanaacharyacd: Optional[str] = None
+    br_upasampada_serial_no: Optional[str] = None
     
     # Workflow Fields
     br_workflow_status: Optional[str] = "PENDING"
@@ -258,11 +253,10 @@ class Bhikku(BhikkuBase):
     # Override base fields to use nested response objects
     br_province: Optional[Union[ProvinceResponse, str]] = None
     br_district: Optional[Union[DistrictResponse, str]] = None
-    br_division: Optional[Union[DivisionResponse, str]] = None
-    br_gndiv: Union[GNDivisionResponse, str]
+    br_division: Optional[Union[DivisionResponse, str]] = None  # Divisional Secretariat
+    br_gndiv: Optional[Union[GNDivisionResponse, str]] = None  # GN Division
     br_currstat: Union[StatusResponse, str]
     br_parshawaya: Union[ParshawaResponse, str]
-    br_livtemple: Optional[Union[ViharaResponse, str]] = None
     br_mahanatemple: Optional[Union[ViharaResponse, str]] = None
     br_mahanaacharyacd: Optional[Union[BhikkuRefResponse, str]] = None
     br_cat: Optional[Union[CategoryResponse, str]] = None
@@ -767,3 +761,14 @@ class BhikkuWorkflowResponse(BaseModel):
     message: str
     data: Optional[Bhikku] = None
 
+
+class BhikkuRejectRequest(BaseModel):
+    """Request to reject a bhikku registration"""
+    rejection_reason: str = Field(..., min_length=1, max_length=500, description="Reason for rejection")
+    
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "rejection_reason": "Incomplete documentation"
+            }
+        }

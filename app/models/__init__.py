@@ -1,7 +1,7 @@
 # Import all models here to ensure they're registered with SQLAlchemy
 # This is important for Alembic migrations to detect all models
 
-from app.models.user import UserAccount, LoginHistory, UserLocationType
+from app.models.user import UserAccount, LoginHistory
 from app.models.roles import Role
 from app.models.group import Group
 from app.models.permissions import Permission
@@ -16,11 +16,6 @@ from app.models.district import District
 from app.models.city import City
 from app.models.divisional_secretariat import DivisionalSecretariat
 from app.models.gramasewaka import Gramasewaka
-
-# Location-based access control models
-from app.models.main_branch import MainBranch
-from app.models.province_branch import ProvinceBranch
-from app.models.district_branch import DistrictBranch
 
 # # Bhikku/Monk models
 # from app.models.bhikku import Bhikku
@@ -54,7 +49,6 @@ __all__ = [
     # Auth & RBAC
     "UserAccount",
     "LoginHistory",
-    "UserLocationType",
     "Role",
     "Group",
     "Permission",
@@ -68,10 +62,6 @@ __all__ = [
     "City",
     "DivisionalSecretariat",
     "Gramasewaka",
-    # Location-based access control
-    "MainBranch",
-    "ProvinceBranch",
-    "DistrictBranch",
     # # Bhikku
     # "Bhikku",
     # "BhikkuHigh",

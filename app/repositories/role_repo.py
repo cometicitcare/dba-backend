@@ -57,7 +57,7 @@ class RoleRepository:
     ) -> Optional[Role]:
         query = db.query(Role).filter(Role.ro_role_id == role_id)
         if not include_deleted:
-            query = query.filter(Role.ro_is_deleted.is_(False))
+            query = query.filter(Role.ro_is_active.is_(True))
         return query.first()
 
     def list(
@@ -74,7 +74,7 @@ class RoleRepository:
 
         query = db.query(Role)
         if not include_deleted:
-            query = query.filter(Role.ro_is_deleted.is_(False))
+            query = query.filter(Role.ro_is_active.is_(True))
 
         if search:
             term = f"%{search.strip()}%"
@@ -118,7 +118,7 @@ class RoleRepository:
             ro_role_name=data.ro_role_name,
             ro_description=data.ro_description,
             ro_is_system_role=data.ro_is_system_role,
-            ro_is_deleted=False,
+            ro_is_active=True,
             ro_created_at=now,
             ro_updated_at=now,
             ro_created_by=created_by,
@@ -179,10 +179,10 @@ class RoleRepository:
     ) -> Role:
         updated_by = self._validate_user(db, updated_by)
 
-        if entity.ro_is_deleted:
+        if not entity.ro_is_active:
             return entity
 
-        entity.ro_is_deleted = True
+        entity.ro_is_active = False
         entity.ro_updated_by = updated_by or entity.ro_updated_by
         entity.ro_updated_at = datetime.utcnow()
         entity.ro_version_number = (entity.ro_version_number or 0) + 1
