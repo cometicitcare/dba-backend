@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
 from sqlalchemy.orm import Session
 from app.api.auth_middleware import get_current_user
 from app.api.auth_dependencies import has_permission, has_any_permission
@@ -48,29 +48,23 @@ def manage_bhikku_high_records(
 
         create_payload: schemas.BhikkuHighCreate
         
-        # Handle both frontend and internal payload formats
-        if isinstance(payload.data, schemas.BhikkuHighFrontendCreate):
-            # Convert frontend payload to internal format
-            create_payload = payload.data.to_bhikku_high_create()
-        elif isinstance(payload.data, schemas.BhikkuHighCreate):
-            create_payload = payload.data
+        # Get raw data from payload
+        if hasattr(payload.data, "model_dump"):
+            raw_data = payload.data.model_dump()
+        elif isinstance(payload.data, dict):
+            raw_data = payload.data
         else:
-            # Try to parse as frontend format first, then fallback to internal format
-            raw_data = payload.data.model_dump() if hasattr(payload.data, "model_dump") else payload.data
-            try:
-                # Try frontend format first
-                frontend_payload = schemas.BhikkuHighFrontendCreate(**raw_data)
-                create_payload = frontend_payload.to_bhikku_high_create()
-            except ValidationError:
-                # Fallback to internal format
-                try:
-                    create_payload = schemas.BhikkuHighCreate(**raw_data)
-                except ValidationError as exc:
-                    formatted_errors = []
-                    for error in exc.errors():
-                        loc = ".".join(str(part) for part in error.get("loc", []))
-                        formatted_errors.append((loc or None, error.get("msg", "Invalid data")))
-                    raise validation_error(formatted_errors) from exc
+            raw_data = dict(payload.data)
+        
+        # Try to create BhikkuHighCreate from raw data
+        try:
+            create_payload = schemas.BhikkuHighCreate(**raw_data)
+        except ValidationError as exc:
+            formatted_errors = []
+            for error in exc.errors():
+                loc = ".".join(str(part) for part in error.get("loc", []))
+                formatted_errors.append((loc or None, error.get("msg", "Invalid data")))
+            raise validation_error(formatted_errors) from exc
 
         try:
             created = bhikku_high_service.create_bhikku_high(db, payload=create_payload, actor_id=user_id)
@@ -79,7 +73,10 @@ def manage_bhikku_high_records(
         except RuntimeError as exc:
             raise HTTPException(status_code=500, detail=str(exc)) from exc
 
-        return schemas.BhikkuHighManagementResponse(status="success", message="Higher bhikku registration created successfully.", data=created)
+        # Enrich the entity with nested objects
+        enriched_data = bhikku_high_service.enrich_bhikku_high_dict(created)
+        
+        return schemas.BhikkuHighManagementResponse(status="success", message="Higher bhikku registration created successfully.", data=enriched_data)
 
     if action == schemas.CRUDAction.READ_ONE:
         check_permission(db, user_id, 'READ_BHIKKU_HIGH')
@@ -184,3 +181,165 @@ def manage_bhikku_high_records(
         return schemas.BhikkuHighManagementResponse(status="success", message="Higher bhikku registration deleted successfully.", data=None)
 
     raise validation_error([("action", "Invalid action specified")])
+
+
+@router.post("/workflow", response_model=schemas.BhikkuHighWorkflowResponse, dependencies=[has_any_permission("bhikku:approve", "bhikku:update")])
+def update_bhikku_high_workflow(
+    request: schemas.BhikkuHighWorkflowRequest,
+    db: Session = Depends(get_db),
+    current_user: UserAccount = Depends(get_current_user),
+):
+    """
+    Update workflow status of a bhikku high record.
+    
+    Workflow Actions:
+    - APPROVE: Approve scanned bhikku high record (SCANNED → COMPLETED)
+    - REJECT: Reject scanned bhikku high record (SCANNED → REJECTED, requires rejection_reason)
+    - MARK_PRINTED: Mark certificate as printed (PENDING → PRINTED)
+    - MARK_SCANNED: Mark certificate as scanned (PRINTED → SCANNED)
+    
+    Workflow Flow:
+    1. Create bhikku high record → PENDING
+    2. Mark as printed → PRINTED
+    3. Upload/mark scanned → SCANNED
+    4. Approve/Reject → COMPLETED or REJECTED
+    
+    Requires: bhikku:approve OR bhikku:update permission
+    """
+    user_id = current_user.ua_user_id
+    action = request.action
+    bhr_id = request.bhr_id
+
+    try:
+        if action == schemas.BhikkuHighWorkflowActionType.APPROVE:
+            updated_bhikku_high = bhikku_high_service.approve_bhikku_high(
+                db, bhr_id=bhr_id, actor_id=user_id
+            )
+            message = "Higher bhikku registration approved successfully."
+
+        elif action == schemas.BhikkuHighWorkflowActionType.REJECT:
+            if not request.rejection_reason:
+                raise validation_error(
+                    [("rejection_reason", "Rejection reason is required when rejecting")]
+                )
+            updated_bhikku_high = bhikku_high_service.reject_bhikku_high(
+                db, 
+                bhr_id=bhr_id, 
+                actor_id=user_id,
+                rejection_reason=request.rejection_reason
+            )
+            message = "Higher bhikku registration rejected successfully."
+
+        elif action == schemas.BhikkuHighWorkflowActionType.MARK_PRINTED:
+            updated_bhikku_high = bhikku_high_service.mark_printed(
+                db, bhr_id=bhr_id, actor_id=user_id
+            )
+            message = "Higher bhikku certificate marked as printed successfully."
+
+        elif action == schemas.BhikkuHighWorkflowActionType.MARK_SCANNED:
+            updated_bhikku_high = bhikku_high_service.mark_scanned(
+                db, bhr_id=bhr_id, actor_id=user_id
+            )
+            message = "Higher bhikku certificate marked as scanned successfully."
+
+        else:
+            raise validation_error([("action", "Invalid workflow action")])
+
+    except ValueError as exc:
+        error_msg = str(exc)
+        if "not found" in error_msg.lower():
+            raise HTTPException(status_code=404, detail=error_msg) from exc
+        raise validation_error([(None, error_msg)]) from exc
+    except RuntimeError as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+    # Enrich the response with nested objects
+    enriched_data = bhikku_high_service.enrich_bhikku_high_dict(updated_bhikku_high)
+    
+    return schemas.BhikkuHighWorkflowResponse(
+        status="success",
+        message=message,
+        data=enriched_data,
+    )
+
+
+@router.post(
+    "/{bhr_regn}/upload-scanned-document",
+    response_model=schemas.BhikkuHighManagementResponse,
+    dependencies=[has_any_permission("bhikku:update")],
+)
+async def upload_scanned_document(
+    bhr_regn: str,
+    file: UploadFile = File(..., description="Scanned document file (max 5MB, PDF, JPG, PNG)"),
+    db: Session = Depends(get_db),
+    current_user: UserAccount = Depends(get_current_user),
+):
+    """
+    Upload a scanned document for a Higher Bhikku registration record.
+    
+    This endpoint allows uploading a scanned document (up to 5MB) for a specific higher bhikku registration.
+    The file will be stored at: `app/storage/bhikku_high_regist/<year>/<month>/<day>/<bhr_regn>/scanned_document_*.ext`
+    
+    **Requirements:**
+    - Maximum file size: 5MB
+    - Allowed formats: PDF, JPG, JPEG, PNG
+    - Requires: bhikku:update permission
+    
+    **Path Parameters:**
+    - bhr_regn: Higher Bhikku registration number (e.g., UPS2025001)
+    
+    **Form Data:**
+    - file: The scanned document file to upload
+    
+    **Response:**
+    Returns the updated Higher Bhikku record with the file path stored in bhr_scanned_document_path
+    
+    **Example Usage (Postman):**
+    1. Method: POST
+    2. URL: {{base_url}}/api/v1/bhikkus-high/UPS2025001/upload-scanned-document
+    3. Headers: Cookie with access_token
+    4. Body: form-data
+       - file: (select file)
+    """
+    username = current_user.ua_user_id if current_user else None
+    
+    try:
+        # Validate file size (5MB = 5 * 1024 * 1024 bytes)
+        MAX_FILE_SIZE = 5 * 1024 * 1024  # 5MB
+        
+        # Read file content to check size
+        file_content = await file.read()
+        file_size = len(file_content)
+        
+        if file_size > MAX_FILE_SIZE:
+            raise HTTPException(
+                status_code=400,
+                detail=f"File size ({file_size / 1024 / 1024:.2f}MB) exceeds maximum allowed size (5MB)"
+            )
+        
+        # Reset file pointer for later processing
+        await file.seek(0)
+        
+        # Upload the file and update the bhikku high record
+        updated_bhikku_high = await bhikku_high_service.upload_scanned_document(
+            db, bhr_regn=bhr_regn, file=file, actor_id=username
+        )
+        
+        # Return enriched data
+        enriched_data = bhikku_high_service.enrich_bhikku_high_dict(updated_bhikku_high)
+        
+        return schemas.BhikkuHighManagementResponse(
+            status="success",
+            message="Scanned document uploaded successfully.",
+            data=enriched_data,
+        )
+        
+    except ValueError as exc:
+        message = str(exc)
+        if "not found" in message.lower():
+            raise HTTPException(status_code=404, detail=message) from exc
+        raise validation_error([(None, message)]) from exc
+    except RuntimeError as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"File upload failed: {str(exc)}") from exc

@@ -68,6 +68,11 @@ class Settings:
     SMS_BEARER_TOKEN: str = os.getenv("SMS_BEARER_TOKEN", "")
     SMS_DEFAULT_SENDER_ID: str = os.getenv("SMS_DEFAULT_SENDER_ID", "COMETICINSY")
     SMS_MAX_LENGTH: int = int(os.getenv("SMS_MAX_LENGTH", "160"))
+    
+    # File Storage Configuration
+    # For Railway: Set to volume mount path (e.g., "/app/storage")
+    # For local dev: Set to "app/storage"
+    FILE_STORAGE_PATH: str = os.getenv("FILE_STORAGE_PATH", "app/storage")
     # Protected test key for triggering test SMS via a dev-only endpoint
     SMS_TEST_KEY: str = os.getenv("SMS_TEST_KEY", "")
 

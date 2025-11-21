@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import datetime
 from typing import Any, Dict, Optional, Tuple
 
 from sqlalchemy import MetaData, Table, select
@@ -152,6 +153,19 @@ class BhikkuHighService:
             "bhr_created_by": bhikku_high.bhr_created_by,
             "bhr_updated_by": bhikku_high.bhr_updated_by,
             "bhr_version_number": bhikku_high.bhr_version_number,
+            
+            # Workflow fields
+            "bhr_workflow_status": bhikku_high.bhr_workflow_status,
+            "bhr_printed_by": bhikku_high.bhr_printed_by,
+            "bhr_printed_at": bhikku_high.bhr_printed_at,
+            "bhr_scanned_by": bhikku_high.bhr_scanned_by,
+            "bhr_scanned_at": bhikku_high.bhr_scanned_at,
+            "bhr_approved_by": bhikku_high.bhr_approved_by,
+            "bhr_approved_at": bhikku_high.bhr_approved_at,
+            "bhr_rejected_by": bhikku_high.bhr_rejected_by,
+            "bhr_rejected_at": bhikku_high.bhr_rejected_at,
+            "bhr_rejection_reason": bhikku_high.bhr_rejection_reason,
+            "bhr_scanned_document_path": bhikku_high.bhr_scanned_document_path,
         }
         
         # Add nested objects from candidate bhikku record if available
@@ -233,6 +247,227 @@ class BhikkuHighService:
             raise ValueError("Higher bhikku registration not found.")
 
         return bhikku_high_repo.soft_delete(db, entity=entity, actor_id=actor_id)
+
+    # ------------------------------------------------------------------ #
+    # Workflow Methods
+    # ------------------------------------------------------------------ #
+    def approve_bhikku_high(
+        self,
+        db: Session,
+        *,
+        bhr_id: int,
+        actor_id: Optional[str],
+    ) -> BhikkuHighRegist:
+        """Approve a bhikku high registration - transitions workflow from SCANNED to APPROVED and then to COMPLETED status"""
+        entity = bhikku_high_repo.get(db, bhr_id)
+        if not entity:
+            raise ValueError("Higher bhikku registration not found.")
+        
+        if entity.bhr_workflow_status != "SCANNED":
+            raise ValueError(f"Cannot approve bhikku high with workflow status: {entity.bhr_workflow_status}. Must be SCANNED.")
+        
+        # Update workflow fields - goes to APPROVED then COMPLETED
+        entity.bhr_workflow_status = "COMPLETED"
+        entity.bhr_approval_status = "APPROVED"
+        entity.bhr_approved_by = actor_id
+        entity.bhr_approved_at = datetime.utcnow()
+        entity.bhr_updated_by = actor_id
+        entity.bhr_updated_at = datetime.utcnow()
+        entity.bhr_version_number += 1
+        
+        db.commit()
+        db.refresh(entity)
+        return entity
+
+    def reject_bhikku_high(
+        self,
+        db: Session,
+        *,
+        bhr_id: int,
+        actor_id: Optional[str],
+        rejection_reason: Optional[str] = None,
+    ) -> BhikkuHighRegist:
+        """Reject a bhikku high registration - transitions workflow from SCANNED to REJECTED status"""
+        entity = bhikku_high_repo.get(db, bhr_id)
+        if not entity:
+            raise ValueError("Higher bhikku registration not found.")
+        
+        if entity.bhr_workflow_status != "SCANNED":
+            raise ValueError(f"Cannot reject bhikku high with workflow status: {entity.bhr_workflow_status}. Must be SCANNED.")
+        
+        # Update workflow fields
+        entity.bhr_workflow_status = "REJECTED"
+        entity.bhr_approval_status = "REJECTED"
+        entity.bhr_rejected_by = actor_id
+        entity.bhr_rejected_at = datetime.utcnow()
+        entity.bhr_rejection_reason = rejection_reason
+        entity.bhr_updated_by = actor_id
+        entity.bhr_updated_at = datetime.utcnow()
+        entity.bhr_version_number += 1
+        
+        db.commit()
+        db.refresh(entity)
+        return entity
+
+    def mark_printed(
+        self,
+        db: Session,
+        *,
+        bhr_id: int,
+        actor_id: Optional[str],
+    ) -> BhikkuHighRegist:
+        """Mark bhikku high certificate as printed - transitions workflow from PENDING to PRINTED status"""
+        entity = bhikku_high_repo.get(db, bhr_id)
+        if not entity:
+            raise ValueError("Higher bhikku registration not found.")
+        
+        if entity.bhr_workflow_status != "PENDING":
+            raise ValueError(f"Cannot mark as printed bhikku high with workflow status: {entity.bhr_workflow_status}. Must be PENDING.")
+        
+        # Update workflow fields
+        entity.bhr_workflow_status = "PRINTED"
+        entity.bhr_printed_by = actor_id
+        entity.bhr_printed_at = datetime.utcnow()
+        entity.bhr_updated_by = actor_id
+        entity.bhr_updated_at = datetime.utcnow()
+        entity.bhr_version_number += 1
+        
+        db.commit()
+        db.refresh(entity)
+        return entity
+
+    def mark_scanned(
+        self,
+        db: Session,
+        *,
+        bhr_id: int,
+        actor_id: Optional[str],
+    ) -> BhikkuHighRegist:
+        """Mark bhikku high certificate as scanned - transitions workflow from PRINTED to SCANNED status"""
+        entity = bhikku_high_repo.get(db, bhr_id)
+        if not entity:
+            raise ValueError("Higher bhikku registration not found.")
+        
+        if entity.bhr_workflow_status != "PRINTED":
+            raise ValueError(f"Cannot mark as scanned bhikku high with workflow status: {entity.bhr_workflow_status}. Must be PRINTED.")
+        
+        # Update workflow fields
+        entity.bhr_workflow_status = "SCANNED"
+        entity.bhr_scanned_by = actor_id
+        entity.bhr_scanned_at = datetime.utcnow()
+        entity.bhr_updated_by = actor_id
+        entity.bhr_updated_at = datetime.utcnow()
+        entity.bhr_version_number += 1
+        
+        db.commit()
+        db.refresh(entity)
+        return entity
+
+    async def upload_scanned_document(
+        self,
+        db: Session,
+        *,
+        bhr_regn: str,
+        file,  # UploadFile type
+        actor_id: Optional[str],
+    ) -> BhikkuHighRegist:
+        """
+        Upload a scanned document for a Higher Bhikku registration record.
+        
+        When uploading a new document, the old file is renamed with a version suffix (v1, v2, etc.)
+        instead of being deleted, preserving the file history.
+        
+        Args:
+            db: Database session
+            bhr_regn: Higher Bhikku registration number
+            file: Uploaded file (PDF, JPG, PNG - max 5MB)
+            actor_id: User ID performing the upload
+            
+        Returns:
+            Updated BhikkuHighRegist instance with file path stored
+            
+        Raises:
+            ValueError: If higher bhikku registration not found or file upload fails
+        """
+        from pathlib import Path
+        from app.utils.file_storage import file_storage_service
+        
+        # Get the bhikku high record
+        entity = bhikku_high_repo.get_by_regn(db, bhr_regn)
+        if not entity:
+            raise ValueError(f"Higher bhikku registration with number '{bhr_regn}' not found.")
+        
+        # Archive old file with version suffix instead of deleting it
+        if entity.bhr_scanned_document_path:
+            old_file_path = entity.bhr_scanned_document_path
+            
+            # Remove leading /storage/ if present for path parsing
+            clean_path = old_file_path
+            if clean_path.startswith("/storage/"):
+                clean_path = clean_path[9:]  # Remove "/storage/"
+            
+            # Parse the old file path to add version suffix
+            path_obj = Path(clean_path)
+            file_dir = path_obj.parent
+            file_name = path_obj.name  # full filename with extension
+            file_stem = path_obj.stem  # filename without extension
+            file_ext = path_obj.suffix  # extension with dot
+            
+            # Determine the next version number by scanning the directory for ALL versioned files
+            # Find the highest version number that exists
+            storage_dir = Path("app/storage") / file_dir
+            max_version = 0
+            
+            if storage_dir.exists():
+                for existing_file in storage_dir.glob("*_v*" + file_ext):
+                    # Extract version number from filename like "filename_v2.png"
+                    version_match = existing_file.stem.rsplit("_v", 1)
+                    if len(version_match) == 2 and version_match[1].isdigit():
+                        version_num = int(version_match[1])
+                        max_version = max(max_version, version_num)
+            
+            # Use next version number
+            next_version = max_version + 1
+            versioned_name = f"{file_stem}_v{next_version}{file_ext}"
+            versioned_relative_path = str(file_dir / versioned_name)
+            
+            # Rename the old file to versioned name
+            try:
+                file_storage_service.rename_file(
+                    old_file_path, 
+                    versioned_relative_path
+                )
+            except Exception as e:
+                # If renaming fails, log it but continue with upload
+                print(f"Warning: Could not rename old file {old_file_path}: {e}")
+        
+        # Save new file using the file storage service
+        # File will be stored at: app/storage/bhikku_high_regist/<year>/<month>/<day>/<bhr_regn>/scanned_document_*.*
+        relative_path, _ = await file_storage_service.save_file(
+            file,
+            bhr_regn,
+            "scanned_document",
+            subdirectory="bhikku_high_regist"
+        )
+        
+        # Update the bhikku high record with the file path
+        entity.bhr_scanned_document_path = relative_path
+        entity.bhr_updated_by = actor_id
+        entity.bhr_updated_at = datetime.utcnow()
+        # Increment version number when new document is uploaded
+        entity.bhr_version_number = (entity.bhr_version_number or 0) + 1
+        
+        # Auto-transition workflow status to SCANNED when document is uploaded
+        # Only transition if currently in PRINTED status
+        if entity.bhr_workflow_status == "PRINTED":
+            entity.bhr_workflow_status = "SCANNED"
+            entity.bhr_scanned_by = actor_id
+            entity.bhr_scanned_at = datetime.utcnow()
+        
+        db.commit()
+        db.refresh(entity)
+        
+        return entity
 
     # ------------------------------------------------------------------ #
     # Helpers
