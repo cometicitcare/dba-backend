@@ -202,6 +202,44 @@ class FileStorageService:
         
         return False
     
+    def rename_file(self, old_relative_path: str, new_relative_path: str) -> bool:
+        """
+        Rename/move a file from one path to another.
+        
+        Args:
+            old_relative_path: Current relative path to the file (as stored in database)
+            new_relative_path: New relative path for the file
+            
+        Returns:
+            True if renamed successfully, False otherwise
+            
+        Raises:
+            Exception: If renaming fails
+        """
+        if not old_relative_path or not new_relative_path:
+            return False
+        
+        # Remove leading /storage/ if present
+        if old_relative_path.startswith("/storage/"):
+            old_relative_path = old_relative_path[9:]
+        if new_relative_path.startswith("/storage/"):
+            new_relative_path = new_relative_path[9:]
+        
+        old_file_path = self.base_storage_path / old_relative_path
+        new_file_path = self.base_storage_path / new_relative_path
+        
+        try:
+            if old_file_path.exists() and old_file_path.is_file():
+                # Ensure the target directory exists
+                new_file_path.parent.mkdir(parents=True, exist_ok=True)
+                # Rename/move the file
+                old_file_path.rename(new_file_path)
+                return True
+        except Exception as e:
+            raise Exception(f"Failed to rename file from {old_relative_path} to {new_relative_path}: {str(e)}")
+        
+        return False
+    
     def get_file_path(self, relative_path: str) -> Optional[Path]:
         """
         Get the absolute file path from a relative path.
