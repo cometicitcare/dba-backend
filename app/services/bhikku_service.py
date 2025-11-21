@@ -1411,5 +1411,197 @@ class BhikkuService:
         
         return entity
 
+    def get_qr_search_details(
+        self, db: Session, record_id: str, record_type: Optional[str] = None
+    ) -> Optional[list]:
+        """
+        Get limited details for QR search verification.
+        Automatically detects record type if not provided.
+        
+        Args:
+            db: Database session
+            record_id: Registration number (br_regn, sil_regn, or bhr_regn)
+            record_type: Optional record type ("bhikku", "silmatha", or "bhikku_high")
+            
+        Returns:
+            List with limited details or None if not found
+        """
+        from app.models.silmatha_regist import SilmathaRegist
+        
+        # If record type is specified, search only that type
+        if record_type == "bhikku":
+            entity = db.query(Bhikku).filter(Bhikku.br_regn == record_id).first()
+            if entity:
+                return self._format_bhikku_qr_response(db, entity)
+                
+        elif record_type == "silmatha":
+            entity = db.query(SilmathaRegist).filter(SilmathaRegist.sil_regn == record_id).first()
+            if entity:
+                return self._format_silmatha_qr_response(db, entity)
+                
+        elif record_type == "bhikku_high":
+            entity = db.query(BhikkuHighRegist).filter(BhikkuHighRegist.bhr_regn == record_id).first()
+            if entity:
+                return self._format_bhikku_high_qr_response(db, entity)
+        
+        else:
+            # Auto-detect: Try all types
+            # Try Bhikku first
+            entity = db.query(Bhikku).filter(Bhikku.br_regn == record_id).first()
+            if entity:
+                return self._format_bhikku_qr_response(db, entity)
+            
+            # Try Silmatha
+            entity = db.query(SilmathaRegist).filter(SilmathaRegist.sil_regn == record_id).first()
+            if entity:
+                return self._format_silmatha_qr_response(db, entity)
+            
+            # Try Bhikku High
+            entity = db.query(BhikkuHighRegist).filter(BhikkuHighRegist.bhr_regn == record_id).first()
+            if entity:
+                return self._format_bhikku_high_qr_response(db, entity)
+        
+        return None
+
+    def _format_bhikku_qr_response(self, db: Session, entity: Bhikku) -> list:
+        """Format Bhikku record for QR search response"""
+        # Get temple details if available
+        live_location = None
+        if entity.br_livtemple:
+            temple = db.query(ViharaData).filter(
+                ViharaData.vh_trn == entity.br_livtemple
+            ).first()
+            if temple:
+                live_location = f"{temple.vh_vname}, {temple.vh_addrs}" if temple.vh_addrs else temple.vh_vname
+        
+        # Get status description
+        from app.models.status import StatusData
+        from app.models.bhikku_category import BhikkuCategory
+        
+        status_text = entity.br_currstat
+        if entity.br_currstat:
+            status = db.query(StatusData).filter(StatusData.st_statcd == entity.br_currstat).first()
+            if status and status.st_descr:
+                status_text = status.st_descr
+        
+        # Get category description
+        category_text = entity.br_cat
+        if entity.br_cat:
+            category = db.query(BhikkuCategory).filter(BhikkuCategory.cc_code == entity.br_cat).first()
+            if category and category.cc_catogry:
+                category_text = category.cc_catogry
+        
+        return [
+            {"titel": "Registration Number", "text": entity.br_regn},
+            {"titel": "Name", "text": entity.br_mahananame},
+            {"titel": "Birth Name", "text": entity.br_gihiname},
+            {"titel": "Date of Birth", "text": str(entity.br_dofb) if entity.br_dofb else None},
+            {"titel": "Contact Number", "text": entity.br_mobile},
+            {"titel": "Email", "text": entity.br_email},
+            {"titel": "Live Location", "text": live_location},
+            {"titel": "Current Status", "text": status_text},
+            {"titel": "Category", "text": category_text},
+            {"titel": "Ordination Date", "text": str(entity.br_mahanadate) if entity.br_mahanadate else None},
+        ]
+
+    def _format_silmatha_qr_response(self, db: Session, entity) -> list:
+        """Format Silmatha record for QR search response"""
+        from app.models.silmatha_regist import SilmathaRegist
+        from app.models.status import StatusData
+        from app.models.bhikku_category import BhikkuCategory
+        
+        # Get temple details if available
+        live_location = None
+        if hasattr(entity, 'sil_mahanatemple') and entity.sil_mahanatemple:
+            temple = db.query(ViharaData).filter(
+                ViharaData.vh_trn == entity.sil_mahanatemple
+            ).first()
+            if temple:
+                live_location = f"{temple.vh_vname}, {temple.vh_addrs}" if temple.vh_addrs else temple.vh_vname
+        
+        # Get status description
+        status_text = entity.sil_currstat
+        if entity.sil_currstat:
+            status = db.query(StatusData).filter(StatusData.st_statcd == entity.sil_currstat).first()
+            if status and status.st_descr:
+                status_text = status.st_descr
+        
+        # Get category description
+        category_text = entity.sil_cat
+        if entity.sil_cat:
+            category = db.query(BhikkuCategory).filter(BhikkuCategory.cc_code == entity.sil_cat).first()
+            if category and category.cc_catogry:
+                category_text = category.cc_catogry
+        
+        return [
+            {"titel": "Registration Number", "text": entity.sil_regn},
+            {"titel": "Name", "text": entity.sil_mahananame},
+            {"titel": "Birth Name", "text": entity.sil_gihiname},
+            {"titel": "Date of Birth", "text": str(entity.sil_dofb) if entity.sil_dofb else None},
+            {"titel": "Contact Number", "text": entity.sil_mobile},
+            {"titel": "Email", "text": entity.sil_email},
+            {"titel": "Live Location", "text": live_location},
+            {"titel": "Current Status", "text": status_text},
+            {"titel": "Category", "text": category_text},
+            {"titel": "Ordination Date", "text": str(entity.sil_mahanadate) if entity.sil_mahanadate else None},
+        ]
+
+    def _format_bhikku_high_qr_response(self, db: Session, entity: BhikkuHighRegist) -> list:
+        """Format Bhikku High record for QR search response"""
+        from app.models.status import StatusData
+        from app.models.bhikku_category import BhikkuCategory
+        
+        # Get temple details if available
+        live_location = None
+        if entity.bhr_livtemple:
+            temple = db.query(ViharaData).filter(
+                ViharaData.vh_trn == entity.bhr_livtemple
+            ).first()
+            if temple:
+                live_location = f"{temple.vh_vname}, {temple.vh_addrs}" if temple.vh_addrs else temple.vh_vname
+        
+        # Get candidate details for birth name and DOB
+        birth_name = None
+        date_of_birth = None
+        contact_number = None
+        email = None
+        
+        if entity.bhr_candidate_regn:
+            candidate = db.query(Bhikku).filter(
+                Bhikku.br_regn == entity.bhr_candidate_regn
+            ).first()
+            if candidate:
+                birth_name = candidate.br_gihiname
+                date_of_birth = candidate.br_dofb
+                contact_number = candidate.br_mobile
+                email = candidate.br_email
+        
+        # Get status description
+        status_text = entity.bhr_currstat
+        if entity.bhr_currstat:
+            status = db.query(StatusData).filter(StatusData.st_statcd == entity.bhr_currstat).first()
+            if status and status.st_descr:
+                status_text = status.st_descr
+        
+        # Get category description
+        category_text = entity.bhr_cc_code
+        if entity.bhr_cc_code:
+            category = db.query(BhikkuCategory).filter(BhikkuCategory.cc_code == entity.bhr_cc_code).first()
+            if category and category.cc_catogry:
+                category_text = category.cc_catogry
+        
+        return [
+            {"titel": "Registration Number", "text": entity.bhr_regn},
+            {"titel": "Name", "text": entity.bhr_assumed_name},
+            {"titel": "Birth Name", "text": birth_name},
+            {"titel": "Date of Birth", "text": str(date_of_birth) if date_of_birth else None},
+            {"titel": "Contact Number", "text": contact_number},
+            {"titel": "Email", "text": email},
+            {"titel": "Live Location", "text": live_location},
+            {"titel": "Current Status", "text": status_text},
+            {"titel": "Category", "text": category_text},
+            {"titel": "Ordination Date", "text": str(entity.bhr_higher_ordination_date) if entity.bhr_higher_ordination_date else None},
+        ]
+
 
 bhikku_service = BhikkuService()
