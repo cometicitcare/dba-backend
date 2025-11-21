@@ -245,7 +245,7 @@ class BhikkuRefResponse(BaseModel):
     br_upasampadaname: Optional[str] = ""
 
 class Bhikku(BhikkuBase):
-    """Schema for returning a Bhikku record - PUBLIC API (excludes internal/workflow/audit fields)"""
+    """Schema for returning a Bhikku record - PUBLIC API"""
     model_config = ConfigDict(from_attributes=True)
     
     br_regn: str  # Required in response
@@ -264,6 +264,17 @@ class Bhikku(BhikkuBase):
     br_nikaya: Optional[Union[NikayaResponse, str]] = None
     br_robing_tutor_residence: Optional[Union[ViharaResponse, str]] = None
     br_robing_after_residence_temple: Optional[Union[ViharaResponse, str]] = None
+    
+    # Workflow Fields - Include for client to track status
+    br_workflow_status: Optional[str] = None
+    br_approval_status: Optional[str] = None
+    br_version_number: Optional[int] = None
+    br_scanned_document_path: Optional[str] = None
+    br_printed_at: Optional[datetime] = None
+    br_scanned_at: Optional[datetime] = None
+    br_approved_at: Optional[datetime] = None
+    br_rejected_at: Optional[datetime] = None
+    br_rejection_reason: Optional[str] = None
 
 # --- Schemas for the Single Endpoint ---
 class BhikkuRequestPayload(BaseModel):

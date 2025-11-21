@@ -745,6 +745,24 @@ class BhikkuService:
             current_regn=br_regn,
         )
 
+        # Reset workflow status to PENDING when record is edited
+        # This ensures the record goes through the complete workflow again:
+        # PENDING -> PRINTED -> SCANNED -> APPROVED/REJECTED -> COMPLETED
+        update_data["br_workflow_status"] = "PENDING"
+        # Clear workflow-related fields when resetting to PENDING
+        update_data["br_approval_status"] = None
+        update_data["br_approved_by"] = None
+        update_data["br_approved_at"] = None
+        update_data["br_rejected_by"] = None
+        update_data["br_rejected_at"] = None
+        update_data["br_rejection_reason"] = None
+        update_data["br_printed_by"] = None
+        update_data["br_printed_at"] = None
+        update_data["br_scanned_by"] = None
+        update_data["br_scanned_at"] = None
+        # Increment version number for the edit
+        entity.br_version_number = (entity.br_version_number or 0) + 1
+
         update_payload = BhikkuUpdate(**update_data)
         updated = bhikku_repo.update(db, br_regn=br_regn, bhikku_update=update_payload)
         if not updated:
@@ -1305,6 +1323,9 @@ class BhikkuService:
         """
         Upload a scanned document for a Bhikku record.
         
+        When uploading a new document, the old file is renamed with a version suffix (v1, v2, etc.)
+        instead of being deleted, preserving the file history.
+        
         Args:
             db: Database session
             br_regn: Bhikku registration number
@@ -1317,14 +1338,57 @@ class BhikkuService:
         Raises:
             ValueError: If bhikku not found or file upload fails
         """
+        import os
+        from pathlib import Path
+        
         # Get the bhikku record
         entity = bhikku_repo.get_by_regn(db, br_regn)
         if not entity:
             raise ValueError(f"Bhikku with registration number '{br_regn}' not found.")
         
-        # Delete old file if exists
+        # Archive old file with version suffix instead of deleting it
         if entity.br_scanned_document_path:
-            file_storage_service.delete_file(entity.br_scanned_document_path)
+            old_file_path = entity.br_scanned_document_path
+            
+            # Remove leading /storage/ if present for path parsing
+            clean_path = old_file_path
+            if clean_path.startswith("/storage/"):
+                clean_path = clean_path[9:]  # Remove "/storage/"
+            
+            # Parse the old file path to add version suffix
+            path_obj = Path(clean_path)
+            file_dir = path_obj.parent
+            file_name = path_obj.name  # full filename with extension
+            file_stem = path_obj.stem  # filename without extension
+            file_ext = path_obj.suffix  # extension with dot
+            
+            # Determine the next version number by scanning the directory for ALL versioned files
+            # Find the highest version number that exists
+            storage_dir = Path("app/storage") / file_dir
+            max_version = 0
+            
+            if storage_dir.exists():
+                for existing_file in storage_dir.glob("*_v*" + file_ext):
+                    # Extract version number from filename like "filename_v2.png"
+                    version_match = existing_file.stem.rsplit("_v", 1)
+                    if len(version_match) == 2 and version_match[1].isdigit():
+                        version_num = int(version_match[1])
+                        max_version = max(max_version, version_num)
+            
+            # Use next version number
+            next_version = max_version + 1
+            versioned_name = f"{file_stem}_v{next_version}{file_ext}"
+            versioned_relative_path = str(file_dir / versioned_name)
+            
+            # Rename the old file to versioned name
+            try:
+                file_storage_service.rename_file(
+                    old_file_path, 
+                    versioned_relative_path
+                )
+            except Exception as e:
+                # If renaming fails, log it but continue with upload
+                print(f"Warning: Could not rename old file {old_file_path}: {e}")
         
         # Save new file using the file storage service
         # File will be stored at: app/storage/bhikku_regist/<year>/<month>/<day>/<br_regn>/scanned_document_*.*
@@ -1339,6 +1403,8 @@ class BhikkuService:
         entity.br_scanned_document_path = relative_path
         entity.br_updated_by = actor_id
         entity.br_updated_at = datetime.utcnow()
+        # Increment version number when new document is uploaded
+        entity.br_version_number = (entity.br_version_number or 0) + 1
         
         db.commit()
         db.refresh(entity)
