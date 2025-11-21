@@ -68,23 +68,23 @@ class BhikkuHighBase(BaseModel):
     model_config = ConfigDict(str_strip_whitespace=True, populate_by_name=True)
 
     bhr_regn: Optional[str] = Field(default=None, max_length=12)
-    bhr_reqstdate: date
-    bhr_currstat: str = Field(min_length=1, max_length=5)
-    bhr_parshawaya: str = Field(min_length=1, max_length=10)
-    bhr_livtemple: str = Field(min_length=1, max_length=10)
+    bhr_reqstdate: Optional[date] = None
+    bhr_currstat: Optional[str] = Field(default=None, max_length=5)
+    bhr_parshawaya: Optional[str] = Field(default=None, max_length=10)
+    bhr_livtemple: Optional[str] = Field(default=None, max_length=10)
 
     bhr_samanera_serial_no: Optional[str] = Field(default=None, max_length=20)
     bhr_remarks: Optional[str] = Field(default=None, max_length=100)
     bhr_cc_code: Optional[str] = Field(default=None, max_length=5)
     bhr_candidate_regn: Optional[str] = Field(default=None, max_length=12)
-    bhr_higher_ordination_place: Optional[str] = Field(default=None, max_length=10)
+    bhr_higher_ordination_place: Optional[str] = Field(default=None, max_length=50)
     bhr_higher_ordination_date: Optional[date] = None
     bhr_karmacharya_name: Optional[str] = Field(default=None, max_length=12)
     bhr_upaddhyaya_name: Optional[str] = Field(default=None, max_length=12)
     bhr_assumed_name: Optional[str] = Field(default=None, max_length=50)
-    bhr_residence_higher_ordination_trn: Optional[str] = Field(default=None, max_length=10)
-    bhr_residence_permanent_trn: Optional[str] = Field(default=None, max_length=10)
-    bhr_declaration_residence_address: Optional[str] = Field(default=None, max_length=10)
+    bhr_residence_higher_ordination_trn: Optional[str] = Field(default=None, max_length=50)
+    bhr_residence_permanent_trn: Optional[str] = Field(default=None, max_length=50)
+    bhr_declaration_residence_address: Optional[str] = Field(default=None, max_length=200)
     bhr_tutors_tutor_regn: Optional[str] = Field(default=None, max_length=200)
     bhr_presiding_bhikshu_regn: Optional[str] = Field(default=None, max_length=200)
     bhr_declaration_date: Optional[date] = None
@@ -106,14 +106,14 @@ class BhikkuHighUpdate(BaseModel):
     bhr_remarks: Optional[str] = Field(default=None, max_length=100)
     bhr_cc_code: Optional[str] = Field(default=None, max_length=5)
     bhr_candidate_regn: Optional[str] = Field(default=None, max_length=12)
-    bhr_higher_ordination_place: Optional[str] = Field(default=None, max_length=10)
+    bhr_higher_ordination_place: Optional[str] = Field(default=None, max_length=50)
     bhr_higher_ordination_date: Optional[date] = None
     bhr_karmacharya_name: Optional[str] = Field(default=None, max_length=12)
     bhr_upaddhyaya_name: Optional[str] = Field(default=None, max_length=12)
     bhr_assumed_name: Optional[str] = Field(default=None, max_length=50)
-    bhr_residence_higher_ordination_trn: Optional[str] = Field(default=None, max_length=10)
-    bhr_residence_permanent_trn: Optional[str] = Field(default=None, max_length=10)
-    bhr_declaration_residence_address: Optional[str] = Field(default=None, max_length=10)
+    bhr_residence_higher_ordination_trn: Optional[str] = Field(default=None, max_length=50)
+    bhr_residence_permanent_trn: Optional[str] = Field(default=None, max_length=50)
+    bhr_declaration_residence_address: Optional[str] = Field(default=None, max_length=200)
     bhr_tutors_tutor_regn: Optional[str] = Field(default=None, max_length=200)
     bhr_presiding_bhikshu_regn: Optional[str] = Field(default=None, max_length=200)
     bhr_declaration_date: Optional[date] = None
@@ -229,13 +229,15 @@ class BhikkuHighFrontendUpdate(BaseModel):
 
 
 class BhikkuHighRequestPayload(BaseModel):
+    model_config = ConfigDict(arbitrary_types_allowed=True)
+    
     bhr_id: Optional[int] = None
     bhr_regn: Optional[str] = None
     skip: int = 0
     limit: int = 10
     page: Optional[int] = 1
     search_key: Optional[str] = ""
-    data: Optional[Union[BhikkuHighCreate, BhikkuHighUpdate, BhikkuHighFrontendCreate, BhikkuHighFrontendUpdate]] = None
+    data: Optional[Any] = None  # Accept any type, will be parsed in the route
 
 
 class BhikkuHighManagementRequest(BaseModel):
@@ -250,3 +252,36 @@ class BhikkuHighManagementResponse(BaseModel):
     totalRecords: Optional[int] = None
     page: Optional[int] = None
     limit: Optional[int] = None
+
+
+# --- Workflow Action Schemas ---
+class BhikkuHighWorkflowActionType(str, Enum):
+    """Workflow actions available for bhikku high records"""
+    APPROVE = "APPROVE"
+    REJECT = "REJECT"
+    MARK_PRINTED = "MARK_PRINTED"
+    MARK_SCANNED = "MARK_SCANNED"
+
+
+class BhikkuHighWorkflowRequest(BaseModel):
+    """Request to update workflow status of a bhikku high record"""
+    bhr_id: int = Field(..., description="Bhikku high registration ID")
+    action: BhikkuHighWorkflowActionType
+    rejection_reason: Optional[str] = Field(None, max_length=500, description="Required when action is REJECT")
+    
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "bhr_id": 1,
+                "action": "APPROVE"
+            }
+        }
+
+
+class BhikkuHighWorkflowResponse(BaseModel):
+    """Response after workflow action"""
+    model_config = ConfigDict(from_attributes=True)
+    
+    status: str
+    message: str
+    data: Optional[Union[BhikkuHigh, dict]] = None

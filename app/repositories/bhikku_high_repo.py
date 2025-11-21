@@ -151,7 +151,7 @@ class BhikkuHighRepository:
     def create(
         self, db: Session, *, data: BhikkuHighCreate, actor_id: Optional[str]
     ) -> BhikkuHighRegist:
-        payload = data.model_dump()
+        payload = data.model_dump(exclude_none=True)
         payload.setdefault("bhr_is_deleted", False)
         payload.setdefault("bhr_version_number", 1)
         payload["bhr_created_by"] = actor_id
