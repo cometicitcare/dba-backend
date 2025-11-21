@@ -41,7 +41,7 @@ class RoleOut(RoleBase):
     model_config = ConfigDict(from_attributes=True, populate_by_name=True)
 
     ro_role_id: str
-    ro_is_deleted: bool
+    ro_is_active: bool
     ro_created_at: Optional[datetime] = None
     ro_updated_at: Optional[datetime] = None
     ro_created_by: Optional[str] = None

@@ -1,5 +1,6 @@
-from sqlalchemy import String, Index, ForeignKey, Integer
+from sqlalchemy import String, Index, ForeignKey, Integer, DateTime
 from sqlalchemy.orm import Mapped, mapped_column, relationship
+from datetime import datetime
 from app.db.base import Base
 
 class Role(Base):
@@ -12,6 +13,13 @@ class Role(Base):
     ro_department_id: Mapped[int | None] = mapped_column(Integer, ForeignKey("groups.group_id", ondelete="SET NULL"), nullable=True)
     ro_is_system_role: Mapped[bool] = mapped_column(default=False, server_default="false")
     ro_is_active: Mapped[bool] = mapped_column(default=True, server_default="true")
+    
+    # Audit columns
+    ro_created_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), default=datetime.utcnow)
+    ro_updated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), default=datetime.utcnow, onupdate=datetime.utcnow)
+    ro_created_by: Mapped[str | None] = mapped_column(String(25))
+    ro_updated_by: Mapped[str | None] = mapped_column(String(25))
+    ro_version_number: Mapped[int | None] = mapped_column(Integer, default=1)
 
     __table_args__ = (
         Index("ix_roles_role_name", "ro_role_name", unique=True),

@@ -40,23 +40,7 @@ class SilmathaRegistService:
         # Validate foreign keys
         self._validate_foreign_keys(db, payload_dict)
 
-        # Auto-assign district from user's location if user is a DISTRICT_BRANCH user
-        if current_user:
-            from app.services.location_access_control_service import LocationAccessControlService
-            user_district_codes = LocationAccessControlService.get_user_district_codes(db, current_user)
-            
-            # If user has a specific district assignment, auto-assign it to the silmatha record
-            if user_district_codes and len(user_district_codes) == 1:
-                # Only auto-assign if sil_district is not explicitly provided in payload
-                if not payload_dict.get("sil_district"):
-                    payload_dict["sil_district"] = user_district_codes[0]
-            
-            # Auto-assign province from user's location if available
-            user_province_codes = LocationAccessControlService.get_user_province_codes(db, current_user)
-            if user_province_codes and len(user_province_codes) == 1:
-                # Only auto-assign if sil_province is not explicitly provided in payload
-                if not payload_dict.get("sil_province"):
-                    payload_dict["sil_province"] = user_province_codes[0]
+        # Location-based auto-assignment removed - use RBAC permissions instead
 
         explicit_regn = payload_dict.get("sil_regn")
         if explicit_regn:
@@ -246,89 +230,93 @@ class SilmathaRegistService:
         return silmatha_dict
 
     def approve_silmatha(self, db: Session, *, sil_regn: str, actor_id: Optional[str]) -> SilmathaRegist:
-        """Approve a silmatha registration."""
-        existing = silmatha_regist_repo.get_by_regn(db, sil_regn)
-        if not existing:
-            raise ValueError(f"Silmatha record with regn '{sil_regn}' not found.")
+        """Approve a silmatha registration - transitions workflow from SCANNED to COMPLETED with APPROVED status"""
+        entity = silmatha_regist_repo.get_by_regn(db, sil_regn)
+        if not entity:
+            raise ValueError("Silmatha record not found.")
 
-        if existing.sil_workflow_status == "APPROVED":
-            raise ValueError(f"Silmatha record '{sil_regn}' is already approved.")
+        if entity.sil_workflow_status != "SCANNED":
+            raise ValueError(f"Cannot approve silmatha with workflow status: {entity.sil_workflow_status}. Must be SCANNED.")
 
-        update_data = SilmathaRegistUpdate(
-            sil_workflow_status="APPROVED",
-            sil_approval_status="APPROVED",
-            sil_approved_by=actor_id,
-            sil_approved_at=datetime.utcnow(),
-            sil_updated_by=actor_id
-        )
-
-        updated = silmatha_regist_repo.update(db, sil_regn, update_data)
-        if not updated:
-            raise ValueError(f"Failed to approve silmatha record '{sil_regn}'.")
-        return updated
+        # Update workflow fields - goes to COMPLETED with APPROVED status
+        entity.sil_workflow_status = "COMPLETED"
+        entity.sil_approval_status = "APPROVED"
+        entity.sil_approved_by = actor_id
+        entity.sil_approved_at = datetime.utcnow()
+        entity.sil_updated_by = actor_id
+        entity.sil_updated_at = datetime.utcnow()
+        entity.sil_version_number += 1
+        
+        db.commit()
+        db.refresh(entity)
+        return entity
 
     def reject_silmatha(self, db: Session, *, sil_regn: str, rejection_reason: str, actor_id: Optional[str]) -> SilmathaRegist:
-        """Reject a silmatha registration."""
-        existing = silmatha_regist_repo.get_by_regn(db, sil_regn)
-        if not existing:
-            raise ValueError(f"Silmatha record with regn '{sil_regn}' not found.")
+        """Reject a silmatha registration - transitions workflow from SCANNED to REJECTED status"""
+        entity = silmatha_regist_repo.get_by_regn(db, sil_regn)
+        if not entity:
+            raise ValueError("Silmatha record not found.")
 
-        if existing.sil_workflow_status == "REJECTED":
-            raise ValueError(f"Silmatha record '{sil_regn}' is already rejected.")
+        if entity.sil_workflow_status != "SCANNED":
+            raise ValueError(f"Cannot reject silmatha with workflow status: {entity.sil_workflow_status}. Must be SCANNED.")
 
-        update_data = SilmathaRegistUpdate(
-            sil_workflow_status="REJECTED",
-            sil_approval_status="REJECTED",
-            sil_rejected_by=actor_id,
-            sil_rejected_at=datetime.utcnow(),
-            sil_rejection_reason=rejection_reason,
-            sil_updated_by=actor_id
-        )
-
-        updated = silmatha_regist_repo.update(db, sil_regn, update_data)
-        if not updated:
-            raise ValueError(f"Failed to reject silmatha record '{sil_regn}'.")
-        return updated
+        # Update workflow fields
+        entity.sil_workflow_status = "REJECTED"
+        entity.sil_approval_status = "REJECTED"
+        entity.sil_rejected_by = actor_id
+        entity.sil_rejected_at = datetime.utcnow()
+        entity.sil_rejection_reason = rejection_reason
+        entity.sil_updated_by = actor_id
+        entity.sil_updated_at = datetime.utcnow()
+        entity.sil_version_number += 1
+        
+        db.commit()
+        db.refresh(entity)
+        return entity
 
     def mark_printed(self, db: Session, *, sil_regn: str, actor_id: Optional[str]) -> SilmathaRegist:
-        """Mark a silmatha registration as printed."""
-        existing = silmatha_regist_repo.get_by_regn(db, sil_regn)
-        if not existing:
-            raise ValueError(f"Silmatha record with regn '{sil_regn}' not found.")
+        """Mark a silmatha certificate as printed - transitions workflow from PENDING to PRINTED status"""
+        entity = silmatha_regist_repo.get_by_regn(db, sil_regn)
+        if not entity:
+            raise ValueError("Silmatha record not found.")
 
-        if existing.sil_workflow_status != "APPROVED":
-            raise ValueError(f"Silmatha record '{sil_regn}' must be approved before printing.")
+        if entity.sil_workflow_status != "PENDING":
+            raise ValueError(f"Cannot mark as printed silmatha with workflow status: {entity.sil_workflow_status}. Must be PENDING.")
 
-        update_data = SilmathaRegistUpdate(
-            sil_workflow_status="PRINTED",
-            sil_printed_by=actor_id,
-            sil_printed_at=datetime.utcnow(),
-            sil_updated_by=actor_id
-        )
-
-        updated = silmatha_regist_repo.update(db, sil_regn, update_data)
-        if not updated:
-            raise ValueError(f"Failed to mark silmatha record '{sil_regn}' as printed.")
-        return updated
+        # Update workflow fields
+        entity.sil_workflow_status = "PRINTED"
+        entity.sil_printed_by = actor_id
+        entity.sil_printed_at = datetime.utcnow()
+        entity.sil_updated_by = actor_id
+        entity.sil_updated_at = datetime.utcnow()
+        entity.sil_version_number += 1
+        
+        db.commit()
+        db.refresh(entity)
+        return entity
 
     def mark_scanned(self, db: Session, *, sil_regn: str, scanned_document_path: str, actor_id: Optional[str]) -> SilmathaRegist:
-        """Mark a silmatha registration as scanned."""
-        existing = silmatha_regist_repo.get_by_regn(db, sil_regn)
-        if not existing:
-            raise ValueError(f"Silmatha record with regn '{sil_regn}' not found.")
+        """Mark a silmatha certificate as scanned - transitions workflow from PRINTED to SCANNED status"""
+        entity = silmatha_regist_repo.get_by_regn(db, sil_regn)
+        if not entity:
+            raise ValueError("Silmatha record not found.")
 
-        update_data = SilmathaRegistUpdate(
-            sil_workflow_status="SCANNED",
-            sil_scanned_by=actor_id,
-            sil_scanned_at=datetime.utcnow(),
-            sil_scanned_document_path=scanned_document_path,
-            sil_updated_by=actor_id
-        )
+        if entity.sil_workflow_status != "PRINTED":
+            raise ValueError(f"Cannot mark as scanned silmatha with workflow status: {entity.sil_workflow_status}. Must be PRINTED.")
 
-        updated = silmatha_regist_repo.update(db, sil_regn, update_data)
-        if not updated:
-            raise ValueError(f"Failed to mark silmatha record '{sil_regn}' as scanned.")
-        return updated
+        # Update workflow fields
+        entity.sil_workflow_status = "SCANNED"
+        entity.sil_scanned_by = actor_id
+        entity.sil_scanned_at = datetime.utcnow()
+        if scanned_document_path:
+            entity.sil_scanned_document_path = scanned_document_path
+        entity.sil_updated_by = actor_id
+        entity.sil_updated_at = datetime.utcnow()
+        entity.sil_version_number += 1
+        
+        db.commit()
+        db.refresh(entity)
+        return entity
 
     def mark_printing(
         self,
@@ -337,13 +325,13 @@ class SilmathaRegistService:
         sil_regn: str,
         actor_id: Optional[str],
     ) -> SilmathaRegist:
-        """Mark silmatha certificate as in printing process - transitions workflow to PRINTING status"""
+        """Mark silmatha certificate as in printing process - transitions workflow from PENDING to PRINTING status"""
         entity = silmatha_regist_repo.get_by_regn(db, sil_regn)
         if not entity:
             raise ValueError("Silmatha record not found.")
         
-        if entity.sil_workflow_status != "APPROVED":
-            raise ValueError(f"Cannot mark as printing silmatha with workflow status: {entity.sil_workflow_status}. Must be APPROVED.")
+        if entity.sil_workflow_status != "PENDING":
+            raise ValueError(f"Cannot mark as printing silmatha with workflow status: {entity.sil_workflow_status}. Must be PENDING.")
         
         # Update workflow fields
         entity.sil_workflow_status = "PRINTING"
@@ -397,6 +385,8 @@ class SilmathaRegistService:
         sil_regn: str,
         actor_id: Optional[str],
         reprint_reason: str,
+        reprint_amount: Optional[float] = None,
+        reprint_remarks: Optional[str] = None,
     ) -> SilmathaRegist:
         """Request a reprint for a silmatha certificate - initiates reprint workflow"""
         entity = silmatha_regist_repo.get_by_regn(db, sil_regn)
@@ -411,11 +401,17 @@ class SilmathaRegistService:
         if entity.sil_reprint_status == "REPRINT_PENDING":
             raise ValueError("There is already a pending reprint request for this silmatha.")
         
+        # Generate reprint form number
+        reprint_form_no = silmatha_regist_repo.generate_next_reprint_form_no(db)
+        
         # Set reprint workflow fields
         entity.sil_reprint_status = "REPRINT_PENDING"
+        entity.sil_reprint_form_no = reprint_form_no
         entity.sil_reprint_requested_by = actor_id
         entity.sil_reprint_requested_at = datetime.utcnow()
         entity.sil_reprint_request_reason = reprint_reason
+        entity.sil_reprint_amount = reprint_amount
+        entity.sil_reprint_remarks = reprint_remarks
         # Clear previous reprint approval/rejection data
         entity.sil_reprint_approved_by = None
         entity.sil_reprint_approved_at = None

@@ -1,5 +1,5 @@
 # app/models/silmatha_regist.py
-from sqlalchemy import Boolean, Column, Integer, String, Date, TIMESTAMP, text, ForeignKey
+from sqlalchemy import Boolean, Column, Integer, String, Date, TIMESTAMP, Numeric, text, ForeignKey
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from app.db.base import Base
@@ -61,9 +61,12 @@ class SilmathaRegist(Base):
     
     # Reprint Workflow Fields
     sil_reprint_status = Column(String(20))
+    sil_reprint_form_no = Column(String(50), index=True)
     sil_reprint_requested_by = Column(String(25))
     sil_reprint_requested_at = Column(TIMESTAMP)
     sil_reprint_request_reason = Column(String(500))
+    sil_reprint_amount = Column(Numeric(10, 2))
+    sil_reprint_remarks = Column(String(500))
     sil_reprint_approved_by = Column(String(25))
     sil_reprint_approved_at = Column(TIMESTAMP)
     sil_reprint_rejected_by = Column(String(25))

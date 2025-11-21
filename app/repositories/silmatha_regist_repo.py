@@ -8,7 +8,6 @@ from sqlalchemy.orm import Session
 from app.models.silmatha_regist import SilmathaRegist
 from app.models.user import UserAccount
 from app.schemas import silmatha_regist as schemas
-from app.services.location_access_control_service import LocationAccessControlService
 
 
 class SilmathaRegistRepository:
@@ -40,6 +39,35 @@ class SilmathaRegistRepository:
         if latest:
             try:
                 sequence_part = latest.sil_regn[len(prefix) :]
+                last_sequence = int(sequence_part)
+                next_sequence = last_sequence + 1
+            except (ValueError, IndexError):
+                next_sequence = 1
+        else:
+            next_sequence = 1
+
+        return f"{prefix}{next_sequence:06d}"
+
+    def generate_next_reprint_form_no(self, db: Session) -> str:
+        """
+        Generate the next reprint form number in format: SILR{YEAR}{SEQUENCE}.
+
+        Example: SILR2025000001, SILR2025000002, etc.
+        Total length: SILR(4) + YEAR(4) + SEQUENCE(6) = 14 characters.
+        """
+        current_year = datetime.utcnow().year
+        prefix = f"SILR{current_year}"
+
+        latest = (
+            db.query(SilmathaRegist)
+            .filter(SilmathaRegist.sil_reprint_form_no.like(f"{prefix}%"))
+            .order_by(SilmathaRegist.sil_reprint_form_no.desc())
+            .first()
+        )
+
+        if latest:
+            try:
+                sequence_part = latest.sil_reprint_form_no[len(prefix) :]
                 last_sequence = int(sequence_part)
                 next_sequence = last_sequence + 1
             except (ValueError, IndexError):
@@ -101,44 +129,8 @@ class SilmathaRegistRepository:
         """Get paginated silmatha records with optional search functionality across all text fields."""
         query = db.query(SilmathaRegist).filter(SilmathaRegist.sil_is_deleted.is_(False))
 
-        # Apply location-based access control FIRST
-        if current_user:
-            query = LocationAccessControlService.apply_location_filter_to_query(
-                query=query,
-                db=db,
-                user=current_user,
-                province_field='sil_province',
-                district_field='sil_district'
-            )
-        
-        # Additional restriction: PENDING records only visible to district-level users in the same district
-        # Province-level users can see all records (PENDING and COMPLETED) in their province
-        # COMPLETED records are visible to all users
-        if current_user and current_user.ua_location_type:
-            from app.models.user import UserLocationType
-            from sqlalchemy import and_
-            
-            # Only apply PENDING restriction for DISTRICT_BRANCH users
-            if current_user.ua_location_type == UserLocationType.DISTRICT_BRANCH:
-                user_district_codes = LocationAccessControlService.get_user_district_codes(db, current_user)
-                
-                if user_district_codes is not None:  # None means access to all districts
-                    # Build condition: Either record is COMPLETED OR (record is PENDING and in user's district)
-                    pending_condition = and_(
-                        SilmathaRegist.sil_workflow_status == "PENDING",
-                        SilmathaRegist.sil_district.in_(user_district_codes) if user_district_codes else False
-                    )
-                    completed_condition = SilmathaRegist.sil_workflow_status == "COMPLETED"
-                    other_statuses_condition = SilmathaRegist.sil_workflow_status.notin_(["PENDING", "COMPLETED"])
-                    
-                    query = query.filter(
-                        or_(
-                            completed_condition,  # COMPLETED records visible to all
-                            pending_condition,    # PENDING records only if in user's district
-                            other_statuses_condition  # Other statuses follow standard location access control
-                        )
-                    )
-            # PROVINCE_BRANCH and MAIN_BRANCH users see all records in their province/all provinces
+        # Location-based access control removed - use RBAC permissions instead
+        # Access control is now handled by FastAPI dependencies (has_permission, has_role, etc.)
 
         # Apply search filter
         if search_key and search_key.strip():
@@ -240,53 +232,17 @@ class SilmathaRegistRepository:
         current_user: Optional[UserAccount] = None,
     ):
         """Get total count of non-deleted silmatha records for pagination with optional search."""
-        query = db.query(func.count(SilmathaRegist.sil_id)).filter(
-            SilmathaRegist.sil_is_deleted.is_(False)
-        )
-
-        # Apply location-based access control
-        if current_user:
-            base_query = db.query(SilmathaRegist).filter(SilmathaRegist.sil_is_deleted.is_(False))
-            base_query = LocationAccessControlService.apply_location_filter_to_query(
-                query=base_query,
-                db=db,
-                user=current_user,
-                province_field='sil_province',
-                district_field='sil_district'
-            )
-            
-            # Additional restriction: PENDING records only visible to district-level users in the same district
-            if current_user.ua_location_type:
-                from app.models.user import UserLocationType
-                from sqlalchemy import and_
-                
-                # Only apply PENDING restriction for DISTRICT_BRANCH users
-                if current_user.ua_location_type == UserLocationType.DISTRICT_BRANCH:
-                    user_district_codes = LocationAccessControlService.get_user_district_codes(db, current_user)
-                    
-                    if user_district_codes is not None:
-                        pending_condition = and_(
-                            SilmathaRegist.sil_workflow_status == "PENDING",
-                            SilmathaRegist.sil_district.in_(user_district_codes) if user_district_codes else False
-                        )
-                        completed_condition = SilmathaRegist.sil_workflow_status == "COMPLETED"
-                        other_statuses_condition = SilmathaRegist.sil_workflow_status.notin_(["PENDING", "COMPLETED"])
-                        
-                        base_query = base_query.filter(
-                            or_(
-                                completed_condition,
-                                pending_condition,
-                                other_statuses_condition
-                            )
-                        )
-            
-            # Extract filters from the base query and apply to count query
-            query = db.query(func.count(SilmathaRegist.sil_id)).select_from(base_query.subquery())
+        
+        # Location-based access control removed - use RBAC permissions instead
+        # Access control is now handled by FastAPI dependencies (has_permission, has_role, etc.)
+        
+        # Base query for count
+        base_query = db.query(SilmathaRegist).filter(SilmathaRegist.sil_is_deleted.is_(False))
 
         # Apply search filter
         if search_key and search_key.strip():
             search_pattern = f"%{search_key.strip()}%"
-            query = query.filter(
+            base_query = base_query.filter(
                 or_(
                     SilmathaRegist.sil_regn.ilike(search_pattern),
                     SilmathaRegist.sil_gihiname.ilike(search_pattern),
@@ -309,53 +265,54 @@ class SilmathaRegistRepository:
 
         # Apply advanced filters (same as get_all)
         if vh_trn:
-            query = query.filter(SilmathaRegist.sil_robing_tutor_residence == vh_trn)
+            base_query = base_query.filter(SilmathaRegist.sil_robing_tutor_residence == vh_trn)
         
         if province:
-            query = query.filter(SilmathaRegist.sil_province == province)
+            base_query = base_query.filter(SilmathaRegist.sil_province == province)
         
         if district:
-            query = query.filter(SilmathaRegist.sil_district == district)
+            base_query = base_query.filter(SilmathaRegist.sil_district == district)
         
         if divisional_secretariat:
-            query = query.filter(SilmathaRegist.sil_division == divisional_secretariat)
+            base_query = base_query.filter(SilmathaRegist.sil_division == divisional_secretariat)
         
         if gn_division:
-            query = query.filter(SilmathaRegist.sil_gndiv == gn_division)
+            base_query = base_query.filter(SilmathaRegist.sil_gndiv == gn_division)
         
         if temple:
-            query = query.filter(SilmathaRegist.sil_robing_after_residence_temple == temple)
+            base_query = base_query.filter(SilmathaRegist.sil_robing_after_residence_temple == temple)
         
         if child_temple:
-            query = query.filter(SilmathaRegist.sil_mahanatemple == child_temple)
+            base_query = base_query.filter(SilmathaRegist.sil_mahanatemple == child_temple)
         
         # Note: parshawaya is not applicable to silmatha records, so we ignore this filter
         
         if category:
-            query = query.filter(SilmathaRegist.sil_cat == category)
+            base_query = base_query.filter(SilmathaRegist.sil_cat == category)
         
         if status:
-            query = query.filter(SilmathaRegist.sil_currstat == status)
+            base_query = base_query.filter(SilmathaRegist.sil_currstat == status)
         
         # Workflow status filter with automatic inclusion of COMPLETED records
         if workflow_status:
             if workflow_status != "COMPLETED":
-                query = query.filter(
+                base_query = base_query.filter(
                     or_(
                         SilmathaRegist.sil_workflow_status == workflow_status,
                         SilmathaRegist.sil_workflow_status == "COMPLETED"
                     )
                 )
             else:
-                query = query.filter(SilmathaRegist.sil_workflow_status == workflow_status)
+                base_query = base_query.filter(SilmathaRegist.sil_workflow_status == workflow_status)
         
         if date_from:
-            query = query.filter(SilmathaRegist.sil_reqstdate >= date_from)
+            base_query = base_query.filter(SilmathaRegist.sil_reqstdate >= date_from)
         
         if date_to:
-            query = query.filter(SilmathaRegist.sil_reqstdate <= date_to)
+            base_query = base_query.filter(SilmathaRegist.sil_reqstdate <= date_to)
 
-        return query.scalar()
+        # Return count
+        return base_query.count()
 
     def get_by_mobile(self, db: Session, sil_mobile: str):
         return (

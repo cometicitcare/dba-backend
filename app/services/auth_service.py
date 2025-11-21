@@ -28,15 +28,25 @@ class AuthService:
         if not user or not verify_password(password + user.ua_salt, user.ua_password_hash):
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
         
-        # Fetch the user's role and group information (use ur_user_id for UserRole)
-        user_role = db.query(Role).join(UserRole).filter(UserRole.ur_user_id == user.ua_user_id).first()
-        user_group = db.query(Group).join(UserGroup).filter(UserGroup.user_id == user.ua_user_id).first()
+        # Fetch the user's role (required) and group (optional)
+        user_role = db.query(Role).join(UserRole).filter(
+            UserRole.ur_user_id == user.ua_user_id,
+            UserRole.ur_is_active == True
+        ).first()
+        
+        user_group = db.query(Group).join(UserGroup).filter(
+            UserGroup.user_id == user.ua_user_id,
+            UserGroup.is_active == True
+        ).first()
 
-        if not user_role or not user_group:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User role or group not found")
+        if not user_role:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User role not found")
+        
+        # Group is optional - use "default" or None if no group assigned
+        group_name = user_group.group_name if user_group else "default"
         
         # Create access and refresh tokens with role and group included
-        access = self.create_access_token(user.ua_user_id, user_role.ro_role_name, user_group.group_name)
+        access = self.create_access_token(user.ua_user_id, user_role.ro_role_name, group_name)
         refresh = self.create_refresh_token(user.ua_user_id)
 
         return access, refresh, user

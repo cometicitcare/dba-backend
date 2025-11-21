@@ -1037,6 +1037,178 @@ def update_bhikku_workflow(
         data=bhikku_schema,
     )
 
+
+# Dedicated workflow endpoints for easier access
+@router.post(
+    "/{br_regn}/mark-printed",
+    response_model=schemas.BhikkuWorkflowResponse,
+    dependencies=[has_any_permission("bhikku:update")],
+)
+def mark_bhikku_printed(
+    br_regn: str,
+    db: Session = Depends(get_db),
+    current_user: UserAccount = Depends(get_current_user),
+):
+    """
+    Mark bhikku certificate as printed.
+    
+    Transitions: PENDING → PRINTED
+    
+    Indicates that the certificate has been physically printed.
+    This is the first action after creating a bhikku record.
+    
+    Requires: bhikku:update permission
+    """
+    user_id = current_user.ua_user_id
+    
+    try:
+        updated_bhikku = bhikku_service.mark_printed(
+            db, br_regn=br_regn, actor_id=user_id
+        )
+    except ValueError as exc:
+        error_msg = str(exc)
+        if "not found" in error_msg.lower():
+            raise HTTPException(status_code=404, detail=error_msg) from exc
+        raise validation_error([(None, error_msg)]) from exc
+    except RuntimeError as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+    
+    bhikku_schema = schemas.Bhikku.model_validate(updated_bhikku)
+    return schemas.BhikkuWorkflowResponse(
+        status="success",
+        message="Bhikku certificate marked as printed successfully.",
+        data=bhikku_schema,
+    )
+
+
+@router.post(
+    "/{br_regn}/mark-scanned",
+    response_model=schemas.BhikkuWorkflowResponse,
+    dependencies=[has_any_permission("bhikku:update")],
+)
+def mark_bhikku_scanned(
+    br_regn: str,
+    db: Session = Depends(get_db),
+    current_user: UserAccount = Depends(get_current_user),
+):
+    """
+    Mark bhikku certificate as scanned.
+    
+    Transitions: PRINTED → SCANNED
+    
+    Indicates that the printed certificate has been scanned back into the system.
+    After this step, the record can be approved or rejected.
+    
+    Requires: bhikku:update permission
+    """
+    user_id = current_user.ua_user_id
+    
+    try:
+        updated_bhikku = bhikku_service.mark_scanned(
+            db, br_regn=br_regn, actor_id=user_id
+        )
+    except ValueError as exc:
+        error_msg = str(exc)
+        if "not found" in error_msg.lower():
+            raise HTTPException(status_code=404, detail=error_msg) from exc
+        raise validation_error([(None, error_msg)]) from exc
+    except RuntimeError as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+    
+    bhikku_schema = schemas.Bhikku.model_validate(updated_bhikku)
+    return schemas.BhikkuWorkflowResponse(
+        status="success",
+        message="Bhikku certificate marked as scanned successfully.",
+        data=bhikku_schema,
+    )
+
+
+@router.post(
+    "/{br_regn}/approve",
+    response_model=schemas.BhikkuWorkflowResponse,
+    dependencies=[has_any_permission("bhikku:approve")],
+)
+def approve_bhikku_record(
+    br_regn: str,
+    db: Session = Depends(get_db),
+    current_user: UserAccount = Depends(get_current_user),
+):
+    """
+    Approve bhikku registration.
+    
+    Transitions: SCANNED → COMPLETED (with approval_status = APPROVED)
+    
+    Once approved, the workflow is completed. This is the final step for successful registrations.
+    
+    Requires: bhikku:approve permission
+    """
+    user_id = current_user.ua_user_id
+    
+    try:
+        updated_bhikku = bhikku_service.approve_bhikku(
+            db, br_regn=br_regn, actor_id=user_id
+        )
+    except ValueError as exc:
+        error_msg = str(exc)
+        if "not found" in error_msg.lower():
+            raise HTTPException(status_code=404, detail=error_msg) from exc
+        raise validation_error([(None, error_msg)]) from exc
+    except RuntimeError as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+    
+    bhikku_schema = schemas.Bhikku.model_validate(updated_bhikku)
+    return schemas.BhikkuWorkflowResponse(
+        status="success",
+        message="Bhikku approved and completed successfully.",
+        data=bhikku_schema,
+    )
+
+
+@router.post(
+    "/{br_regn}/reject",
+    response_model=schemas.BhikkuWorkflowResponse,
+    dependencies=[has_any_permission("bhikku:approve")],
+)
+def reject_bhikku_record(
+    br_regn: str,
+    request: schemas.BhikkuRejectRequest,
+    db: Session = Depends(get_db),
+    current_user: UserAccount = Depends(get_current_user),
+):
+    """
+    Reject bhikku registration.
+    
+    Transitions: SCANNED → REJECTED
+    
+    Rejects the bhikku registration with a reason. The record will be marked as rejected.
+    
+    Requires: bhikku:approve permission
+    """
+    user_id = current_user.ua_user_id
+    
+    try:
+        updated_bhikku = bhikku_service.reject_bhikku(
+            db, 
+            br_regn=br_regn, 
+            actor_id=user_id,
+            rejection_reason=request.rejection_reason
+        )
+    except ValueError as exc:
+        error_msg = str(exc)
+        if "not found" in error_msg.lower():
+            raise HTTPException(status_code=404, detail=error_msg) from exc
+        raise validation_error([(None, error_msg)]) from exc
+    except RuntimeError as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+    
+    bhikku_schema = schemas.Bhikku.model_validate(updated_bhikku)
+    return schemas.BhikkuWorkflowResponse(
+        status="success",
+        message="Bhikku rejected successfully.",
+        data=bhikku_schema,
+    )
+
+
 @router.post(
     "/{br_regn}/upload-scanned-document",
     response_model=schemas.BhikkuManagementResponse,
@@ -1052,7 +1224,7 @@ async def upload_scanned_document(
     Upload a scanned document for a Bhikku record.
     
     This endpoint allows uploading a scanned document (up to 5MB) for a specific bhikku.
-    The file will be stored at: `app/storage/bhikku_update/<year>/<month>/<day>/<br_regn>/scanned_document_*.ext`
+    The file will be stored at: `app/storage/bhikku_regist/<year>/<month>/<day>/<br_regn>/scanned_document_*.ext`
     
     **Requirements:**
     - Maximum file size: 5MB

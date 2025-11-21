@@ -15,6 +15,7 @@ from app.schemas.auth import (
     UserPermissionsResponse
 )
 from app.repositories import auth_repo
+from app.models.user_roles import UserRole
 from app.core.security import create_access_token
 from app.services.auth_service import auth_service
 from app.utils.cookies import set_auth_cookies, clear_auth_cookies
@@ -127,7 +128,30 @@ def register_user(user: UserCreate, db: Session = Depends(get_db)):
     
     try:
         created_user = auth_repo.create_user(db=db, user=user)
-        return created_user
+        
+        # Fetch the role information to include in response
+        user_role_entry = db.query(UserRole).filter(
+            UserRole.ur_user_id == created_user.ua_user_id
+        ).first()
+        
+        # Prepare response with role information
+        response_data = {
+            "ua_user_id": created_user.ua_user_id,
+            "ua_username": created_user.ua_username,
+            "ua_email": created_user.ua_email,
+            "ua_first_name": created_user.ua_first_name,
+            "ua_last_name": created_user.ua_last_name,
+            "ua_phone": created_user.ua_phone,
+            "ua_status": created_user.ua_status,
+            "ro_role_id": user_role_entry.ur_role_id if user_role_entry else None,
+            "role": {
+                "ro_role_id": role.ro_role_id,
+                "ro_role_name": role.ro_role_name,
+                "ro_description": role.ro_description
+            } if role else None
+        }
+        
+        return response_data
     except ValueError as e:
         raise validation_error([(None, str(e))])
 
