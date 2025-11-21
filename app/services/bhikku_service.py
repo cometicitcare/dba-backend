@@ -1269,10 +1269,16 @@ class BhikkuService:
 
     @staticmethod
     def _strip_strings(data: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Strip whitespace from string values and convert empty strings to None.
+        This is crucial for foreign key fields that should be NULL when empty.
+        """
         cleaned: Dict[str, Any] = {}
         for key, value in data.items():
             if isinstance(value, str):
-                cleaned[key] = value.strip()
+                stripped = value.strip()
+                # Convert empty strings to None to avoid FK violations
+                cleaned[key] = None if stripped == "" else stripped
             else:
                 cleaned[key] = value
         return cleaned
