@@ -40,7 +40,14 @@ class SilmathaRegistService:
         # Validate foreign keys
         self._validate_foreign_keys(db, payload_dict)
 
-        # Location-based auto-assignment removed - use RBAC permissions instead
+        # Auto-populate location from current user (location-based access control)
+        if current_user and current_user.ua_location_type == "DISTRICT_BRANCH" and current_user.ua_district_branch_id:
+            from app.models.district_branch import DistrictBranch
+            district_branch = db.query(DistrictBranch).filter(
+                DistrictBranch.db_id == current_user.ua_district_branch_id
+            ).first()
+            if district_branch and district_branch.db_district_code:
+                payload_dict["sil_created_by_district"] = district_branch.db_district_code
 
         explicit_regn = payload_dict.get("sil_regn")
         if explicit_regn:

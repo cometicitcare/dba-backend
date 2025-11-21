@@ -100,6 +100,9 @@ class Bhikku(Base):
     br_updated_by = Column(String(25))
     br_version_number = Column(Integer, server_default=text('1'))
     
+    # Location-based access control - stores district code of creating user
+    br_created_by_district = Column(String(10), index=True)
+    
     # Relationships
     province_rel = relationship("Province", primaryjoin="foreign(Bhikku.br_province) == Province.cp_code", viewonly=True, lazy="joined")
     district_rel = relationship("District", primaryjoin="foreign(Bhikku.br_district) == District.dd_dcode", viewonly=True, lazy="joined")

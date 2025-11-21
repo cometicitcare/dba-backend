@@ -17,6 +17,10 @@ from app.models.city import City
 from app.models.divisional_secretariat import DivisionalSecretariat
 from app.models.gramasewaka import Gramasewaka
 
+# Branch models for location-based access control
+from app.models.main_branch import MainBranch
+from app.models.district_branch import DistrictBranch
+
 # # Bhikku/Monk models
 # from app.models.bhikku import Bhikku
 # from app.models.bhikku_high import BhikkuHighRegist
@@ -62,6 +66,9 @@ __all__ = [
     "City",
     "DivisionalSecretariat",
     "Gramasewaka",
+    # Branches
+    "MainBranch",
+    "DistrictBranch",
     # # Bhikku
     # "Bhikku",
     # "BhikkuHigh",

@@ -1,6 +1,6 @@
 # app/api/auth_middleware.py
 from fastapi import Depends, HTTPException, status, Request
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from typing import Optional
 from app.api.deps import get_db
 from app.models.user import UserAccount
@@ -30,8 +30,11 @@ def get_current_user(request: Request, db: Session = Depends(get_db)) -> UserAcc
             detail="Invalid or expired token. Please login again."
         )
 
-    # Fetch user from database
-    user = db.query(UserAccount).filter(
+    # Fetch user from database with location relationships
+    user = db.query(UserAccount).options(
+        joinedload(UserAccount.district_branch),
+        joinedload(UserAccount.main_branch)
+    ).filter(
         UserAccount.ua_user_id == user_id,
         UserAccount.ua_is_deleted == False,
     ).first()

@@ -212,7 +212,14 @@ class BhikkuService:
         payload_dict = self._normalize_contact_fields(payload_dict)
         self._validate_contact_formats(payload_dict)
 
-        # Location-based auto-assignment removed - use RBAC permissions instead
+        # Auto-populate location from current user (location-based access control)
+        if current_user and current_user.ua_location_type == "DISTRICT_BRANCH" and current_user.ua_district_branch_id:
+            from app.models.district_branch import DistrictBranch
+            district_branch = db.query(DistrictBranch).filter(
+                DistrictBranch.db_id == current_user.ua_district_branch_id
+            ).first()
+            if district_branch and district_branch.db_district_code:
+                payload_dict["br_created_by_district"] = district_branch.db_district_code
 
         explicit_regn = payload_dict.get("br_regn")
         if explicit_regn:
@@ -248,6 +255,7 @@ class BhikkuService:
         province: Optional[str] = None,
         vh_trn: Optional[str] = None,
         district: Optional[str] = None,
+        current_user: Optional[UserAccount] = None,
         divisional_secretariat: Optional[str] = None,
         gn_division: Optional[str] = None,
         temple: Optional[str] = None,
@@ -709,6 +717,7 @@ class BhikkuService:
             "br_version_number": bhikku.br_version_number,
             "br_created_by": bhikku.br_created_by,
             "br_updated_by": bhikku.br_updated_by,
+            "br_created_by_district": bhikku.br_created_by_district,  # Location-based access control
         }
         
         return bhikku_dict

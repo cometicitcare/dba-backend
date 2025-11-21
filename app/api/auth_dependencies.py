@@ -3,7 +3,7 @@ Authorization dependencies for FastAPI routes.
 Provides permission checking, role checking, and group membership verification.
 """
 from fastapi import Depends, HTTPException, status, Request
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, Query
 from sqlalchemy import and_
 from typing import List, Optional
 from datetime import datetime
@@ -17,6 +17,7 @@ from app.models.permissions import Permission
 from app.models.role_permissions import RolePermission
 from app.models.user_permission import UserPermission
 from app.models.roles import Role
+from app.models.district_branch import DistrictBranch
 
 
 def get_user_permissions(db: Session, user: UserAccount) -> List[str]:
@@ -341,3 +342,76 @@ def get_user_access_context(db: Session, user: UserAccount) -> dict:
         "can_manage_users": can_manage_users,
         "departments": departments
     }
+
+
+def get_user_location_district_code(db: Session, user: UserAccount) -> Optional[str]:
+    """
+    Get the district code associated with user's location.
+    Returns district code if user is assigned to district branch, None for main branch or no assignment.
+    """
+    if user.ua_location_type == "DISTRICT_BRANCH" and user.ua_district_branch_id:
+        district_branch = db.query(DistrictBranch).filter(
+            DistrictBranch.db_id == user.ua_district_branch_id
+        ).first()
+        if district_branch:
+            return district_branch.db_district_code
+    return None
+
+
+def apply_location_filter_for_workflow(
+    query: Query, 
+    user: UserAccount, 
+    db: Session,
+    location_field_name: str,
+    workflow_status_field_name: str
+) -> Query:
+    """
+    Apply location-based filtering to queries for ALL workflow statuses except COMPLETED.
+    
+    Args:
+        query: The SQLAlchemy query to filter
+        user: Current user account
+        db: Database session
+        location_field_name: Name of the column storing created_by_district (e.g., 'br_created_by_district')
+        workflow_status_field_name: Name of the workflow status field (e.g., 'br_workflow_status')
+    
+    Returns:
+        Filtered query
+    
+    Logic:
+        - SUPER_ADMIN: sees ALL records regardless of status
+        - MAIN_BRANCH users: see ALL records from all districts (all workflow stages)
+        - DISTRICT_BRANCH users: see records from their district ONLY (all workflow stages)
+        - ALL users: see COMPLETED records from all locations (no filter)
+        
+    Workflow stages filtered by location:
+        - PENDING, APPROVED, REJECTED, PRINTING, PRINTED, SCANNED
+        
+    Workflow stages visible to everyone:
+        - COMPLETED
+    """
+    # Check if user is super admin - they see everything
+    if is_super_admin(db, user):
+        return query
+    
+    # Get the model class from the query
+    model_class = query.column_descriptions[0]['type']
+    location_field = getattr(model_class, location_field_name)
+    workflow_status_field = getattr(model_class, workflow_status_field_name)
+    
+    # For MAIN_BRANCH users, no additional filtering needed (they see all workflow stages)
+    if user.ua_location_type == "MAIN_BRANCH":
+        return query
+    
+    # For DISTRICT_BRANCH users, filter ALL workflow stages except COMPLETED by their district
+    if user.ua_location_type == "DISTRICT_BRANCH" and user.ua_district_branch_id:
+        user_district_code = get_user_location_district_code(db, user)
+        if user_district_code:
+            # Apply location filter to all statuses EXCEPT COMPLETED
+            # COMPLETED records are visible to everyone
+            query = query.filter(
+                (workflow_status_field == 'COMPLETED') | 
+                (location_field == user_district_code)
+            )
+    
+    return query

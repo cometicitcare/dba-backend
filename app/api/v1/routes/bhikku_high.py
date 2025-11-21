@@ -67,7 +67,7 @@ def manage_bhikku_high_records(
             raise validation_error(formatted_errors) from exc
 
         try:
-            created = bhikku_high_service.create_bhikku_high(db, payload=create_payload, actor_id=user_id)
+            created = bhikku_high_service.create_bhikku_high(db, payload=create_payload, actor_id=user_id, current_user=current_user)
         except ValueError as exc:
             raise validation_error([(None, str(exc))]) from exc
         except RuntimeError as exc:
@@ -108,7 +108,7 @@ def manage_bhikku_high_records(
         limit = max(1, min(limit, 200))
         skip = max(0, skip)
 
-        records = bhikku_high_service.list_bhikku_highs(db, skip=skip, limit=limit, search=search)
+        records = bhikku_high_service.list_bhikku_highs(db, skip=skip, limit=limit, search=search, current_user=current_user)
         total = bhikku_high_service.count_bhikku_highs(db, search=search)
 
         # Enrich all records with nested objects from candidates
