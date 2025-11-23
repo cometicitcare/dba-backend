@@ -106,7 +106,8 @@ app.add_middleware(AuditMiddleware)
 
 # Mount storage directory for serving uploaded files
 # This allows files to be accessed via URLs like: https://hrms.dbagovlk.com/storage/bhikku_regist/2025/11/23/BH2025000011/scanned_document_*.pdf
-storage_path = Path("app/storage")
+# Storage path is configured via STORAGE_DIR environment variable (default: app/storage, production: /home/appuser/storage)
+storage_path = Path(settings.STORAGE_DIR)
 storage_path.mkdir(parents=True, exist_ok=True)
 app.mount("/storage", StaticFiles(directory=str(storage_path)), name="storage")
 
