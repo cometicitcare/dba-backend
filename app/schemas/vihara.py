@@ -229,3 +229,13 @@ class BhikkuViharaListResponse(BaseModel):
     totalRecords: Optional[int] = None
     page: Optional[int] = None
     limit: Optional[int] = None
+
+
+# New schema for POST vihara-list endpoint
+class BhikkuViharaReadOnePayload(BaseModel):
+    vh_id: int = Field(..., ge=1, description="Vihara ID to retrieve")
+
+
+class BhikkuViharaManagementRequest(BaseModel):
+    action: str = Field(..., description="Action to perform, must be 'READ_ONE'")
+    payload: BhikkuViharaReadOnePayload
