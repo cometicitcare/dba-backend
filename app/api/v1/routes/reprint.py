@@ -84,7 +84,7 @@ def manage_reprint(
         if action == schemas.ReprintAction.READ_ONE:
             if not request.request_id:
                 raise HTTPException(status_code=400, detail="request_id is required for READ_ONE")
-            record = reprint_service.get_by_id(db, request_id=request.request_id)
+            record = reprint_service.get_by_identifier(db, identifier=request.request_id)
             if not record:
                 raise HTTPException(status_code=404, detail="Reprint request not found")
             return {
@@ -108,8 +108,12 @@ def manage_reprint(
         if action == schemas.ReprintAction.APPROVE:
             if not request.request_id:
                 raise HTTPException(status_code=400, detail="request_id is required for APPROVE")
+            try:
+                req_id = int(request.request_id)
+            except (TypeError, ValueError):
+                raise HTTPException(status_code=400, detail="request_id must be numeric for APPROVE")
             record = reprint_service.approve(
-                db, request_id=request.request_id, actor_id=actor_id
+                db, request_id=req_id, actor_id=actor_id
             )
             return {
                 "status": "success",
@@ -122,9 +126,13 @@ def manage_reprint(
                 raise HTTPException(status_code=400, detail="request_id is required for REJECT")
             if not request.rejection_reason:
                 raise HTTPException(status_code=400, detail="rejection_reason is required for REJECT")
+            try:
+                req_id = int(request.request_id)
+            except (TypeError, ValueError):
+                raise HTTPException(status_code=400, detail="request_id must be numeric for REJECT")
             record = reprint_service.reject(
                 db,
-                request_id=request.request_id,
+                request_id=req_id,
                 actor_id=actor_id,
                 rejection_reason=request.rejection_reason,
             )
@@ -137,8 +145,12 @@ def manage_reprint(
         if action == schemas.ReprintAction.MARK_PRINTED:
             if not request.request_id:
                 raise HTTPException(status_code=400, detail="request_id is required for MARK_PRINTED")
+            try:
+                req_id = int(request.request_id)
+            except (TypeError, ValueError):
+                raise HTTPException(status_code=400, detail="request_id must be numeric for MARK_PRINTED")
             record = reprint_service.mark_printed(
-                db, request_id=request.request_id, actor_id=actor_id
+                db, request_id=req_id, actor_id=actor_id
             )
             return {
                 "status": "success",
@@ -149,7 +161,11 @@ def manage_reprint(
         if action == schemas.ReprintAction.DELETE:
             if not request.request_id:
                 raise HTTPException(status_code=400, detail="request_id is required for DELETE")
-            reprint_service.delete(db, request_id=request.request_id)
+            try:
+                req_id = int(request.request_id)
+            except (TypeError, ValueError):
+                raise HTTPException(status_code=400, detail="request_id must be numeric for DELETE")
+            reprint_service.delete(db, request_id=req_id)
             return {
                 "status": "success",
                 "message": "Reprint request deleted.",

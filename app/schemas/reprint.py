@@ -5,6 +5,7 @@ from typing import List, Optional, Union
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from app.schemas.bhikku import QRSearchDataItem
 
 class ReprintType(str, Enum):
     BHIKKU = "BHIKKU"
@@ -72,6 +73,7 @@ class ReprintRequest(BaseModel):
     completed_by: Optional[str] = None
     completed_at: Optional[datetime] = None
     subject: Optional["ReprintSubject"] = None
+    qr_details: Optional[List[QRSearchDataItem]] = None
 
 
 class ReprintRequestResponse(BaseModel):
@@ -88,7 +90,7 @@ class ReprintRequestListResponse(BaseModel):
 
 class ReprintManageRequest(BaseModel):
     action: ReprintAction
-    request_id: Optional[int] = None
+    request_id: Optional[Union[int, str]] = None
     create_payload: Optional[ReprintRequestCreate] = None
     flow_status: Optional[ReprintFlowStatus] = None
     request_type: Optional[ReprintType] = None
