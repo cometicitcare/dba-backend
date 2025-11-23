@@ -128,34 +128,53 @@ def manage_bhikku_high_records(
         if not payload.data:
             raise validation_error([("payload.data", "data is required for UPDATE action")])
 
+        # Accept bhr_id either at payload.bhr_id or inside payload.data for flexibility
+        raw_data = payload.data.model_dump() if hasattr(payload.data, "model_dump") else payload.data
+        if not isinstance(raw_data, dict):
+            raise validation_error([("payload.data", "data must be an object for UPDATE action")])
+
+        bhr_id = payload.bhr_id or raw_data.get("bhr_id")
+        if bhr_id is None:
+            raise validation_error([("payload.bhr_id", "bhr_id is required for UPDATE action (provide payload.bhr_id or payload.data.bhr_id)")])
+
+        # Remove bhr_id from the update payload to avoid silent ignores
+        raw_data = {key: value for key, value in raw_data.items() if key != "bhr_id"}
+
         update_payload: schemas.BhikkuHighUpdate
-        
+
         # Handle both frontend and internal payload formats
         if isinstance(payload.data, schemas.BhikkuHighFrontendUpdate):
-            # Convert frontend payload to internal format
             update_payload = payload.data.to_bhikku_high_update()
         elif isinstance(payload.data, schemas.BhikkuHighUpdate):
             update_payload = payload.data
         else:
-            # Try to parse as frontend format first, then fallback to internal format
-            raw_data = payload.data.model_dump() if hasattr(payload.data, "model_dump") else payload.data
-            try:
-                # Try frontend format first
-                frontend_payload = schemas.BhikkuHighFrontendUpdate(**raw_data)
-                update_payload = frontend_payload.to_bhikku_high_update()
-            except ValidationError:
-                # Fallback to internal format
+            # Prefer internal format when bhr_* keys are present, otherwise try frontend first
+            has_internal_keys = any(key.startswith("bhr_") for key in raw_data.keys())
+            parse_order = ["internal", "frontend"] if has_internal_keys else ["frontend", "internal"]
+            last_error = None
+
+            for parse_target in parse_order:
                 try:
-                    update_payload = schemas.BhikkuHighUpdate(**raw_data)
+                    if parse_target == "frontend":
+                        frontend_payload = schemas.BhikkuHighFrontendUpdate(**raw_data)
+                        update_payload = frontend_payload.to_bhikku_high_update()
+                    else:
+                        update_payload = schemas.BhikkuHighUpdate(**raw_data)
+                    break
                 except ValidationError as exc:
-                    formatted_errors = []
-                    for error in exc.errors():
+                    last_error = exc
+                    update_payload = None
+
+            if update_payload is None:
+                formatted_errors = []
+                if last_error:
+                    for error in last_error.errors():
                         loc = ".".join(str(part) for part in error.get("loc", []))
                         formatted_errors.append((loc or None, error.get("msg", "Invalid data")))
-                    raise validation_error(formatted_errors) from exc
+                raise validation_error(formatted_errors or [(None, "Invalid data")])
 
         try:
-            updated = bhikku_high_service.update_bhikku_high(db, bhr_id=payload.bhr_id, payload=update_payload, actor_id=user_id)
+            updated = bhikku_high_service.update_bhikku_high(db, bhr_id=bhr_id, payload=update_payload, actor_id=user_id)
         except ValueError as exc:
             raise validation_error([(None, str(exc))]) from exc
         except RuntimeError as exc:
