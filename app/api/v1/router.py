@@ -14,6 +14,7 @@ from app.api.v1.routes import (
     bhikku_nikaya_data,
     bhikku_parshawa_data,
     bhikkus,
+    qr_search,
     bhikku_summary,
     certificate_changes,
     certificates,
@@ -28,6 +29,7 @@ from app.api.v1.routes import (
     nilame,
     payment_methods,
     province,
+    reprint,
     rbac_admin,
     religion,
     roles,
@@ -47,6 +49,14 @@ api_router = APIRouter()
 api_router.include_router(
     health.router, 
     tags=["🏥 Health & Status"]
+)
+
+# ============================================================================
+# QR SEARCH (public)
+# ============================================================================
+api_router.include_router(
+    qr_search.router,
+    tags=["🔍 QR Search"]
 )
 
 # ============================================================================
@@ -89,6 +99,15 @@ api_router.include_router(
     bhikku_id_card.router,
     prefix="/bhikku-id-card",
     tags=["🪪 DBA-HRMS: Bhikku ID Card"]
+)
+
+# ============================================================================
+# DBA-HRMS: REPRINT REQUESTS (Central)
+# ============================================================================
+api_router.include_router(
+    reprint.router,
+    prefix="/reprint",
+    tags=["📜 Reprint Requests"]
 )
 
 # ============================================================================
