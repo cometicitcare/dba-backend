@@ -490,47 +490,107 @@ def get_vihara_for_bhikkus(
     current_user: UserAccount = Depends(get_current_user),
 ):
     """
-    Get a specific vihara by ID for bhikku users.
+    Get vihara information for bhikku users with support for READ_ONE and READ_ALL actions.
     This endpoint provides vihara details for use in bhikku forms and workflows.
     
     Accepts POST request with action and payload structure:
+    
+    READ_ONE:
     {
       "action": "READ_ONE",
       "payload": {
         "vh_id": 41
       }
     }
+    
+    READ_ALL:
+    {
+      "action": "READ_ALL",
+      "payload": {
+        "skip": 0,
+        "limit": 10,
+        "page": 1,
+        "search_key": "w"
+      }
+    }
     """
     # Validate action
-    if request.action != "READ_ONE":
+    if request.action not in ["READ_ONE", "READ_ALL"]:
         raise HTTPException(
             status_code=400,
-            detail="Only READ_ONE action is supported for this endpoint"
+            detail="Only READ_ONE and READ_ALL actions are supported for this endpoint"
         )
     
-    # Get the vihara by ID
-    vihara = vihara_service.get_vihara(db, request.payload.vh_id)
+    if request.action == "READ_ONE":
+        # Get the vihara by ID
+        vihara = vihara_service.get_vihara(db, request.payload.vh_id)
+        
+        if not vihara:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Vihara with ID {request.payload.vh_id} not found"
+            )
+        
+        # Convert to the expected response format
+        vihara_item = {
+            "vh_trn": vihara.vh_trn,
+            "vh_vname": vihara.vh_vname,
+        }
+        
+        return {
+            "status": "success",
+            "message": "Vihara retrieved successfully.",
+            "data": [vihara_item],
+            "totalRecords": 1,
+            "page": 1,
+            "limit": 1,
+        }
     
-    if not vihara:
-        raise HTTPException(
-            status_code=404,
-            detail=f"Vihara with ID {request.payload.vh_id} not found"
+    else:  # READ_ALL
+        # Calculate skip from page and limit
+        skip = getattr(request.payload, 'skip', 0)
+        limit = getattr(request.payload, 'limit', 10)
+        page = getattr(request.payload, 'page', 1)
+        search_key = getattr(request.payload, 'search_key', None)
+        
+        # If page is provided, calculate skip from it
+        if page and page > 1:
+            skip = (page - 1) * limit
+        
+        # Get viharas with search filter
+        viharas = vihara_service.list_viharas(
+            db,
+            skip=skip,
+            limit=limit,
+            search=search_key
         )
-    
-    # Convert to the expected response format
-    vihara_item = {
-        "vh_trn": vihara.vh_trn,
-        "vh_vname": vihara.vh_vname,
-    }
-    
-    return {
-        "status": "success",
-        "message": "Vihara retrieved successfully.",
-        "data": [vihara_item],  # Keeping as list for consistency with existing response format
-        "totalRecords": 1,
-        "page": 1,
-        "limit": 1,
-    }
+        
+        # Get total count
+        total_count = vihara_service.count_viharas(
+            db,
+            search=search_key
+        )
+        
+        # Convert to the expected response format
+        vihara_items = [
+            {
+                "vh_trn": vihara.vh_trn,
+                "vh_vname": vihara.vh_vname,
+            }
+            for vihara in viharas
+        ]
+        
+        # Determine the page number
+        response_page = page if page else (skip // limit) + 1
+        
+        return {
+            "status": "success",
+            "message": "Viharas retrieved successfully.",
+            "data": vihara_items,
+            "totalRecords": total_count,
+            "page": response_page,
+            "limit": limit,
+        }
 
 
 @router.get(

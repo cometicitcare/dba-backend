@@ -236,6 +236,13 @@ class BhikkuViharaReadOnePayload(BaseModel):
     vh_id: int = Field(..., ge=1, description="Vihara ID to retrieve")
 
 
+class BhikkuViharaReadAllPayload(BaseModel):
+    skip: Annotated[int, Field(ge=0)] = 0
+    limit: Annotated[int, Field(ge=1, le=200)] = 10
+    page: Annotated[Optional[int], Field(ge=1)] = 1
+    search_key: Annotated[Optional[str], Field(default=None, max_length=200)] = None
+
+
 class BhikkuViharaManagementRequest(BaseModel):
-    action: str = Field(..., description="Action to perform, must be 'READ_ONE'")
-    payload: BhikkuViharaReadOnePayload
+    action: str = Field(..., description="Action to perform: 'READ_ONE' or 'READ_ALL'")
+    payload: Union[BhikkuViharaReadOnePayload, BhikkuViharaReadAllPayload]
