@@ -9,6 +9,7 @@ from app.models.user_roles import UserRole
 from app.models.user_group import UserGroup
 from app.models.role_permissions import RolePermission
 from app.models.user_permission import UserPermission
+from app.models.reprint_request import ReprintRequest
 
 # Geographic/Location models
 from app.models.province import Province
@@ -60,6 +61,7 @@ __all__ = [
     "UserGroup",
     "RolePermission",
     "UserPermission",
+    "ReprintRequest",
     # Geographic
     "Province",
     "District",
