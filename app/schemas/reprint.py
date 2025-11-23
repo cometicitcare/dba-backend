@@ -71,6 +71,7 @@ class ReprintRequest(BaseModel):
     printed_at: Optional[datetime] = None
     completed_by: Optional[str] = None
     completed_at: Optional[datetime] = None
+    subject: Optional["ReprintSubject"] = None
 
 
 class ReprintRequestResponse(BaseModel):
@@ -98,3 +99,16 @@ class ReprintManageResponse(BaseModel):
     status: str
     message: str
     data: Optional[Union[ReprintRequest, List[ReprintRequest]]] = None
+
+
+class ReprintSubject(BaseModel):
+    name: Optional[str] = None
+    gihi_name: Optional[str] = None
+    address: Optional[str] = None
+    phone: Optional[str] = None
+    dob: Optional[datetime] = None
+    regn: Optional[str] = None
+    type: Optional[ReprintType] = None
+
+
+ReprintRequest.model_rebuild()
