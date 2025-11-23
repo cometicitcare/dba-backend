@@ -2,6 +2,7 @@
 from datetime import datetime
 from typing import List, Optional
 
+from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
 from app.models.bhikku import Bhikku
@@ -173,7 +174,52 @@ class ReprintService:
         if not record:
             return None
         enriched = self._attach_subjects(db, [record])
+        self._attach_qr_details(db, enriched)
         return enriched[0] if enriched else None
+
+    def get_by_identifier(
+        self, db: Session, *, identifier: Optional[object]
+    ) -> Optional[ReprintRequest]:
+        """
+        Fetch a reprint request by numeric id or by registration number (BH/SI/UP prefixes).
+        When a registration number is supplied, the most recent matching request is returned.
+        """
+        if identifier is None:
+            return None
+
+        # Handle registration numbers (non-numeric strings)
+        if isinstance(identifier, str):
+            stripped = identifier.strip()
+            if not stripped:
+                return None
+            if not stripped.isdigit():
+                regn = stripped.upper()
+                record = (
+                    db.query(ReprintRequest)
+                    .filter(
+                        or_(
+                            ReprintRequest.bhikku_regn == regn,
+                            ReprintRequest.silmatha_regn == regn,
+                            ReprintRequest.bhikku_high_regn == regn,
+                            ReprintRequest.upasampada_regn == regn,
+                        )
+                    )
+                    .order_by(ReprintRequest.requested_at.desc())
+                    .first()
+                )
+                if not record:
+                    return None
+                enriched = self._attach_subjects(db, [record])
+                self._attach_qr_details(db, enriched)
+                return enriched[0] if enriched else None
+
+        # Fallback to numeric id lookup
+        try:
+            numeric_id = int(identifier)
+        except (TypeError, ValueError):
+            return None
+
+        return self.get_by_id(db, request_id=numeric_id)
 
     def delete(self, db: Session, *, request_id: int) -> None:
         entity = db.get(ReprintRequest, request_id)
@@ -275,6 +321,40 @@ class ReprintService:
             regn=row.bhr_regn,
             type=ReprintType.HIGH_BHIKKU,
         )
+
+    def _attach_qr_details(self, db: Session, records: List[ReprintRequest]) -> None:
+        """Populate qr_details field using the existing QR search formatter."""
+        if not records:
+            return
+
+        try:
+            from app.services.bhikku_service import bhikku_service
+        except Exception:
+            return
+
+        type_map = {
+            ReprintType.BHIKKU.value: "bhikku",
+            ReprintType.SILMATHA.value: "silmatha",
+            ReprintType.HIGH_BHIKKU.value: "bhikku_high",
+            ReprintType.UPASAMPADA.value: "bhikku_high",
+        }
+
+        for record in records:
+            regn = (
+                record.bhikku_regn
+                or record.silmatha_regn
+                or record.bhikku_high_regn
+                or record.upasampada_regn
+            )
+            if not regn:
+                continue
+
+            record_type = type_map.get(record.request_type)
+            details = bhikku_service.get_qr_search_details(
+                db=db, record_id=regn, record_type=record_type
+            )
+            if details:
+                setattr(record, "qr_details", details)
 
 
 reprint_service = ReprintService()
