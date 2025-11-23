@@ -100,7 +100,8 @@ class ReprintManageRequest(BaseModel):
 class ReprintManageResponse(BaseModel):
     status: str
     message: str
-    data: Optional[Union[ReprintRequest, List[ReprintRequest]]] = None
+    # Can return a single request, list of requests, or QR-style items (for READ_ONE by regn/id)
+    data: Optional[Union[ReprintRequest, List[ReprintRequest], List[QRSearchDataItem]]] = None
 
 
 class ReprintSubject(BaseModel):
