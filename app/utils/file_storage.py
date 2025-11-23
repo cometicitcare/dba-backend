@@ -265,5 +265,6 @@ class FileStorageService:
         return None
 
 
-# Singleton instance
-file_storage_service = FileStorageService()
+# Singleton instance - uses STORAGE_DIR from environment variable
+from app.core.config import settings
+file_storage_service = FileStorageService(base_storage_path=settings.STORAGE_DIR)

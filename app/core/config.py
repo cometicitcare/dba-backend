@@ -55,6 +55,9 @@ class Settings:
     OTP_MAX_REQUESTS_PER_HOUR: int = int(os.getenv("OTP_MAX_REQUESTS_PER_HOUR", "5"))
     OTP_MAX_REQUESTS_PER_DAY: int = int(os.getenv("OTP_MAX_REQUESTS_PER_DAY", "10"))
     
+    # File Storage Configuration
+    STORAGE_DIR: str = os.getenv("STORAGE_DIR", "app/storage")
+    
     # Redis Configuration (for OTP storage in production)
     REDIS_ENABLED: bool = os.getenv("REDIS_ENABLED", "false").lower() == "true"
     REDIS_HOST: str = os.getenv("REDIS_HOST", "localhost")
