@@ -8,7 +8,7 @@ from app.api.auth_middleware import get_current_user
 from app.api.auth_dependencies import has_permission, has_any_permission
 from app.models.user import UserAccount
 from app.schemas import bhikku as schemas
-from app.schemas.vihara import BhikkuViharaListResponse
+from app.schemas.vihara import BhikkuViharaListResponse, BhikkuViharaManagementRequest
 from app.services.bhikku_service import bhikku_service
 from app.services.vihara_service import vihara_service
 from app.utils.http_exceptions import validation_error
@@ -479,56 +479,57 @@ def list_viharadipathi_bhikkus(
     }
 
 
-@router.get(
+@router.post(
     "/vihara-list",
     response_model=BhikkuViharaListResponse,
     dependencies=[has_permission("bhikku:read")],
 )
-def list_viharas_for_bhikkus(
-    skip: int = Query(0, ge=0, description="Number of records to skip for pagination"),
-    limit: int = Query(10, ge=1, le=200, description="Maximum number of records to return"),
-    page: Optional[int] = Query(None, ge=1, description="Page number (alternative to skip)"),
-    search_key: str = Query("", description="Search term for filtering vihara names"),
+def get_vihara_for_bhikkus(
+    request: BhikkuViharaManagementRequest,
     db: Session = Depends(get_db),
     current_user: UserAccount = Depends(get_current_user),
 ):
     """
-    Return list of viharas with vh_trn and vh_vname for bhikku users.
-    This endpoint provides a simplified vihara list for use in bhikku forms and workflows.
-    Supports pagination and search functionality.
+    Get a specific vihara by ID for bhikku users.
+    This endpoint provides vihara details for use in bhikku forms and workflows.
     
-    Parameters:
-    - skip: Number of records to skip (used for offset-based pagination)
-    - limit: Maximum number of records to return (1-200)
-    - page: Page number (if provided, overrides skip calculation)
-    - search_key: Search term for filtering vihara names
+    Accepts POST request with action and payload structure:
+    {
+      "action": "READ_ONE",
+      "payload": {
+        "vh_id": 41
+      }
+    }
     """
-    # If page is provided, calculate skip from page
-    if page is not None:
-        skip = (page - 1) * limit
+    # Validate action
+    if request.action != "READ_ONE":
+        raise HTTPException(
+            status_code=400,
+            detail="Only READ_ONE action is supported for this endpoint"
+        )
     
-    # Normalize search_key
-    search_term = search_key.strip() if search_key else None
-    if search_term == "":
-        search_term = None
+    # Get the vihara by ID
+    vihara = vihara_service.get_vihara(db, request.payload.vh_id)
     
-    records, total_count = vihara_service.list_viharas_simple(
-        db,
-        skip=skip,
-        limit=limit,
-        search=search_term,
-    )
+    if not vihara:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Vihara with ID {request.payload.vh_id} not found"
+        )
     
-    # Calculate actual page number for response
-    actual_page = (skip // limit) + 1 if page is not None else None
+    # Convert to the expected response format
+    vihara_item = {
+        "vh_trn": vihara.vh_trn,
+        "vh_vname": vihara.vh_vname,
+    }
     
     return {
         "status": "success",
-        "message": "Vihara list retrieved successfully.",
-        "data": records,
-        "totalRecords": total_count,
-        "page": actual_page,
-        "limit": limit,
+        "message": "Vihara retrieved successfully.",
+        "data": [vihara_item],  # Keeping as list for consistency with existing response format
+        "totalRecords": 1,
+        "page": 1,
+        "limit": 1,
     }
 
 
