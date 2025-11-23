@@ -8,7 +8,12 @@ from app.models.bhikku import Bhikku
 from app.models.bhikku_high import BhikkuHighRegist
 from app.models.silmatha_regist import SilmathaRegist
 from app.models.reprint_request import ReprintRequest
-from app.schemas.reprint import ReprintFlowStatus, ReprintRequestCreate, ReprintType
+from app.schemas.reprint import (
+    ReprintFlowStatus,
+    ReprintRequestCreate,
+    ReprintSubject,
+    ReprintType,
+)
 
 
 class ReprintService:
@@ -160,10 +165,15 @@ class ReprintService:
             query = query.filter(ReprintRequest.flow_status == flow_status.value)
         if request_type:
             query = query.filter(ReprintRequest.request_type == request_type.value)
-        return query.order_by(ReprintRequest.requested_at.desc()).all()
+        records = query.order_by(ReprintRequest.requested_at.desc()).all()
+        return self._attach_subjects(db, records)
 
     def get_by_id(self, db: Session, *, request_id: int) -> Optional[ReprintRequest]:
-        return db.get(ReprintRequest, request_id)
+        record = db.get(ReprintRequest, request_id)
+        if not record:
+            return None
+        enriched = self._attach_subjects(db, [record])
+        return enriched[0] if enriched else None
 
     def delete(self, db: Session, *, request_id: int) -> None:
         entity = db.get(ReprintRequest, request_id)
@@ -171,6 +181,100 @@ class ReprintService:
             raise ValueError(f"Reprint request {request_id} not found.")
         db.delete(entity)
         db.commit()
+
+    # ------------------------------------------------------------------ #
+    # Helpers
+    # ------------------------------------------------------------------ #
+    def _attach_subjects(self, db: Session, records: List[ReprintRequest]) -> List[ReprintRequest]:
+        if not records:
+            return records
+
+        bh_regns = {r.bhikku_regn for r in records if r.bhikku_regn}
+        sil_regns = {r.silmatha_regn for r in records if r.silmatha_regn}
+        high_regns = {r.bhikku_high_regn for r in records if r.bhikku_high_regn}
+        upa_regns = {r.upasampada_regn for r in records if r.upasampada_regn}
+        high_regns.update(upa_regns)
+
+        bh_map = {}
+        if bh_regns:
+            bh_rows = (
+                db.query(Bhikku)
+                .filter(Bhikku.br_regn.in_(bh_regns), Bhikku.br_is_deleted.is_(False))
+                .all()
+            )
+            for row in bh_rows:
+                bh_map[row.br_regn] = self._make_subject_from_bhikku(row)
+
+        sil_map = {}
+        if sil_regns:
+            sil_rows = (
+                db.query(SilmathaRegist)
+                .filter(SilmathaRegist.sil_regn.in_(sil_regns), SilmathaRegist.sil_is_deleted.is_(False))
+                .all()
+            )
+            for row in sil_rows:
+                sil_map[row.sil_regn] = self._make_subject_from_silmatha(row)
+
+        high_map = {}
+        if high_regns:
+            high_rows = (
+                db.query(BhikkuHighRegist)
+                .filter(BhikkuHighRegist.bhr_regn.in_(high_regns), BhikkuHighRegist.bhr_is_deleted.is_(False))
+                .all()
+            )
+            for row in high_rows:
+                high_map[row.bhr_regn] = self._make_subject_from_high(row)
+
+        for r in records:
+            subject = None
+            if r.bhikku_regn and r.bhikku_regn in bh_map:
+                subject = bh_map[r.bhikku_regn]
+            elif r.silmatha_regn and r.silmatha_regn in sil_map:
+                subject = sil_map[r.silmatha_regn]
+            elif r.bhikku_high_regn and r.bhikku_high_regn in high_map:
+                subject = high_map[r.bhikku_high_regn]
+            elif r.upasampada_regn and r.upasampada_regn in high_map:
+                subject = high_map[r.upasampada_regn]
+
+            if subject:
+                setattr(r, "subject", subject)
+
+        return records
+
+    def _make_subject_from_bhikku(self, row: Bhikku) -> ReprintSubject:
+        address = row.br_fathrsaddrs or row.br_residence_at_declaration
+        return ReprintSubject(
+            name=row.br_mahananame or row.br_gihiname,
+            gihi_name=row.br_gihiname,
+            address=address,
+            phone=row.br_mobile,
+            dob=row.br_dofb,
+            regn=row.br_regn,
+            type=ReprintType.BHIKKU,
+        )
+
+    def _make_subject_from_silmatha(self, row: SilmathaRegist) -> ReprintSubject:
+        address = row.sil_fathrsaddrs
+        return ReprintSubject(
+            name=getattr(row, "sil_mahananame", None) or row.sil_gihiname,
+            gihi_name=row.sil_gihiname,
+            address=address,
+            phone=row.sil_mobile,
+            dob=row.sil_dofb,
+            regn=row.sil_regn,
+            type=ReprintType.SILMATHA,
+        )
+
+    def _make_subject_from_high(self, row: BhikkuHighRegist) -> ReprintSubject:
+        return ReprintSubject(
+            name=row.bhr_assumed_name,
+            gihi_name=None,
+            address=row.bhr_declaration_residence_address,
+            phone=None,
+            dob=None,
+            regn=row.bhr_regn,
+            type=ReprintType.HIGH_BHIKKU,
+        )
 
 
 reprint_service = ReprintService()
