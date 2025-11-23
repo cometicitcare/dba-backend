@@ -134,6 +134,45 @@ class ViharaService:
     def get_vihara_by_trn(self, db: Session, vh_trn: str) -> Optional[ViharaData]:
         return vihara_repo.get_by_trn(db, vh_trn)
 
+    def list_viharas_simple(
+        self, 
+        db: Session,
+        *,
+        skip: int = 0,
+        limit: int = 10,
+        search: Optional[str] = None,
+    ) -> tuple[list[dict[str, Any]], int]:
+        """Return simplified list of viharas with just vh_trn and vh_vname, with pagination."""
+        # Validate and sanitize inputs
+        limit = max(1, min(limit, 200))  # Clamp limit between 1 and 200
+        skip = max(0, skip)
+        
+        # Get paginated viharas
+        viharas = vihara_repo.list(
+            db,
+            skip=skip,
+            limit=limit,
+            search=search,
+        )
+        
+        # Get total count for pagination
+        total_count = vihara_repo.count(
+            db,
+            search=search,
+        )
+        
+        # Build simplified response
+        simplified_viharas = [
+            {
+                "vh_trn": vihara.vh_trn,
+                "vh_vname": vihara.vh_vname,
+            }
+            for vihara in viharas
+            if not vihara.vh_is_deleted
+        ]
+        
+        return simplified_viharas, total_count
+
     def update_vihara(
         self,
         db: Session,

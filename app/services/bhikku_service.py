@@ -94,6 +94,14 @@ class BhikkuService:
             FROM bikkudtls_divisionsec_dtls
             """
         )
+        self._province_view_query = text(
+            """
+            SELECT cp_code, cp_name
+            FROM cmm_province
+            WHERE cp_is_deleted = false
+            ORDER BY cp_name
+            """
+        )
         self._gn_view_query = text(
             """
             SELECT gnc, gnname, regn
@@ -369,6 +377,11 @@ class BhikkuService:
     def list_district_view(self, db: Session) -> list[dict[str, Any]]:
         """Return records from the bikkudtls_districtlist view."""
         result = db.execute(self._district_view_query).mappings().all()
+        return [dict(row) for row in result]
+
+    def list_province_view(self, db: Session) -> list[dict[str, Any]]:
+        """Return records from the cmm_province table."""
+        result = db.execute(self._province_view_query).mappings().all()
         return [dict(row) for row in result]
 
     def list_division_sec_view(self, db: Session) -> list[dict[str, Any]]:
@@ -756,7 +769,7 @@ class BhikkuService:
 
         # Reset workflow status to PENDING when record is edited
         # This ensures the record goes through the complete workflow again:
-        # PENDING -> PRINTED -> SCANNED -> APPROVED/REJECTED -> COMPLETED
+        # PENDING -> PRINTED -> PEND-APPROVAL -> APPROVED/REJECTED -> COMPLETED
         update_data["br_workflow_status"] = "PENDING"
         # Clear workflow-related fields when resetting to PENDING
         update_data["br_approval_status"] = None
@@ -806,13 +819,13 @@ class BhikkuService:
         br_regn: str,
         actor_id: Optional[str],
     ) -> Bhikku:
-        """Approve a bhikku registration - transitions workflow from SCANNED to APPROVED and then to COMPLETED status"""
+        """Approve a bhikku registration - transitions workflow from PEND-APPROVAL to APPROVED and then to COMPLETED status"""
         entity = bhikku_repo.get_by_regn(db, br_regn)
         if not entity:
             raise ValueError("Bhikku record not found.")
         
-        if entity.br_workflow_status != "SCANNED":
-            raise ValueError(f"Cannot approve bhikku with workflow status: {entity.br_workflow_status}. Must be SCANNED.")
+        if entity.br_workflow_status != "PEND-APPROVAL":
+            raise ValueError(f"Cannot approve bhikku with workflow status: {entity.br_workflow_status}. Must be PEND-APPROVAL.")
         
         # Update workflow fields - goes to APPROVED then COMPLETED
         entity.br_workflow_status = "COMPLETED"
@@ -835,13 +848,13 @@ class BhikkuService:
         actor_id: Optional[str],
         rejection_reason: Optional[str] = None,
     ) -> Bhikku:
-        """Reject a bhikku registration - transitions workflow from SCANNED to REJECTED status"""
+        """Reject a bhikku registration - transitions workflow from PEND-APPROVAL to REJECTED status"""
         entity = bhikku_repo.get_by_regn(db, br_regn)
         if not entity:
             raise ValueError("Bhikku record not found.")
         
-        if entity.br_workflow_status != "SCANNED":
-            raise ValueError(f"Cannot reject bhikku with workflow status: {entity.br_workflow_status}. Must be SCANNED.")
+        if entity.br_workflow_status != "PEND-APPROVAL":
+            raise ValueError(f"Cannot reject bhikku with workflow status: {entity.br_workflow_status}. Must be PEND-APPROVAL.")
         
         # Update workflow fields
         entity.br_workflow_status = "REJECTED"
@@ -891,7 +904,7 @@ class BhikkuService:
         br_regn: str,
         actor_id: Optional[str],
     ) -> Bhikku:
-        """Mark bhikku certificate as scanned - transitions workflow from PRINTED to SCANNED status"""
+        """Mark bhikku certificate as scanned - transitions workflow from PRINTED to PEND-APPROVAL status"""
         entity = bhikku_repo.get_by_regn(db, br_regn)
         if not entity:
             raise ValueError("Bhikku record not found.")
@@ -900,7 +913,7 @@ class BhikkuService:
             raise ValueError(f"Cannot mark as scanned bhikku with workflow status: {entity.br_workflow_status}. Must be PRINTED.")
         
         # Update workflow fields
-        entity.br_workflow_status = "SCANNED"
+        entity.br_workflow_status = "PEND-APPROVAL"
         entity.br_scanned_by = actor_id
         entity.br_scanned_at = datetime.utcnow()
         entity.br_updated_by = actor_id
@@ -1414,6 +1427,13 @@ class BhikkuService:
         entity.br_updated_at = datetime.utcnow()
         # Increment version number when new document is uploaded
         entity.br_version_number = (entity.br_version_number or 0) + 1
+        
+        # Auto-transition workflow status to PEND-APPROVAL when document is uploaded
+        # Only transition if currently in PRINTED status
+        if entity.br_workflow_status == "PRINTED":
+            entity.br_workflow_status = "PEND-APPROVAL"
+            entity.br_scanned_by = actor_id
+            entity.br_scanned_at = datetime.utcnow()
         
         db.commit()
         db.refresh(entity)
