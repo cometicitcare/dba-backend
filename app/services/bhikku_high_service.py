@@ -32,6 +32,9 @@ class BhikkuHighService:
         self, db: Session, *, payload: BhikkuHighCreate, actor_id: Optional[str], current_user: Optional[UserAccount] = None
     ) -> BhikkuHighRegist:
         payload_dict = self._strip_strings(payload.model_dump())
+        # Optional references that can be blank/null
+        if not self._has_meaningful_value(payload_dict.get("bhr_samanera_serial_no")):
+            payload_dict["bhr_samanera_serial_no"] = None
 
         # Auto-populate location from current user (location-based access control)
         if current_user and current_user.ua_location_type == "DISTRICT_BRANCH" and current_user.ua_district_branch_id:
@@ -225,6 +228,8 @@ class BhikkuHighService:
 
         update_data = payload.model_dump(exclude_unset=True)
         update_data = self._strip_strings(update_data)
+        if not self._has_meaningful_value(update_data.get("bhr_samanera_serial_no")):
+            update_data["bhr_samanera_serial_no"] = None
 
         if "bhr_regn" in update_data and update_data["bhr_regn"]:
             new_regn = update_data["bhr_regn"]
