@@ -365,6 +365,7 @@ async def upload_scanned_document(
     
     This endpoint allows uploading a scanned document (up to 5MB) for a specific silmatha registration.
     The file will be stored at: `app/storage/silmatha_update/<year>/<month>/<day>/<sil_regn>/scanned_document_*.ext`
+    When the current workflow status is PRINTED, a successful upload will automatically transition the record to PEND-APPROVAL.
     
     **Requirements:**
     - Maximum file size: 5MB
@@ -443,11 +444,11 @@ def update_silmatha_workflow(
     Update workflow status of a silmatha record.
     
     Main Workflow Actions:
-    - APPROVE: Approve pending silmatha registration
-    - REJECT: Reject pending silmatha registration (requires rejection_reason)
-    - MARK_PRINTING: Mark as in printing process
-    - MARK_PRINTED: Mark certificate as printed
-    - MARK_SCANNED: Mark certificate as scanned (completes workflow)
+    - APPROVE: Approve pending silmatha registration (PEND-APPROVAL → COMPLETED)
+    - REJECT: Reject pending silmatha registration (PEND-APPROVAL → REJECTED, requires rejection_reason)
+    - MARK_PRINTING: Mark as in printing process (PENDING → PRINTING)
+    - MARK_PRINTED: Mark certificate as printed (PENDING → PRINTED)
+    - MARK_SCANNED: Mark certificate as scanned (PRINTED → PEND-APPROVAL)
     - RESET_TO_PENDING: Reset workflow to pending state (for corrections)
     
     Reprint Workflow Actions:

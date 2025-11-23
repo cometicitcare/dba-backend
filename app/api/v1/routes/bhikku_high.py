@@ -193,15 +193,15 @@ def update_bhikku_high_workflow(
     Update workflow status of a bhikku high record.
     
     Workflow Actions:
-    - APPROVE: Approve scanned bhikku high record (SCANNED → COMPLETED)
-    - REJECT: Reject scanned bhikku high record (SCANNED → REJECTED, requires rejection_reason)
+    - APPROVE: Approve scanned bhikku high record (PEND-APPROVAL → COMPLETED)
+    - REJECT: Reject scanned bhikku high record (PEND-APPROVAL → REJECTED, requires rejection_reason)
     - MARK_PRINTED: Mark certificate as printed (PENDING → PRINTED)
-    - MARK_SCANNED: Mark certificate as scanned (PRINTED → SCANNED)
+    - MARK_SCANNED: Mark certificate as scanned (PRINTED → PEND-APPROVAL)
     
     Workflow Flow:
     1. Create bhikku high record → PENDING
     2. Mark as printed → PRINTED
-    3. Upload/mark scanned → SCANNED
+    3. Upload/mark scanned → PEND-APPROVAL
     4. Approve/Reject → COMPLETED or REJECTED
     
     Requires: bhikku:approve OR bhikku:update permission
@@ -279,6 +279,7 @@ async def upload_scanned_document(
     
     This endpoint allows uploading a scanned document (up to 5MB) for a specific higher bhikku registration.
     The file will be stored at: `app/storage/bhikku_high_regist/<year>/<month>/<day>/<bhr_regn>/scanned_document_*.ext`
+    When the current workflow status is PRINTED, a successful upload will move the record to PEND-APPROVAL automatically.
     
     **Requirements:**
     - Maximum file size: 5MB
