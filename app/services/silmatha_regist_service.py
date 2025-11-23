@@ -237,13 +237,13 @@ class SilmathaRegistService:
         return silmatha_dict
 
     def approve_silmatha(self, db: Session, *, sil_regn: str, actor_id: Optional[str]) -> SilmathaRegist:
-        """Approve a silmatha registration - transitions workflow from SCANNED to COMPLETED with APPROVED status"""
+        """Approve a silmatha registration - transitions workflow from PEND-APPROVAL to COMPLETED with APPROVED status"""
         entity = silmatha_regist_repo.get_by_regn(db, sil_regn)
         if not entity:
             raise ValueError("Silmatha record not found.")
 
-        if entity.sil_workflow_status != "SCANNED":
-            raise ValueError(f"Cannot approve silmatha with workflow status: {entity.sil_workflow_status}. Must be SCANNED.")
+        if entity.sil_workflow_status != "PEND-APPROVAL":
+            raise ValueError(f"Cannot approve silmatha with workflow status: {entity.sil_workflow_status}. Must be PEND-APPROVAL.")
 
         # Update workflow fields - goes to COMPLETED with APPROVED status
         entity.sil_workflow_status = "COMPLETED"
@@ -259,13 +259,13 @@ class SilmathaRegistService:
         return entity
 
     def reject_silmatha(self, db: Session, *, sil_regn: str, rejection_reason: str, actor_id: Optional[str]) -> SilmathaRegist:
-        """Reject a silmatha registration - transitions workflow from SCANNED to REJECTED status"""
+        """Reject a silmatha registration - transitions workflow from PEND-APPROVAL to REJECTED status"""
         entity = silmatha_regist_repo.get_by_regn(db, sil_regn)
         if not entity:
             raise ValueError("Silmatha record not found.")
 
-        if entity.sil_workflow_status != "SCANNED":
-            raise ValueError(f"Cannot reject silmatha with workflow status: {entity.sil_workflow_status}. Must be SCANNED.")
+        if entity.sil_workflow_status != "PEND-APPROVAL":
+            raise ValueError(f"Cannot reject silmatha with workflow status: {entity.sil_workflow_status}. Must be PEND-APPROVAL.")
 
         # Update workflow fields
         entity.sil_workflow_status = "REJECTED"
@@ -303,7 +303,7 @@ class SilmathaRegistService:
         return entity
 
     def mark_scanned(self, db: Session, *, sil_regn: str, scanned_document_path: str, actor_id: Optional[str]) -> SilmathaRegist:
-        """Mark a silmatha certificate as scanned - transitions workflow from PRINTED to SCANNED status"""
+        """Mark a silmatha certificate as scanned - transitions workflow from PRINTED to PEND-APPROVAL status"""
         entity = silmatha_regist_repo.get_by_regn(db, sil_regn)
         if not entity:
             raise ValueError("Silmatha record not found.")
@@ -312,7 +312,7 @@ class SilmathaRegistService:
             raise ValueError(f"Cannot mark as scanned silmatha with workflow status: {entity.sil_workflow_status}. Must be PRINTED.")
 
         # Update workflow fields
-        entity.sil_workflow_status = "SCANNED"
+        entity.sil_workflow_status = "PEND-APPROVAL"
         entity.sil_scanned_by = actor_id
         entity.sil_scanned_at = datetime.utcnow()
         if scanned_document_path:
@@ -832,6 +832,13 @@ class SilmathaRegistService:
         entity.sil_scanned_document_path = relative_path
         entity.sil_updated_by = actor_id
         entity.sil_updated_at = datetime.utcnow()
+        entity.sil_version_number = (entity.sil_version_number or 0) + 1
+        
+        # Auto-transition workflow status to PEND-APPROVAL when document is uploaded from PRINTED
+        if entity.sil_workflow_status == "PRINTED":
+            entity.sil_workflow_status = "PEND-APPROVAL"
+            entity.sil_scanned_by = actor_id
+            entity.sil_scanned_at = datetime.utcnow()
         
         db.commit()
         db.refresh(entity)

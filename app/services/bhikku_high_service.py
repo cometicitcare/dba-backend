@@ -268,13 +268,13 @@ class BhikkuHighService:
         bhr_id: int,
         actor_id: Optional[str],
     ) -> BhikkuHighRegist:
-        """Approve a bhikku high registration - transitions workflow from SCANNED to APPROVED and then to COMPLETED status"""
+        """Approve a bhikku high registration - transitions workflow from PEND-APPROVAL to APPROVED and then to COMPLETED status"""
         entity = bhikku_high_repo.get(db, bhr_id)
         if not entity:
             raise ValueError("Higher bhikku registration not found.")
         
-        if entity.bhr_workflow_status != "SCANNED":
-            raise ValueError(f"Cannot approve bhikku high with workflow status: {entity.bhr_workflow_status}. Must be SCANNED.")
+        if entity.bhr_workflow_status != "PEND-APPROVAL":
+            raise ValueError(f"Cannot approve bhikku high with workflow status: {entity.bhr_workflow_status}. Must be PEND-APPROVAL.")
         
         # Update workflow fields - goes to APPROVED then COMPLETED
         entity.bhr_workflow_status = "COMPLETED"
@@ -297,13 +297,13 @@ class BhikkuHighService:
         actor_id: Optional[str],
         rejection_reason: Optional[str] = None,
     ) -> BhikkuHighRegist:
-        """Reject a bhikku high registration - transitions workflow from SCANNED to REJECTED status"""
+        """Reject a bhikku high registration - transitions workflow from PEND-APPROVAL to REJECTED status"""
         entity = bhikku_high_repo.get(db, bhr_id)
         if not entity:
             raise ValueError("Higher bhikku registration not found.")
         
-        if entity.bhr_workflow_status != "SCANNED":
-            raise ValueError(f"Cannot reject bhikku high with workflow status: {entity.bhr_workflow_status}. Must be SCANNED.")
+        if entity.bhr_workflow_status != "PEND-APPROVAL":
+            raise ValueError(f"Cannot reject bhikku high with workflow status: {entity.bhr_workflow_status}. Must be PEND-APPROVAL.")
         
         # Update workflow fields
         entity.bhr_workflow_status = "REJECTED"
@@ -353,7 +353,7 @@ class BhikkuHighService:
         bhr_id: int,
         actor_id: Optional[str],
     ) -> BhikkuHighRegist:
-        """Mark bhikku high certificate as scanned - transitions workflow from PRINTED to SCANNED status"""
+        """Mark bhikku high certificate as scanned - transitions workflow from PRINTED to PEND-APPROVAL status"""
         entity = bhikku_high_repo.get(db, bhr_id)
         if not entity:
             raise ValueError("Higher bhikku registration not found.")
@@ -362,7 +362,7 @@ class BhikkuHighService:
             raise ValueError(f"Cannot mark as scanned bhikku high with workflow status: {entity.bhr_workflow_status}. Must be PRINTED.")
         
         # Update workflow fields
-        entity.bhr_workflow_status = "SCANNED"
+        entity.bhr_workflow_status = "PEND-APPROVAL"
         entity.bhr_scanned_by = actor_id
         entity.bhr_scanned_at = datetime.utcnow()
         entity.bhr_updated_by = actor_id
@@ -467,10 +467,10 @@ class BhikkuHighService:
         # Increment version number when new document is uploaded
         entity.bhr_version_number = (entity.bhr_version_number or 0) + 1
         
-        # Auto-transition workflow status to SCANNED when document is uploaded
+        # Auto-transition workflow status to PEND-APPROVAL when document is uploaded
         # Only transition if currently in PRINTED status
         if entity.bhr_workflow_status == "PRINTED":
-            entity.bhr_workflow_status = "SCANNED"
+            entity.bhr_workflow_status = "PEND-APPROVAL"
             entity.bhr_scanned_by = actor_id
             entity.bhr_scanned_at = datetime.utcnow()
         
