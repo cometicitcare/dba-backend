@@ -1,6 +1,8 @@
 # app/main.py
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from pathlib import Path
 from app.core.config import settings
 from app.core.error_handlers import register_exception_handlers
 from app.api.v1.router import api_router
@@ -101,6 +103,12 @@ app.add_middleware(
     allow_headers=["*"],
 )
 app.add_middleware(AuditMiddleware)
+
+# Mount storage directory for serving uploaded files
+# This allows files to be accessed via URLs like: https://hrms.dbagovlk.com/storage/bhikku_regist/2025/11/23/BH2025000011/scanned_document_*.pdf
+storage_path = Path("app/storage")
+storage_path.mkdir(parents=True, exist_ok=True)
+app.mount("/storage", StaticFiles(directory=str(storage_path)), name="storage")
 
 app.include_router(health.router)  # <-- Add the health router at the root
 app.include_router(api_router, prefix="/api/v1")
