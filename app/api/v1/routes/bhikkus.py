@@ -1,13 +1,16 @@
 # app/api/v1/routes/bhikkus.py
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Query
 from sqlalchemy.orm import Session
+from typing import Optional
 
 from app.api.deps import get_db
 from app.api.auth_middleware import get_current_user
 from app.api.auth_dependencies import has_permission, has_any_permission
 from app.models.user import UserAccount
 from app.schemas import bhikku as schemas
+from app.schemas.vihara import BhikkuViharaListResponse
 from app.services.bhikku_service import bhikku_service
+from app.services.vihara_service import vihara_service
 from app.utils.http_exceptions import validation_error
 from pydantic import ValidationError
 
@@ -192,6 +195,26 @@ def list_district_bhikkus(
     return {
         "status": "success",
         "message": "District list retrieved successfully.",
+        "data": records,
+    }
+
+
+@router.get(
+    "/province-list",
+    response_model=schemas.BhikkuProvinceListResponse,
+    dependencies=[has_permission("bhikku:read")],
+)
+def list_province_bhikkus(
+    db: Session = Depends(get_db),
+    current_user: UserAccount = Depends(get_current_user),
+):
+    """
+    Return rows from the `cmm_province` table.
+    """
+    records = bhikku_service.list_province_view(db)
+    return {
+        "status": "success",
+        "message": "Province list retrieved successfully.",
         "data": records,
     }
 
@@ -453,6 +476,59 @@ def list_viharadipathi_bhikkus(
         "status": "success",
         "message": "Viharadipathi list retrieved successfully.",
         "data": records,
+    }
+
+
+@router.get(
+    "/vihara-list",
+    response_model=BhikkuViharaListResponse,
+    dependencies=[has_permission("bhikku:read")],
+)
+def list_viharas_for_bhikkus(
+    skip: int = Query(0, ge=0, description="Number of records to skip for pagination"),
+    limit: int = Query(10, ge=1, le=200, description="Maximum number of records to return"),
+    page: Optional[int] = Query(None, ge=1, description="Page number (alternative to skip)"),
+    search_key: str = Query("", description="Search term for filtering vihara names"),
+    db: Session = Depends(get_db),
+    current_user: UserAccount = Depends(get_current_user),
+):
+    """
+    Return list of viharas with vh_trn and vh_vname for bhikku users.
+    This endpoint provides a simplified vihara list for use in bhikku forms and workflows.
+    Supports pagination and search functionality.
+    
+    Parameters:
+    - skip: Number of records to skip (used for offset-based pagination)
+    - limit: Maximum number of records to return (1-200)
+    - page: Page number (if provided, overrides skip calculation)
+    - search_key: Search term for filtering vihara names
+    """
+    # If page is provided, calculate skip from page
+    if page is not None:
+        skip = (page - 1) * limit
+    
+    # Normalize search_key
+    search_term = search_key.strip() if search_key else None
+    if search_term == "":
+        search_term = None
+    
+    records, total_count = vihara_service.list_viharas_simple(
+        db,
+        skip=skip,
+        limit=limit,
+        search=search_term,
+    )
+    
+    # Calculate actual page number for response
+    actual_page = (skip // limit) + 1 if page is not None else None
+    
+    return {
+        "status": "success",
+        "message": "Vihara list retrieved successfully.",
+        "data": records,
+        "totalRecords": total_count,
+        "page": actual_page,
+        "limit": limit,
     }
 
 
@@ -911,11 +987,11 @@ def update_bhikku_workflow(
     Update workflow status of a bhikku record.
     
     Main Workflow Actions:
-    - APPROVE: Approve pending bhikku registration
+    - APPROVE: Approve pending bhikku registration (PEND-APPROVAL → COMPLETED)
     - REJECT: Reject pending bhikku registration (requires rejection_reason)
     - MARK_PRINTING: Mark as in printing process
     - MARK_PRINTED: Mark certificate as printed
-    - MARK_SCANNED: Mark certificate as scanned (completes workflow)
+    - MARK_SCANNED: Mark certificate as scanned (PRINTED → PEND-APPROVAL)
     - RESET_TO_PENDING: Reset workflow to pending state (for corrections)
     
     Reprint Workflow Actions:
@@ -1223,13 +1299,21 @@ async def upload_scanned_document(
     """
     Upload a scanned document for a Bhikku record.
     
+    **NEW BEHAVIOR**: Automatically changes workflow status from PRINTED → PEND-APPROVAL when document is uploaded.
+    
     This endpoint allows uploading a scanned document (up to 5MB) for a specific bhikku.
     The file will be stored at: `app/storage/bhikku_regist/<year>/<month>/<day>/<br_regn>/scanned_document_*.ext`
     
     **Requirements:**
     - Maximum file size: 5MB
     - Allowed formats: PDF, JPG, JPEG, PNG
+    - Current workflow status must be PRINTED
     - Requires: bhikku:update permission
+    
+    **Auto-Workflow Transition:**
+    - Status automatically changes from PRINTED → PEND-APPROVAL
+    - Sets br_scanned_by and br_scanned_at fields
+    - Eliminates need for separate MARK_SCANNED action
     
     **Path Parameters:**
     - br_regn: Bhikku registration number (e.g., BH202500001)
@@ -1238,7 +1322,11 @@ async def upload_scanned_document(
     - file: The scanned document file to upload
     
     **Response:**
-    Returns the updated Bhikku record with the file path stored in br_scanned_document_path
+    Returns the updated Bhikku record with:
+    - br_scanned_document_path: File path stored  
+    - br_workflow_status: "PEND-APPROVAL" (automatically set)
+    - br_scanned_by: User who uploaded
+    - br_scanned_at: Upload timestamp
     
     **Example Usage (Postman):**
     1. Method: POST
@@ -1277,7 +1365,7 @@ async def upload_scanned_document(
         
         return schemas.BhikkuManagementResponse(
             status="success",
-            message="Scanned document uploaded successfully.",
+            message="Scanned document uploaded successfully. Status automatically changed to PEND-APPROVAL.",
             data=bhikku_schema,
         )
         

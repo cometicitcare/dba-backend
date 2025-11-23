@@ -23,7 +23,7 @@ class WorkflowStatus(str, Enum):
     REJECTED = "REJECTED"
     PRINTING = "PRINTING"
     PRINTED = "PRINTED"
-    SCANNED = "SCANNED"
+    PEND_APPROVAL = "PEND-APPROVAL"
     COMPLETED = "COMPLETED"
 
 # --- Approval Status Enum ---
@@ -528,6 +528,17 @@ class BhikkuGNListResponse(BaseModel):
     status: str
     message: str
     data: List[BhikkuGNListItem]
+
+
+class BhikkuProvinceListItem(BaseModel):
+    cp_code: str
+    cp_name: Optional[str] = None
+
+
+class BhikkuProvinceListResponse(BaseModel):
+    status: str
+    message: str
+    data: List[BhikkuProvinceListItem]
 
 
 class BhikkuHistoryStatusListItem(BaseModel):

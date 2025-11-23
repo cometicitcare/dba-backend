@@ -214,3 +214,18 @@ class ViharaManagementResponse(BaseModel):
     totalRecords: Optional[int] = None
     page: Optional[int] = None
     limit: Optional[int] = None
+
+
+# Simple Vihara List Schema for Bhikku endpoints
+class BhikkuViharaListItem(BaseModel):
+    vh_trn: str
+    vh_vname: Optional[str] = None
+
+
+class BhikkuViharaListResponse(BaseModel):
+    status: str
+    message: str
+    data: List[BhikkuViharaListItem]
+    totalRecords: Optional[int] = None
+    page: Optional[int] = None
+    limit: Optional[int] = None
