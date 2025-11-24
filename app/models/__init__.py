@@ -22,32 +22,31 @@ from app.models.gramasewaka import Gramasewaka
 from app.models.main_branch import MainBranch
 from app.models.district_branch import DistrictBranch
 
-# # Bhikku/Monk models
-# from app.models.bhikku import Bhikku
-# from app.models.bhikku_high import BhikkuHighRegist
-# from app.models.bhikku_summary import BhikkuSummary
-# from app.models.bhikku_category import BhikkuCategory
-# from app.models.bhikku_certification import BhikkuCertification
-# from app.models.bhikku_id_card import BhikkuIDCard
+# Bhikku/Monk models
+from app.models.bhikku import Bhikku
+from app.models.bhikku_high import BhikkuHighRegist
+from app.models.bhikku_summary import BhikkuSummary
+from app.models.bhikku_category import BhikkuCategory
+from app.models.bhikku_certification import BhikkuCertification
+from app.models.bhikku_id_card import BhikkuIDCard
 
-# # Temple/Vihara models
-# from app.models.vihara import Vihara
-# from app.models.nikaya import Nikaya
+# Temple/Vihara models
+from app.models.vihara import ViharaData
+from app.models.nikaya import NikayaData
+from app.models.parshawadata import ParshawaData
 # from app.models.nilame import Nilame
-# from app.models.parshawadata import ParshawaData
-# from app.models.silmatha_id_card import SilmathaIDCard
+from app.models.silmatha_regist import SilmathaRegist
+from app.models.silmatha_id_card import SilmathaIDCard
 
-# # Certificate models
+# Other models
+from app.models.status import StatusData
 # from app.models.certificate import Certificate
 # from app.models.certificate_change import CertificateChange
-
-# # Other models
 # from app.models.bank import Bank
 # from app.models.bank_branch import BankBranch
 # from app.models.beneficiary import Beneficiary
 # from app.models.payment_method import PaymentMethod
 # from app.models.religion import Religion
-# from app.models.status import Status
 # from app.models.audit_log import AuditLog
 
 __all__ = [

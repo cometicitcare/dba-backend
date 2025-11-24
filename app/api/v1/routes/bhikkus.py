@@ -5,7 +5,7 @@ from typing import Optional
 
 from app.api.deps import get_db
 from app.api.auth_middleware import get_current_user
-from app.api.auth_dependencies import has_permission, has_any_permission
+from app.api.auth_dependencies import has_permission, has_any_permission, get_user_permissions
 from app.models.user import UserAccount
 from app.schemas import bhikku as schemas
 from app.schemas.vihara import BhikkuViharaListResponse, BhikkuViharaManagementRequest
@@ -15,6 +15,16 @@ from app.utils.http_exceptions import validation_error
 from pydantic import ValidationError
 
 router = APIRouter()
+
+
+def check_bhikku_permission(db: Session, user: UserAccount, required_permission: str):
+    """Check if user has the required permission for bhikku operations"""
+    user_permissions = get_user_permissions(db, user)
+    if required_permission not in user_permissions:
+        raise HTTPException(
+            status_code=403,
+            detail=f"Permission denied. Required permission: {required_permission}"
+        )
 
 
 @router.get(
@@ -717,6 +727,9 @@ def manage_bhikku_records(
     user_id = current_user.ua_user_id
 
     if action == schemas.CRUDAction.CREATE:
+        # Check CREATE permission
+        check_bhikku_permission(db, current_user, "bhikku:create")
+        
         if not payload.data:
             raise validation_error(
                 [("payload.data", "data is required for CREATE action")]
@@ -849,6 +862,9 @@ def manage_bhikku_records(
         )
 
     elif action == schemas.CRUDAction.UPDATE:
+        # Check UPDATE permission
+        check_bhikku_permission(db, current_user, "bhikku:update")
+        
         if not payload.br_regn:
             raise validation_error(
                 [("payload.br_regn", "br_regn is required for UPDATE action")]
@@ -900,6 +916,9 @@ def manage_bhikku_records(
         )
 
     elif action == schemas.CRUDAction.DELETE:
+        # Check DELETE permission
+        check_bhikku_permission(db, current_user, "bhikku:delete")
+        
         if not payload.br_regn:
             raise validation_error(
                 [("payload.br_regn", "br_regn is required for DELETE action")]
