@@ -51,7 +51,10 @@ class AuthService:
 
         return access, refresh, user
 
-    def create_access_token(self, user_id: str, role: str, group: str, expires_delta: timedelta = timedelta(hours=1)) -> str:
+    def create_access_token(self, user_id: str, role: str, group: str, expires_delta: timedelta = None) -> str:
+        if expires_delta is None:
+            expires_delta = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
+        
         to_encode = {
             "sub": user_id,
             "role": role,

@@ -60,18 +60,31 @@ class PermissionService:
         return permission_to_delete
     
     def get_user_permissions(self, db: Session, user_id: str):
-        # Get user's role
-        user_role = db.query(UserRole).filter(UserRole.ur_user_id == user_id).first()
-        if not user_role:
+        # Get ALL user's roles (not just the first one)
+        user_roles = db.query(UserRole).filter(
+            UserRole.ur_user_id == user_id,
+            UserRole.ur_is_active == True
+        ).all()
+        
+        if not user_roles:
             raise Exception("User role not found")
 
-        # Get permissions for the user's role
-        permissions = db.query(Permission.pe_name).join(
-            RolePermission,
-            RolePermission.rp_permission_id == Permission.pe_permission_id
-        ).filter(RolePermission.rp_role_id == user_role.ur_role_id).all()
+        # Collect permissions from ALL roles
+        all_permissions = set()
+        for user_role in user_roles:
+            # Get permissions for each role
+            permissions = db.query(Permission.pe_name).join(
+                RolePermission,
+                RolePermission.rp_permission_id == Permission.pe_permission_id
+            ).filter(
+                RolePermission.rp_role_id == user_role.ur_role_id,
+                RolePermission.rp_granted == True
+            ).all()
+            
+            for permission in permissions:
+                all_permissions.add(permission.pe_name)
 
-        return [permission.pe_name for permission in permissions]
+        return list(all_permissions)
 
 
 # Initialize the service
