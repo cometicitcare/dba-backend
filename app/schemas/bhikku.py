@@ -688,6 +688,22 @@ class BhikkuViharadipathiListResponse(BaseModel):
     data: List[BhikkuViharadipathiListItem]
 
 
+class BhikkuByViharaItem(BaseModel):
+    regn: str
+    br_mahananame: Optional[str] = None
+
+
+class BhikkuByViharaResponse(BaseModel):
+    status: str
+    message: str
+    data: List[BhikkuByViharaItem]
+
+
+class BhikkuByViharaRequest(BaseModel):
+    action: str = Field(..., description="Must be READ_ONE")
+    vh_trn: str = Field(..., min_length=1, description="Vihara code (vh_trn)")
+
+
 class BhikkuCurrentStatusSummaryItem(BaseModel):
     statcd: str
     descr: Optional[str] = None

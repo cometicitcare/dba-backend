@@ -190,6 +190,57 @@ def list_current_status_bhikkus(
 
 
 @router.get(
+    "/by-vihara",
+    response_model=schemas.BhikkuByViharaResponse,
+    dependencies=[has_permission("bhikku:read")],
+)
+def list_bhikkus_by_vihara(
+    vh_trn: str = Query(..., min_length=1, description="Vihara code (vh_trn)"),
+    db: Session = Depends(get_db),
+    current_user: UserAccount = Depends(get_current_user),
+):
+    """
+    List bhikkus residing at a given vihara (livtemple).
+    Returns registration number and br_mahananame only.
+    """
+    records = bhikku_service.list_bhikkus_by_vihara(db, vh_trn=vh_trn)
+    return {
+        "status": "success",
+        "message": "Bhikkus for vihara retrieved successfully.",
+        "data": records,
+    }
+
+
+@router.post(
+    "/by-vihara",
+    response_model=schemas.BhikkuByViharaResponse,
+    dependencies=[has_permission("bhikku:read")],
+)
+def list_bhikkus_by_vihara_body(
+    request: schemas.BhikkuByViharaRequest,
+    db: Session = Depends(get_db),
+    current_user: UserAccount = Depends(get_current_user),
+):
+    """
+    Same as GET /by-vihara but accepts JSON payload:
+    { "action": "READ_ONE", "vh_trn": "<vihara-code>" }
+    """
+    if request.action != "READ_ONE":
+        raise HTTPException(status_code=400, detail="Invalid action. Use READ_ONE.")
+
+    vh_trn = (request.vh_trn or "").strip()
+    if not vh_trn:
+        raise HTTPException(status_code=400, detail="vh_trn is required.")
+
+    records = bhikku_service.list_bhikkus_by_vihara(db, vh_trn=vh_trn)
+    return {
+        "status": "success",
+        "message": "Bhikkus for vihara retrieved successfully.",
+        "data": records,
+    }
+
+
+@router.get(
     "/district-list",
     response_model=schemas.BhikkuDistrictListResponse,
     dependencies=[has_permission("bhikku:read")],
