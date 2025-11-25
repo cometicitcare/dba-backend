@@ -30,17 +30,28 @@ router = APIRouter()
 def list_reprint_requests(
     flow_status: Optional[schemas.ReprintFlowStatus] = Query(None),
     request_type: Optional[schemas.ReprintType] = Query(None),
+    page: Optional[int] = Query(1, ge=1),
+    limit: Optional[int] = Query(50, ge=1, le=200),
+    search_key: Optional[str] = Query(None),
     db: Session = Depends(get_db),
     current_user: UserAccount = Depends(get_current_user),
 ):
     """List reprint requests with optional status/type filters."""
-    records = reprint_service.list_requests(
-        db, flow_status=flow_status, request_type=request_type
+    records, total = reprint_service.list_requests(
+        db,
+        flow_status=flow_status,
+        request_type=request_type,
+        page=page,
+        limit=limit,
+        search_key=search_key,
     )
     return {
         "status": "success",
         "message": "Reprint requests retrieved successfully.",
         "data": records,
+        "totalRecords": total,
+        "page": page,
+        "limit": limit,
     }
 
 
@@ -102,16 +113,22 @@ def manage_reprint(
             }
 
         if action == schemas.ReprintAction.READ_ALL:
-            records = reprint_service.list_requests(
+            records, total = reprint_service.list_requests(
                 db,
                 flow_status=request.flow_status,
                 request_type=request.request_type,
                 regn=request.regn,
+                page=request.page,
+                limit=request.limit,
+                search_key=request.search_key,
             )
             return {
                 "status": "success",
                 "message": "Reprint requests retrieved.",
                 "data": records,
+                "totalRecords": total,
+                "page": request.page,
+                "limit": request.limit,
             }
 
         if action == schemas.ReprintAction.APPROVE:
