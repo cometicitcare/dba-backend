@@ -15,9 +15,22 @@ from app.services.reprint_service import reprint_service
 
 router = APIRouter()
 
-DIV_SEC_ADMIN_ROLE_IDS = {"DS_ADMIN"}
-DIV_SEC_DATA_ENTRY_ROLE_IDS = {"DS_DE001"}
-ALLOWED_REPRINT_ROLE_IDS = DIV_SEC_ADMIN_ROLE_IDS | DIV_SEC_DATA_ENTRY_ROLE_IDS
+# Role IDs that can access reprint endpoints
+ADMIN_ROLE_IDS = {
+    "DS_ADMIN",
+    "BHIK_ADM",
+    "BH_ADMIN",
+    "SL_ADMIN",
+    "DM_ADMIN",
+}
+DATA_ENTRY_ROLE_IDS = {
+    "DS_DE001",
+    "BHIK_DATA",
+    "BH_DE001",
+    "SL_DE001",
+    "DM_DE001",
+}
+ALLOWED_REPRINT_ROLE_IDS = ADMIN_ROLE_IDS | DATA_ENTRY_ROLE_IDS
 
 
 def _get_active_role_ids(db: Session, user_id: str) -> set[str]:
@@ -40,29 +53,30 @@ def require_reprint_roles(
     current_user: UserAccount = Depends(get_current_user),
 ):
     """
-    Ensure caller has Divisional Secretariat access for reprint operations.
-    Allows Div. Secretariat Admin/Data Entry roles and super admins.
+    Ensure caller has permitted roles for reprint operations.
+    Allows Divisional Secretariat / Bhikku / Silmatha / Damma School Admin & Data Entry roles and super admins.
     """
     if is_super_admin(db, current_user):
         return {
             "role_ids": set(),
             "is_super_admin": True,
-            "is_div_sec_admin": True,
-            "is_div_sec_data_entry": False,
+            "is_admin": True,
         }
 
     role_ids = _get_active_role_ids(db, current_user.ua_user_id)
     if not role_ids.intersection(ALLOWED_REPRINT_ROLE_IDS):
         raise HTTPException(
             status_code=403,
-            detail="Access denied. Reprint operations are limited to Divisional Secretariat Admin/Data Entry roles.",
+            detail=(
+                "Access denied. Reprint operations are limited to Admin/Data Entry roles for "
+                "Divisional Secretariat, Bhikku, Silmatha, or Damma School."
+            ),
         )
 
     return {
         "role_ids": role_ids,
         "is_super_admin": False,
-        "is_div_sec_admin": bool(role_ids.intersection(DIV_SEC_ADMIN_ROLE_IDS)),
-        "is_div_sec_data_entry": bool(role_ids.intersection(DIV_SEC_DATA_ENTRY_ROLE_IDS)),
+        "is_admin": bool(role_ids.intersection(ADMIN_ROLE_IDS)),
     }
 
 
@@ -142,7 +156,7 @@ def manage_reprint(
     """
     actor_id = current_user.ua_user_id if current_user else None
     action = request.action
-    is_admin = access.get("is_div_sec_admin") or access.get("is_super_admin")
+    is_admin = access.get("is_admin") or access.get("is_super_admin")
 
     try:
         if action == schemas.ReprintAction.CREATE:
