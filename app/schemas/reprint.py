@@ -96,6 +96,7 @@ class ReprintManageRequest(BaseModel):
     flow_status: Optional[ReprintFlowStatus] = None
     request_type: Optional[ReprintType] = None
     rejection_reason: Optional[str] = None
+    regn: Optional[str] = None
 
 
 class ReprintManageResponse(BaseModel):
