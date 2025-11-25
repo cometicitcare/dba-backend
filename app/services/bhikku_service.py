@@ -569,6 +569,22 @@ class BhikkuService:
         result = db.execute(self._viharadipathi_view_query).mappings().all()
         return [dict(row) for row in result]
 
+    def list_bhikkus_by_vihara(self, db: Session, vh_trn: str) -> list[dict[str, Optional[str]]]:
+        """Return bhikku regn and name for a given vihara code."""
+        if not vh_trn:
+            return []
+
+        rows = (
+            db.query(Bhikku.br_regn, Bhikku.br_mahananame)
+            .filter(
+                Bhikku.br_livtemple == vh_trn,
+                Bhikku.br_is_deleted.is_(False),
+            )
+            .order_by(Bhikku.br_mahananame.asc())
+            .all()
+        )
+        return [{"regn": regn, "br_mahananame": name} for regn, name in rows]
+
     def list_current_status_summary(self, db: Session) -> list[dict[str, Any]]:
         """Return aggregated records from the bikkusumm_currstatus_list view."""
         result = db.execute(self._current_status_summary_query).mappings().all()
