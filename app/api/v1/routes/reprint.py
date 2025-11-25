@@ -106,6 +106,7 @@ def manage_reprint(
                 db,
                 flow_status=request.flow_status,
                 request_type=request.request_type,
+                regn=request.regn,
             )
             return {
                 "status": "success",

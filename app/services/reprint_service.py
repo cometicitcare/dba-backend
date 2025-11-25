@@ -160,12 +160,24 @@ class ReprintService:
         *,
         flow_status: Optional[ReprintFlowStatus] = None,
         request_type: Optional[ReprintType] = None,
+        regn: Optional[str] = None,
     ) -> List[ReprintRequest]:
         query = db.query(ReprintRequest)
         if flow_status:
             query = query.filter(ReprintRequest.flow_status == flow_status.value)
         if request_type:
             query = query.filter(ReprintRequest.request_type == request_type.value)
+        if regn:
+            regn_clean = regn.strip().upper()
+            if regn_clean:
+                query = query.filter(
+                    or_(
+                        ReprintRequest.bhikku_regn == regn_clean,
+                        ReprintRequest.silmatha_regn == regn_clean,
+                        ReprintRequest.bhikku_high_regn == regn_clean,
+                        ReprintRequest.upasampada_regn == regn_clean,
+                    )
+                )
         records = query.order_by(ReprintRequest.requested_at.desc()).all()
         return self._attach_subjects(db, records)
 
