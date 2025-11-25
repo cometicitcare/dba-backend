@@ -1,31 +1,74 @@
 # app/api/v1/routes/reprint.py
-from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy.orm import Session
+from datetime import datetime
 from typing import Optional
 
-from app.api.auth_dependencies import has_any_permission
+from fastapi import APIRouter, Depends, HTTPException, Query
+from sqlalchemy.orm import Session
+
+from app.api.auth_dependencies import is_super_admin
 from app.api.auth_middleware import get_current_user
 from app.api.deps import get_db
 from app.models.user import UserAccount
+from app.models.user_roles import UserRole
 from app.schemas import reprint as schemas
 from app.services.reprint_service import reprint_service
 
 router = APIRouter()
 
+DIV_SEC_ADMIN_ROLE_IDS = {"DS_ADMIN"}
+DIV_SEC_DATA_ENTRY_ROLE_IDS = {"DS_DE001"}
+ALLOWED_REPRINT_ROLE_IDS = DIV_SEC_ADMIN_ROLE_IDS | DIV_SEC_DATA_ENTRY_ROLE_IDS
+
+
+def _get_active_role_ids(db: Session, user_id: str) -> set[str]:
+    """Return active (non-expired) role IDs for the user."""
+    now = datetime.utcnow()
+    roles = (
+        db.query(UserRole.ur_role_id)
+        .filter(
+            UserRole.ur_user_id == user_id,
+            UserRole.ur_is_active.is_(True),
+            (UserRole.ur_expires_date.is_(None) | (UserRole.ur_expires_date > now)),
+        )
+        .all()
+    )
+    return {role.ur_role_id for role in roles}
+
+
+def require_reprint_roles(
+    db: Session = Depends(get_db),
+    current_user: UserAccount = Depends(get_current_user),
+):
+    """
+    Ensure caller has Divisional Secretariat access for reprint operations.
+    Allows Div. Secretariat Admin/Data Entry roles and super admins.
+    """
+    if is_super_admin(db, current_user):
+        return {
+            "role_ids": set(),
+            "is_super_admin": True,
+            "is_div_sec_admin": True,
+            "is_div_sec_data_entry": False,
+        }
+
+    role_ids = _get_active_role_ids(db, current_user.ua_user_id)
+    if not role_ids.intersection(ALLOWED_REPRINT_ROLE_IDS):
+        raise HTTPException(
+            status_code=403,
+            detail="Access denied. Reprint operations are limited to Divisional Secretariat Admin/Data Entry roles.",
+        )
+
+    return {
+        "role_ids": role_ids,
+        "is_super_admin": False,
+        "is_div_sec_admin": bool(role_ids.intersection(DIV_SEC_ADMIN_ROLE_IDS)),
+        "is_div_sec_data_entry": bool(role_ids.intersection(DIV_SEC_DATA_ENTRY_ROLE_IDS)),
+    }
+
 
 @router.get(
     "",
     response_model=schemas.ReprintRequestListResponse,
-    dependencies=[
-        has_any_permission(
-            "bhikku:read",
-            "bhikku:update",
-            "bhikku:approve",
-            "bhikku_high:read",
-            "bhikku_high:update",
-            "bhikku_high:approve",
-        )
-    ],
 )
 def list_reprint_requests(
     flow_status: Optional[schemas.ReprintFlowStatus] = Query(None),
@@ -35,6 +78,7 @@ def list_reprint_requests(
     search_key: Optional[str] = Query(None),
     db: Session = Depends(get_db),
     current_user: UserAccount = Depends(get_current_user),
+    _: dict = Depends(require_reprint_roles),
 ):
     """List reprint requests with optional status/type filters."""
     records, total = reprint_service.list_requests(
@@ -58,21 +102,12 @@ def list_reprint_requests(
 @router.post(
     "/reprint_url",
     response_model=schemas.ReprintUrlResponse,
-    dependencies=[
-        has_any_permission(
-            "bhikku:read",
-            "bhikku:update",
-            "bhikku:approve",
-            "bhikku_high:read",
-            "bhikku_high:update",
-            "bhikku_high:approve",
-        )
-    ],
 )
 def get_reprint_scanned_document_path(
     request: schemas.ReprintUrlRequest,
     db: Session = Depends(get_db),
     current_user: UserAccount = Depends(get_current_user),
+    _: dict = Depends(require_reprint_roles),
 ):
     """
     Return scanned document path for a given regn (bhikku / high bhikku / silmatha).
@@ -94,19 +129,12 @@ def get_reprint_scanned_document_path(
 @router.post(
     "",
     response_model=schemas.ReprintManageResponse,
-    dependencies=[
-        has_any_permission(
-            "bhikku:update",
-            "bhikku:approve",
-            "bhikku_high:update",
-            "bhikku_high:approve",
-        )
-    ],
 )
 def manage_reprint(
     request: schemas.ReprintManageRequest,
     db: Session = Depends(get_db),
     current_user: UserAccount = Depends(get_current_user),
+    access: dict = Depends(require_reprint_roles),
 ):
     """
     Manage reprint requests via actions (single endpoint CRUD).
@@ -114,6 +142,7 @@ def manage_reprint(
     """
     actor_id = current_user.ua_user_id if current_user else None
     action = request.action
+    is_admin = access.get("is_div_sec_admin") or access.get("is_super_admin")
 
     try:
         if action == schemas.ReprintAction.CREATE:
@@ -168,6 +197,11 @@ def manage_reprint(
             }
 
         if action == schemas.ReprintAction.APPROVE:
+            if not is_admin:
+                raise HTTPException(
+                    status_code=403,
+                    detail="Only Divisional Secretariat Admins can approve reprint requests.",
+                )
             if not request.request_id:
                 raise HTTPException(status_code=400, detail="request_id is required for APPROVE")
             try:
@@ -184,6 +218,11 @@ def manage_reprint(
             }
 
         if action == schemas.ReprintAction.REJECT:
+            if not is_admin:
+                raise HTTPException(
+                    status_code=403,
+                    detail="Only Divisional Secretariat Admins can reject reprint requests.",
+                )
             if not request.request_id:
                 raise HTTPException(status_code=400, detail="request_id is required for REJECT")
             if not request.rejection_reason:
@@ -205,6 +244,11 @@ def manage_reprint(
             }
 
         if action == schemas.ReprintAction.MARK_PRINTED:
+            if not is_admin:
+                raise HTTPException(
+                    status_code=403,
+                    detail="Only Divisional Secretariat Admins can mark reprints as printed.",
+                )
             if not request.request_id:
                 raise HTTPException(status_code=400, detail="request_id is required for MARK_PRINTED")
             try:
@@ -221,6 +265,11 @@ def manage_reprint(
             }
 
         if action == schemas.ReprintAction.DELETE:
+            if not is_admin:
+                raise HTTPException(
+                    status_code=403,
+                    detail="Only Divisional Secretariat Admins can delete reprint requests.",
+                )
             if not request.request_id:
                 raise HTTPException(status_code=400, detail="request_id is required for DELETE")
             try:
