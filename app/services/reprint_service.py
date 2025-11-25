@@ -322,6 +322,89 @@ class ReprintService:
             type=ReprintType.HIGH_BHIKKU,
         )
 
+    def _qr_lookup(self, db: Session, identifier: Optional[str], record_type: Optional[str] = None) -> Optional[list]:
+        """Proxy to bhikku_service QR search for reuse across endpoints."""
+        if not identifier:
+            return None
+        try:
+            from app.services.bhikku_service import bhikku_service
+        except Exception:
+            return None
+        return bhikku_service.get_qr_search_details(
+            db=db,
+            record_id=identifier,
+            record_type=record_type,
+        )
+
+    def _resolve_record_type(self, request_type: Optional[object]) -> Optional[str]:
+        """Map stored request type (enum or string) to qr_search record_type values."""
+        if isinstance(request_type, ReprintType):
+            value = request_type.value
+        else:
+            value = request_type
+
+        type_map = {
+            ReprintType.BHIKKU.value: "bhikku",
+            ReprintType.SILMATHA.value: "silmatha",
+            ReprintType.HIGH_BHIKKU.value: "bhikku_high",
+            ReprintType.UPASAMPADA.value: "bhikku_high",
+        }
+        return type_map.get(value)
+
+    def _extract_regn_from_record(self, record: Optional[ReprintRequest]) -> Optional[str]:
+        if not record:
+            return None
+        return (
+            record.bhikku_regn
+            or record.silmatha_regn
+            or record.bhikku_high_regn
+            or record.upasampada_regn
+        )
+
+    def resolve_qr_details(
+        self,
+        db: Session,
+        *,
+        record: Optional[ReprintRequest],
+        identifier: Optional[object],
+    ) -> Optional[list]:
+        """
+        Produce QR-style payload for reprint lookups.
+        Prefers data already attached to the record, then falls back to QR search by regn/identifier.
+        """
+        if record:
+            qr_details = getattr(record, "qr_details", None)
+            if qr_details:
+                return qr_details
+
+            regn = self._extract_regn_from_record(record)
+            if regn:
+                qr_details = self._qr_lookup(
+                    db,
+                    regn,
+                    record_type=self._resolve_record_type(record.request_type),
+                )
+                if qr_details:
+                    return qr_details
+
+            # Attempt using subject.regn if available (defensive)
+            subject = getattr(record, "subject", None)
+            if subject and getattr(subject, "regn", None):
+                qr_details = self._qr_lookup(
+                    db,
+                    subject.regn,
+                    record_type=self._resolve_record_type(record.request_type),
+                )
+                if qr_details:
+                    return qr_details
+
+        # Final fallback: behave like /qr_search using provided identifier (string only)
+        if isinstance(identifier, str):
+            cleaned = identifier.strip()
+            if cleaned:
+                return self._qr_lookup(db, cleaned)
+        return None
+
     def _attach_qr_details(self, db: Session, records: List[ReprintRequest]) -> None:
         """Populate qr_details field using the existing QR search formatter."""
         if not records:
