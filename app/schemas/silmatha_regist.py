@@ -23,6 +23,7 @@ class WorkflowStatus(str, Enum):
     REJECTED = "REJECTED"
     PRINTING = "PRINTING"
     PRINTED = "PRINTED"
+    PEND_APPROVAL = "PEND-APPROVAL"
     SCANNED = "SCANNED"
     COMPLETED = "COMPLETED"
 
@@ -104,6 +105,7 @@ class SilmathaRegistBase(BaseModel):
     sil_division: Optional[str] = None
     sil_vilage: Optional[str] = None
     sil_gndiv: str
+    sil_created_by_district: Optional[str] = None
     
     # Temple/Religious Information
     sil_viharadhipathi: Optional[str] = None
@@ -188,6 +190,18 @@ class Silmatha(SilmathaRegistBase):
     sil_robing_tutor_residence: Optional[Union[ViharaResponse, str]] = None
     sil_mahanatemple: Optional[Union[ViharaResponse, str]] = None
     sil_robing_after_residence_temple: Optional[Union[ViharaResponse, str]] = None
+    
+    # Workflow Fields - expose same set as Bhikku responses
+    sil_workflow_status: Optional[str] = None
+    sil_approval_status: Optional[str] = None
+    sil_version_number: Optional[int] = None
+    sil_scanned_document_path: Optional[str] = None
+    sil_printed_at: Optional[datetime] = None
+    sil_scanned_at: Optional[datetime] = None
+    sil_approved_at: Optional[datetime] = None
+    sil_rejected_at: Optional[datetime] = None
+    sil_rejection_reason: Optional[str] = None
+    sil_created_by_district: Optional[str] = None
 
 
 class SilmathaRegistInternal(SilmathaRegistBase):

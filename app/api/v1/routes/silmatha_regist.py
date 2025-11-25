@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 
 from app.api.deps import get_db
 from app.api.auth_middleware import get_current_user
-from app.api.auth_dependencies import has_permission, has_any_permission
+from app.api.auth_dependencies import has_permission, has_any_permission, get_user_permissions
 from app.models.user import UserAccount
 from app.schemas import silmatha_regist as schemas
 from app.services.silmatha_regist_service import silmatha_regist_service
@@ -13,6 +13,15 @@ from app.utils.http_exceptions import validation_error
 from pydantic import ValidationError
 
 router = APIRouter()
+
+def check_silmatha_permission(db: Session, user: UserAccount, required_permission: str):
+    """Ensure the current user has the required silmatha permission."""
+    user_permissions = get_user_permissions(db, user)
+    if required_permission not in user_permissions:
+        raise HTTPException(
+            status_code=403,
+            detail=f"Permission denied. Required permission: {required_permission}"
+        )
 
 
 @router.post(
@@ -36,6 +45,9 @@ def manage_silmatha_records(
     user_id = current_user.ua_user_id
 
     if action == schemas.CRUDAction.CREATE:
+        # Match Bhikku workflow by enforcing explicit create permission
+        check_silmatha_permission(db, current_user, "silmatha:create")
+
         if not payload or not hasattr(payload, 'data'):
             raise validation_error(
                 [("payload.data", "data is required for CREATE action")]
@@ -70,8 +82,9 @@ def manage_silmatha_records(
         except RuntimeError as exc:
             raise HTTPException(status_code=500, detail=str(exc)) from exc
 
-        # Convert SQLAlchemy model to Pydantic schema
-        silmatha_schema = schemas.Silmatha.model_validate(created_silmatha)
+        # Convert SQLAlchemy model to Pydantic schema with enriched nested data
+        silmatha_enriched = silmatha_regist_service.enrich_silmatha_dict(created_silmatha, db)
+        silmatha_schema = schemas.Silmatha.model_validate(silmatha_enriched)
         
         return schemas.SilmathaRegistManagementResponse(
             status="success",
@@ -91,11 +104,12 @@ def manage_silmatha_records(
         
         # Enrich with nested FK objects
         silmatha_enriched = silmatha_regist_service.enrich_silmatha_dict(db_silmatha, db)
+        silmatha_schema = schemas.Silmatha.model_validate(silmatha_enriched)
         
         return schemas.SilmathaRegistManagementResponse(
             status="success",
             message="Silmatha record retrieved successfully.",
-            data=silmatha_enriched,
+            data=silmatha_schema,
         )
 
     elif action == schemas.CRUDAction.READ_ALL:
@@ -201,7 +215,8 @@ def manage_silmatha_records(
         except RuntimeError as exc:
             raise HTTPException(status_code=500, detail=str(exc)) from exc
 
-        silmatha_schema = schemas.Silmatha.model_validate(updated_silmatha)
+        silmatha_enriched = silmatha_regist_service.enrich_silmatha_dict(updated_silmatha, db)
+        silmatha_schema = schemas.Silmatha.model_validate(silmatha_enriched)
         return schemas.SilmathaRegistManagementResponse(
             status="success",
             message="Silmatha record updated successfully.",
@@ -250,7 +265,8 @@ def manage_silmatha_records(
         except RuntimeError as exc:
             raise HTTPException(status_code=500, detail=str(exc)) from exc
 
-        silmatha_schema = schemas.Silmatha.model_validate(approved_silmatha)
+        silmatha_enriched = silmatha_regist_service.enrich_silmatha_dict(approved_silmatha, db)
+        silmatha_schema = schemas.Silmatha.model_validate(silmatha_enriched)
         return schemas.SilmathaRegistManagementResponse(
             status="success",
             message="Silmatha record approved successfully.",
@@ -282,7 +298,8 @@ def manage_silmatha_records(
         except RuntimeError as exc:
             raise HTTPException(status_code=500, detail=str(exc)) from exc
 
-        silmatha_schema = schemas.Silmatha.model_validate(rejected_silmatha)
+        silmatha_enriched = silmatha_regist_service.enrich_silmatha_dict(rejected_silmatha, db)
+        silmatha_schema = schemas.Silmatha.model_validate(silmatha_enriched)
         return schemas.SilmathaRegistManagementResponse(
             status="success",
             message="Silmatha record rejected successfully.",
@@ -307,7 +324,8 @@ def manage_silmatha_records(
         except RuntimeError as exc:
             raise HTTPException(status_code=500, detail=str(exc)) from exc
 
-        silmatha_schema = schemas.Silmatha.model_validate(printed_silmatha)
+        silmatha_enriched = silmatha_regist_service.enrich_silmatha_dict(printed_silmatha, db)
+        silmatha_schema = schemas.Silmatha.model_validate(silmatha_enriched)
         return schemas.SilmathaRegistManagementResponse(
             status="success",
             message="Silmatha record marked as printed successfully.",
@@ -338,7 +356,8 @@ def manage_silmatha_records(
         except RuntimeError as exc:
             raise HTTPException(status_code=500, detail=str(exc)) from exc
 
-        silmatha_schema = schemas.Silmatha.model_validate(scanned_silmatha)
+        silmatha_enriched = silmatha_regist_service.enrich_silmatha_dict(scanned_silmatha, db)
+        silmatha_schema = schemas.Silmatha.model_validate(silmatha_enriched)
         return schemas.SilmathaRegistManagementResponse(
             status="success",
             message="Silmatha record marked as scanned successfully.",
@@ -412,12 +431,13 @@ async def upload_scanned_document(
             db, sil_regn=sil_regn, file=file, actor_id=username
         )
         
-        # Return data
-        silmatha_schema = schemas.Silmatha.model_validate(updated_silmatha)
+        # Return enriched data (matches bhikku upload response)
+        silmatha_enriched = silmatha_regist_service.enrich_silmatha_dict(updated_silmatha, db)
+        silmatha_schema = schemas.Silmatha.model_validate(silmatha_enriched)
         
         return schemas.SilmathaRegistManagementResponse(
             status="success",
-            message="Scanned document uploaded successfully.",
+            message="Scanned document uploaded successfully. Status automatically changed to PEND-APPROVAL when applicable.",
             data=silmatha_schema,
         )
         
