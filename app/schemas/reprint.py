@@ -126,4 +126,20 @@ class ReprintSubject(BaseModel):
     type: Optional[ReprintType] = None
 
 
+class ReprintUrlRequest(BaseModel):
+    regn: str
+
+
+class ReprintUrlItem(BaseModel):
+    regn: str
+    request_type: ReprintType
+    scanned_document_path: Optional[str] = None
+
+
+class ReprintUrlResponse(BaseModel):
+    status: str
+    message: str
+    data: ReprintUrlItem
+
+
 ReprintRequest.model_rebuild()

@@ -56,6 +56,42 @@ def list_reprint_requests(
 
 
 @router.post(
+    "/reprint_url",
+    response_model=schemas.ReprintUrlResponse,
+    dependencies=[
+        has_any_permission(
+            "bhikku:read",
+            "bhikku:update",
+            "bhikku:approve",
+            "bhikku_high:read",
+            "bhikku_high:update",
+            "bhikku_high:approve",
+        )
+    ],
+)
+def get_reprint_scanned_document_path(
+    request: schemas.ReprintUrlRequest,
+    db: Session = Depends(get_db),
+    current_user: UserAccount = Depends(get_current_user),
+):
+    """
+    Return scanned document path for a given regn (bhikku / high bhikku / silmatha).
+    """
+    try:
+        result = reprint_service.get_scanned_document_path(db, regn=request.regn)
+    except ValueError as exc:
+        message = str(exc)
+        status_code = 404 if "not found" in message.lower() else 400
+        raise HTTPException(status_code=status_code, detail=message) from exc
+
+    return {
+        "status": "success",
+        "message": "Scanned document path retrieved.",
+        "data": result,
+    }
+
+
+@router.post(
     "",
     response_model=schemas.ReprintManageResponse,
     dependencies=[
