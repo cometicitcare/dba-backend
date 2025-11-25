@@ -82,16 +82,19 @@ def manage_reprint(
             }
 
         if action == schemas.ReprintAction.READ_ONE:
-            if not request.request_id:
+            if not request.request_id or (isinstance(request.request_id, str) and not request.request_id.strip()):
                 raise HTTPException(status_code=400, detail="request_id is required for READ_ONE")
-            record = reprint_service.get_by_identifier(db, identifier=request.request_id)
-            if not record:
-                raise HTTPException(status_code=404, detail="Reprint request not found")
+            identifier = request.request_id
+            record = reprint_service.get_by_identifier(db, identifier=identifier)
 
-            # Return QR-search style payload (titel/text list) to mirror /qr_search response
-            qr_data = getattr(record, "qr_details", None) or []
+            # Return QR-search style payload (titel/text list) to mirror /qr_search response.
+            qr_data = reprint_service.resolve_qr_details(
+                db,
+                record=record,
+                identifier=identifier,
+            )
             if not qr_data:
-                raise HTTPException(status_code=404, detail=f"No record found with ID: {request.request_id}")
+                raise HTTPException(status_code=404, detail=f"No record found with ID: {identifier}")
             return {
                 "status": "success",
                 "message": "Record details retrieved successfully.",
