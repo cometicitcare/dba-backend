@@ -285,6 +285,15 @@ class ReprintService:
             if subject:
                 setattr(r, "subject", subject)
 
+            primary_regn = (
+                r.bhikku_regn
+                or r.silmatha_regn
+                or r.bhikku_high_regn
+                or r.upasampada_regn
+            )
+            if primary_regn:
+                setattr(r, "regn", primary_regn)
+
         return records
 
     def _make_subject_from_bhikku(self, row: Bhikku) -> ReprintSubject:

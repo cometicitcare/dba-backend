@@ -56,6 +56,7 @@ class ReprintRequest(BaseModel):
     bhikku_high_regn: Optional[str] = None
     upasampada_regn: Optional[str] = None
     silmatha_regn: Optional[str] = None
+    regn: Optional[str] = None
     form_no: Optional[str] = None
     request_reason: Optional[str] = None
     amount: Optional[float] = None
