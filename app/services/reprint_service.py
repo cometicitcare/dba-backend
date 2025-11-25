@@ -161,7 +161,10 @@ class ReprintService:
         flow_status: Optional[ReprintFlowStatus] = None,
         request_type: Optional[ReprintType] = None,
         regn: Optional[str] = None,
-    ) -> List[ReprintRequest]:
+        page: Optional[int] = None,
+        limit: Optional[int] = None,
+        search_key: Optional[str] = None,
+    ) -> tuple[List[ReprintRequest], int]:
         query = db.query(ReprintRequest)
         if flow_status:
             query = query.filter(ReprintRequest.flow_status == flow_status.value)
@@ -178,8 +181,32 @@ class ReprintService:
                         ReprintRequest.upasampada_regn == regn_clean,
                     )
                 )
-        records = query.order_by(ReprintRequest.requested_at.desc()).all()
-        return self._attach_subjects(db, records)
+        if search_key:
+            pattern = f"%{search_key.strip()}%"
+            query = query.filter(
+                or_(
+                    ReprintRequest.form_no.ilike(pattern),
+                    ReprintRequest.request_reason.ilike(pattern),
+                    ReprintRequest.remarks.ilike(pattern),
+                    ReprintRequest.bhikku_regn.ilike(pattern),
+                    ReprintRequest.silmatha_regn.ilike(pattern),
+                    ReprintRequest.bhikku_high_regn.ilike(pattern),
+                    ReprintRequest.upasampada_regn.ilike(pattern),
+                )
+            )
+
+        total_records = query.count()
+        page_num = page or 1
+        page_size = limit or 50
+        offset = max((page_num - 1) * page_size, 0)
+
+        records = (
+            query.order_by(ReprintRequest.requested_at.desc())
+            .offset(offset)
+            .limit(page_size)
+            .all()
+        )
+        return self._attach_subjects(db, records), total_records
 
     def get_by_id(self, db: Session, *, request_id: int) -> Optional[ReprintRequest]:
         record = db.get(ReprintRequest, request_id)

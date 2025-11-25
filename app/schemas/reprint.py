@@ -87,6 +87,9 @@ class ReprintRequestListResponse(BaseModel):
     status: str
     message: str
     data: List[ReprintRequest]
+    totalRecords: Optional[int] = None
+    page: Optional[int] = None
+    limit: Optional[int] = None
 
 
 class ReprintManageRequest(BaseModel):
@@ -97,6 +100,10 @@ class ReprintManageRequest(BaseModel):
     request_type: Optional[ReprintType] = None
     rejection_reason: Optional[str] = None
     regn: Optional[str] = None
+    page: Optional[int] = Field(default=1, ge=1, description="Page number for pagination")
+    limit: Optional[int] = Field(default=50, ge=1, le=200, description="Page size for pagination")
+    search_key: Optional[str] = Field(default=None, description="Search text for filtering reprint requests")
+    totalRecords: Optional[int] = None
 
 
 class ReprintManageResponse(BaseModel):
@@ -104,6 +111,9 @@ class ReprintManageResponse(BaseModel):
     message: str
     # Can return a single request, list of requests, or QR-style items (for READ_ONE by regn/id)
     data: Optional[Union[ReprintRequest, List[ReprintRequest], List[QRSearchDataItem]]] = None
+    totalRecords: Optional[int] = None
+    page: Optional[int] = None
+    limit: Optional[int] = None
 
 
 class ReprintSubject(BaseModel):
