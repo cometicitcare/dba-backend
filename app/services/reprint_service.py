@@ -453,6 +453,63 @@ class ReprintService:
                 return self._qr_lookup(db, cleaned)
         return None
 
+    def get_scanned_document_path(
+        self,
+        db: Session,
+        *,
+        regn: str,
+    ) -> dict:
+        """
+        Return scanned document path for a given registration number, auto-detecting type.
+        """
+        regn_clean = (regn or "").strip().upper()
+        if not regn_clean:
+            raise ValueError("regn is required")
+
+        req_type = self._detect_type_from_regn(regn_clean)
+
+        if req_type == ReprintType.BHIKKU:
+            entity = (
+                db.query(Bhikku)
+                .filter(Bhikku.br_regn == regn_clean, Bhikku.br_is_deleted.is_(False))
+                .first()
+            )
+            if not entity:
+                raise ValueError(f"Bhikku record not found for regn: {regn_clean}")
+            path = entity.br_scanned_document_path
+        elif req_type in (ReprintType.HIGH_BHIKKU, ReprintType.UPASAMPADA):
+            entity = (
+                db.query(BhikkuHighRegist)
+                .filter(
+                    BhikkuHighRegist.bhr_regn == regn_clean,
+                    BhikkuHighRegist.bhr_is_deleted.is_(False),
+                )
+                .first()
+            )
+            if not entity:
+                raise ValueError(f"High Bhikku record not found for regn: {regn_clean}")
+            path = entity.bhr_scanned_document_path
+        elif req_type == ReprintType.SILMATHA:
+            entity = (
+                db.query(SilmathaRegist)
+                .filter(
+                    SilmathaRegist.sil_regn == regn_clean,
+                    SilmathaRegist.sil_is_deleted.is_(False),
+                )
+                .first()
+            )
+            if not entity:
+                raise ValueError(f"Silmatha record not found for regn: {regn_clean}")
+            path = entity.sil_scanned_document_path
+        else:
+            raise ValueError(f"Unsupported type for regn: {regn_clean}")
+
+        return {
+            "regn": regn_clean,
+            "request_type": req_type,
+            "scanned_document_path": path,
+        }
+
     def _attach_qr_details(self, db: Session, records: List[ReprintRequest]) -> None:
         """Populate qr_details field using the existing QR search formatter."""
         if not records:
