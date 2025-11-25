@@ -232,6 +232,7 @@ class SilmathaRegistService:
             "sil_created_by": silmatha.sil_created_by,
             "sil_updated_by": silmatha.sil_updated_by,
             "sil_version_number": silmatha.sil_version_number,
+            "sil_created_by_district": getattr(silmatha, "sil_created_by_district", None),
         }
         
         return silmatha_dict
@@ -815,9 +816,34 @@ class SilmathaRegistService:
         if not entity:
             raise ValueError(f"Silmatha record with registration number '{sil_regn}' not found.")
         
-        # Delete old file if exists
+        # Archive old file with version suffix instead of deleting it (align with bhikku flow)
         if entity.sil_scanned_document_path:
-            file_storage_service.delete_file(entity.sil_scanned_document_path)
+            from pathlib import Path
+            old_file_path = entity.sil_scanned_document_path
+
+            # Remove leading /storage/ if present for path parsing
+            clean_path = old_file_path[9:] if old_file_path.startswith("/storage/") else old_file_path
+            path_obj = Path(clean_path)
+            file_dir = path_obj.parent
+            file_stem = path_obj.stem
+            file_ext = path_obj.suffix
+
+            storage_dir = Path("app/storage") / file_dir
+            max_version = 0
+            if storage_dir.exists():
+                for existing_file in storage_dir.glob(f"{file_stem}_v*{file_ext}"):
+                    version_match = existing_file.stem.rsplit("_v", 1)
+                    if len(version_match) == 2 and version_match[1].isdigit():
+                        max_version = max(max_version, int(version_match[1]))
+
+            versioned_name = f"{file_stem}_v{max_version + 1}{file_ext}"
+            versioned_relative_path = str(file_dir / versioned_name)
+
+            try:
+                file_storage_service.rename_file(old_file_path, versioned_relative_path)
+            except Exception as exc:
+                # Non-fatal: continue with new upload
+                print(f"Warning: Could not archive old silmatha file {old_file_path}: {exc}")
         
         # Save new file using the file storage service
         # File will be stored at: app/storage/silmatha_update/<year>/<month>/<day>/<sil_regn>/scanned_document_*.*
