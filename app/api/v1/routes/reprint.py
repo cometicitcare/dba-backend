@@ -54,7 +54,7 @@ def require_reprint_roles(
 ):
     """
     Ensure caller has permitted roles for reprint operations.
-    Allows Divisional Secretariat / Bhikku / Silmatha / Damma School Admin & Data Entry roles and super admins.
+    Allows District / Bhikku / Silmatha / Damma School Admin & Data Entry roles and super admins.
     """
     if is_super_admin(db, current_user):
         return {
@@ -69,7 +69,7 @@ def require_reprint_roles(
             status_code=403,
             detail=(
                 "Access denied. Reprint operations are limited to Admin/Data Entry roles for "
-                "Divisional Secretariat, Bhikku, Silmatha, or Damma School."
+                "District, Bhikku, Silmatha, or Damma School."
             ),
         )
 
@@ -214,7 +214,7 @@ def manage_reprint(
             if not is_admin:
                 raise HTTPException(
                     status_code=403,
-                    detail="Only Divisional Secretariat Admins can approve reprint requests.",
+                    detail="Only District Admins can approve reprint requests.",
                 )
             if not request.request_id:
                 raise HTTPException(status_code=400, detail="request_id is required for APPROVE")
@@ -235,7 +235,7 @@ def manage_reprint(
             if not is_admin:
                 raise HTTPException(
                     status_code=403,
-                    detail="Only Divisional Secretariat Admins can reject reprint requests.",
+                    detail="Only District Admins can reject reprint requests.",
                 )
             if not request.request_id:
                 raise HTTPException(status_code=400, detail="request_id is required for REJECT")
@@ -261,7 +261,7 @@ def manage_reprint(
             if not is_admin:
                 raise HTTPException(
                     status_code=403,
-                    detail="Only Divisional Secretariat Admins can mark reprints as printed.",
+                    detail="Only District Admins can mark reprints as printed.",
                 )
             if not request.request_id:
                 raise HTTPException(status_code=400, detail="request_id is required for MARK_PRINTED")
@@ -282,7 +282,7 @@ def manage_reprint(
             if not is_admin:
                 raise HTTPException(
                     status_code=403,
-                    detail="Only Divisional Secretariat Admins can delete reprint requests.",
+                    detail="Only District Admins can delete reprint requests.",
                 )
             if not request.request_id:
                 raise HTTPException(status_code=400, detail="request_id is required for DELETE")
