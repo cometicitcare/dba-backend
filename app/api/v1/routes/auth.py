@@ -181,7 +181,7 @@ def register_user(user: UserCreate, db: Session = Depends(get_db)):
 #     set_auth_cookies(response, access_token=access, refresh_token=refresh)
 #     return response
 
-@router.post("/login", response_model=UserContextResponse)
+@router.post("/login")
 def login(
     request: Request,
     form_data: UserLogin,
@@ -243,18 +243,25 @@ def login(
         print(error_msg)
         return JSONResponse(status_code=500, content={"error": error_msg, "traceback": traceback.format_exc()})
     
-    # Merge user info with access context
+    # Merge user info with access context into flattened payload
     try:
+        roles_list = access_context.get("roles", []) or []
+        primary_role = roles_list[0] if roles_list else None
         response_data = {
-            "user": user_payload,
-            "roles": access_context["roles"],
-            "groups": access_context["groups"],
-            "permissions": access_context["permissions"],
-            "permission_map": access_context["permission_map"],
-            "is_super_admin": access_context["is_super_admin"],
-            "is_admin": access_context["is_admin"],
-            "can_manage_users": access_context["can_manage_users"],
-            "departments": access_context["departments"]
+            **user_payload,
+            "departments": access_context.get("departments", []),
+            "roles": roles_list,
+            "groups": access_context.get("groups", []),
+            "permissions": access_context.get("permissions", []),
+            "permission_map": access_context.get("permission_map", {}),
+            "is_super_admin": access_context.get("is_super_admin", False),
+            "is_admin": access_context.get("is_admin", False),
+            "can_manage_users": access_context.get("can_manage_users", False),
+            # Convenience fields to mirror expected response structure
+            "department": (access_context.get("departments") or [None])[0],
+            "roleLevel": primary_role.get("ro_level") if primary_role else None,
+            "ro_role_id": primary_role.get("ro_role_id") if primary_role else None,
+            "role": primary_role,
         }
 
         # Create response with cookies
@@ -313,7 +320,7 @@ def refresh_token(request: Request, db: Session = Depends(get_db)):
 # RBAC CONTEXT ENDPOINTS
 # ============================================================================
 
-@router.get("/me/context", response_model=UserContextResponse)
+@router.get("/me/context")
 def get_my_context(
     request: Request,
     db: Session = Depends(get_db)
@@ -326,16 +333,22 @@ def get_my_context(
     access_context = get_user_access_context(db, current_user)
     user_payload = UserResponse.model_validate(current_user, from_attributes=True).model_dump()
     
+    roles_list = access_context.get("roles", []) or []
+    primary_role = roles_list[0] if roles_list else None
     return {
-        "user": user_payload,
-        "roles": access_context["roles"],
-        "groups": access_context["groups"],
-        "permissions": access_context["permissions"],
-        "permission_map": access_context["permission_map"],
-        "is_super_admin": access_context["is_super_admin"],
-        "is_admin": access_context["is_admin"],
-        "can_manage_users": access_context["can_manage_users"],
-        "departments": access_context["departments"]
+        **user_payload,
+        "departments": access_context.get("departments", []),
+        "roles": roles_list,
+        "groups": access_context.get("groups", []),
+        "permissions": access_context.get("permissions", []),
+        "permission_map": access_context.get("permission_map", {}),
+        "is_super_admin": access_context.get("is_super_admin", False),
+        "is_admin": access_context.get("is_admin", False),
+        "can_manage_users": access_context.get("can_manage_users", False),
+        "department": (access_context.get("departments") or [None])[0],
+        "roleLevel": primary_role.get("ro_level") if primary_role else None,
+        "ro_role_id": primary_role.get("ro_role_id") if primary_role else None,
+        "role": primary_role,
     }
 
 

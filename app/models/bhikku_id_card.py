@@ -37,7 +37,7 @@ class BhikkuIDCard(Base):
     )
     
     # Top Section Fields
-    bic_divisional_secretariat = Column(String(100), comment="Divisional Secretariat")
+    bic_divisional_secretariat = Column(String(100), comment="District")
     bic_district = Column(String(100), comment="District")
     
     # 01. Declaration Full Name
