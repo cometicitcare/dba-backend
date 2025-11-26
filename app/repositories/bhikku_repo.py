@@ -6,6 +6,8 @@ from sqlalchemy import func, or_
 from sqlalchemy.orm import Session, joinedload, selectinload
 
 from app.models import bhikku as models
+from app.models.roles import Role
+from app.models.user_roles import UserRole
 from app.models.user import UserAccount
 from app.schemas import bhikku as schemas
 
@@ -195,12 +197,26 @@ class BhikkuRepository:
         if date_to:
             query = query.filter(models.Bhikku.br_reqstdate <= date_to)
 
-        return (
-            query.order_by(models.Bhikku.br_id)
-            .offset(max(skip, 0))
-            .limit(limit)
-            .all()
-        )
+        # Data Entry users should see newest first
+        order_desc = False
+        if current_user:
+            now = datetime.utcnow()
+            data_entry_role = (
+                db.query(UserRole)
+                .join(Role, Role.ro_role_id == UserRole.ur_role_id)
+                .filter(
+                    UserRole.ur_user_id == current_user.ua_user_id,
+                    UserRole.ur_is_active.is_(True),
+                    (UserRole.ur_expires_date.is_(None) | (UserRole.ur_expires_date > now)),
+                    Role.ro_level == "DATA_ENTRY",
+                )
+                .first()
+            )
+            order_desc = data_entry_role is not None
+
+        query = query.order_by(models.Bhikku.br_id.desc() if order_desc else models.Bhikku.br_id)
+
+        return query.offset(max(skip, 0)).limit(limit).all()
 
     def get_total_count(
         self, 

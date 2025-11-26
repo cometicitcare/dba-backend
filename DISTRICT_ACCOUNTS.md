@@ -1,6 +1,3 @@
-# District Accounts (Auto-Created)
-
-District Admin and District Data Entry users generated via `python3 -m app.utils.create_district_accounts`.
 
 | District Code | District Name        | Admin Username | Admin Password | Data Entry Username | Data Entry Password |
 |---------------|----------------------|----------------|----------------|---------------------|---------------------|
@@ -28,5 +25,3 @@ District Admin and District Data Entry users generated via `python3 -m app.utils
 | 23  | Badulla            | 23-admin | 6rb3Kzza@! | 23-de | qqqhx8qp@? |
 | 24  | Monaragala         | 24-admin | 6MuFtQMv@? | 24-de | 4RGnXudv@! |
 | 25  | Vavuniya           | 25-admin | ykg3x3DF@? | 25-de | nceacDtP@$ |
-
-> Note: District codes above follow the `district_branches.db_district_code` values used when generating accounts. The Kilinochchi code (11) is shared with Mullaitivu in the source data; only one set of credentials exists for that code. If you need separate users for Mullaitivu, rerun the utility after adjusting the branch code or username scheme.

@@ -296,7 +296,8 @@ class BhikkuService:
             status=status,
             workflow_status=workflow_status,
             date_from=date_from,
-            date_to=date_to
+            date_to=date_to,
+            current_user=current_user,
         )
 
     def count_bhikkus(
@@ -307,6 +308,7 @@ class BhikkuService:
         province: Optional[str] = None,
         vh_trn: Optional[str] = None,
         district: Optional[str] = None,
+        current_user: Optional[UserAccount] = None,
         divisional_secretariat: Optional[str] = None,
         gn_division: Optional[str] = None,
         temple: Optional[str] = None,
@@ -325,6 +327,7 @@ class BhikkuService:
             province=province,
             vh_trn=vh_trn,
             district=district,
+            current_user=current_user,
             divisional_secretariat=divisional_secretariat,
             gn_division=gn_division,
             temple=temple,
