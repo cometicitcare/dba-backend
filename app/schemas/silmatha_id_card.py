@@ -53,7 +53,7 @@ class SilmathaIDCardBase(BaseModel):
     """Base schema with all fields from the form"""
     
     # Top Section
-    sic_divisional_secretariat: Optional[str] = Field(None, max_length=100, description="Divisional Secretariat")
+    sic_divisional_secretariat: Optional[str] = Field(None, max_length=100, description="District")
     sic_district: Optional[str] = Field(None, max_length=100, description="District")
     
     # 01. Declaration Full Name

@@ -2250,16 +2250,16 @@
 			]
 		},
 		{
-			"name": "Divisional Secretariat management",
+			"name": "District management",
 			"item": [
 				{
-					"name": "Create Divisional Secretariat",
+					"name": "Create District",
 					"request": {
 						"method": "POST",
 						"header": [],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n  \"action\": \"CREATE\",\n  \"payload\": {\n    \"data\": {\n      \"dv_dvcode\": \"DV011\",\n      \"dv_distrcd\": \"DC003\",\n      \"dv_dvname\": \"Colombo Divisional Secretariat\"\n    }\n  }\n}\n",
+							"raw": "{\n  \"action\": \"CREATE\",\n  \"payload\": {\n    \"data\": {\n      \"dv_dvcode\": \"DV011\",\n      \"dv_distrcd\": \"DC003\",\n      \"dv_dvname\": \"Colombo District\"\n    }\n  }\n}\n",
 							"options": {
 								"raw": {
 									"language": "json"
@@ -2282,7 +2282,7 @@
 					"response": []
 				},
 				{
-					"name": "Get One Divisional Secretariat",
+					"name": "Get One District",
 					"request": {
 						"method": "POST",
 						"header": [],
@@ -2311,7 +2311,7 @@
 					"response": []
 				},
 				{
-					"name": "Get All Divisional Secretariat",
+					"name": "Get All District",
 					"request": {
 						"method": "POST",
 						"header": [],
@@ -2340,13 +2340,13 @@
 					"response": []
 				},
 				{
-					"name": "Update Divisional Secretariat",
+					"name": "Update District",
 					"request": {
 						"method": "POST",
 						"header": [],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n  \"action\": \"UPDATE\",\n  \"payload\": {\n    \"dv_id\": 11,\n    \"data\": {\n      \"dv_dvcode\": \"DV011\",\n      \"dv_distrcd\": \"DC003\",\n      \"dv_dvname\": \"Colombo Metropolitan Divisional Secretariat\"\n    }\n  }\n}\n",
+							"raw": "{\n  \"action\": \"UPDATE\",\n  \"payload\": {\n    \"dv_id\": 11,\n    \"data\": {\n      \"dv_dvcode\": \"DV011\",\n      \"dv_distrcd\": \"DC003\",\n      \"dv_dvname\": \"Colombo Metropolitan District\"\n    }\n  }\n}\n",
 							"options": {
 								"raw": {
 									"language": "json"
@@ -2369,7 +2369,7 @@
 					"response": []
 				},
 				{
-					"name": "Delete Divisional Secretariat",
+					"name": "Delete District",
 					"request": {
 						"method": "POST",
 						"header": [],

@@ -17,7 +17,7 @@ class Bhikku(Base):
     br_district = Column(String(50))
     br_korale = Column(String(50))  # Optional
     br_pattu = Column(String(50))  # Optional
-    br_division = Column(String(50))  # Optional - Divisional Secretariat
+    br_division = Column(String(50))  # Optional - District
     br_vilage = Column(String(50))  # Optional
     br_gndiv = Column(String(10))  # Optional - GN Division (changed from nullable=False)
     
