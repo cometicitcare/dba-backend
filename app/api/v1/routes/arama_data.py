@@ -6,23 +6,23 @@ from app.api.auth_middleware import get_current_user
 from app.api.auth_dependencies import has_permission, has_any_permission
 from app.api.deps import get_db
 from app.models.user import UserAccount
-from app.schemas.vihara import (
+from app.schemas.arama import (
     CRUDAction,
-    ViharaCreate,
-    ViharaManagementRequest,
-    ViharaManagementResponse,
-    ViharaOut,
-    ViharaUpdate,
+    AramaCreate,
+    AramaManagementRequest,
+    AramaManagementResponse,
+    AramaOut,
+    AramaUpdate,
 )
-from app.services.vihara_service import vihara_service
+from app.services.arama_service import arama_service
 from app.utils.http_exceptions import validation_error
 
 router = APIRouter()  # Tags defined in router.py
 
 
-@router.post("/manage", response_model=ViharaManagementResponse, dependencies=[has_any_permission("vihara:create", "vihara:read", "vihara:update", "vihara:delete")])
-def manage_vihara_records(
-    request: ViharaManagementRequest,
+@router.post("/manage", response_model=AramaManagementResponse, dependencies=[has_any_permission("arama:create", "arama:read", "arama:update", "arama:delete")])
+def manage_arama_records(
+    request: AramaManagementRequest,
     db: Session = Depends(get_db),
     current_user: UserAccount = Depends(get_current_user),
 ):
@@ -33,43 +33,43 @@ def manage_vihara_records(
     if action == CRUDAction.CREATE:
         create_payload = _coerce_payload(
             payload.data,
-            target=ViharaCreate,
+            target=AramaCreate,
             prefix="payload.data",
         )
         try:
-            created = vihara_service.create_vihara(
+            created = arama_service.create_arama(
                 db, payload=create_payload, actor_id=user_id
             )
-            return ViharaManagementResponse(
+            return AramaManagementResponse(
                 status="success",
-                message="Vihara created successfully.",
+                message="Arama created successfully.",
                 data=created,
             )
         except ValueError as exc:
             raise validation_error([(None, str(exc))]) from exc
 
     if action == CRUDAction.READ_ONE:
-        identifier_id = payload.vh_id
-        identifier_trn = payload.vh_trn
+        identifier_id = payload.ar_id
+        identifier_trn = payload.ar_trn
         if identifier_id is None and not identifier_trn:
             raise validation_error(
-                [("payload.vh_id", "vh_id or vh_trn is required for READ_ONE action")]
+                [("payload.ar_id", "ar_id or ar_trn is required for READ_ONE action")]
             )
 
-        entity: ViharaOut | None = None
+        entity: AramaOut | None = None
         if identifier_id is not None:
-            entity = vihara_service.get_vihara(db, identifier_id)
+            entity = arama_service.get_arama(db, identifier_id)
         elif identifier_trn:
-            entity = vihara_service.get_vihara_by_trn(db, identifier_trn)
+            entity = arama_service.get_arama_by_trn(db, identifier_trn)
 
         if not entity:
             raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND, detail="Vihara not found"
+                status_code=status.HTTP_404_NOT_FOUND, detail="Arama not found"
             )
 
-        return ViharaManagementResponse(
+        return AramaManagementResponse(
             status="success",
-            message="Vihara retrieved successfully.",
+            message="Arama retrieved successfully.",
             data=entity,
         )
 
@@ -86,7 +86,7 @@ def manage_vihara_records(
             "skip": skip,
             "limit": limit,
             "search": search,
-            "vh_trn": payload.vh_trn,
+            "ar_trn": payload.ar_trn,
             "province": payload.province,
             "district": payload.district,
             "divisional_secretariat": payload.divisional_secretariat,
@@ -97,17 +97,17 @@ def manage_vihara_records(
             "parshawaya": payload.parshawaya,
             "category": payload.category,
             "status": payload.status,
-            "vh_typ": payload.vh_typ,
+            "ar_typ": payload.ar_typ,
             "date_from": payload.date_from,
             "date_to": payload.date_to,
         }
 
-        records = vihara_service.list_viharas(db, **filters)
-        total = vihara_service.count_viharas(db, **{k: v for k, v in filters.items() if k not in ["skip", "limit"]})
+        records = arama_service.list_aramas(db, **filters)
+        total = arama_service.count_aramas(db, **{k: v for k, v in filters.items() if k not in ["skip", "limit"]})
         
-        return ViharaManagementResponse(
+        return AramaManagementResponse(
             status="success",
-            message="Vihara records retrieved successfully.",
+            message="Arama records retrieved successfully.",
             data=records,
             totalRecords=total,
             page=page,
@@ -115,26 +115,26 @@ def manage_vihara_records(
         )
 
     if action == CRUDAction.UPDATE:
-        if payload.vh_id is None:
+        if payload.ar_id is None:
             raise validation_error(
-                [("payload.vh_id", "vh_id is required for UPDATE action")]
+                [("payload.ar_id", "ar_id is required for UPDATE action")]
             )
         update_payload = _coerce_payload(
             payload.data,
-            target=ViharaUpdate,
+            target=AramaUpdate,
             prefix="payload.data",
         )
 
         try:
-            updated = vihara_service.update_vihara(
+            updated = arama_service.update_arama(
                 db,
-                vh_id=payload.vh_id,
+                ar_id=payload.ar_id,
                 payload=update_payload,
                 actor_id=user_id,
             )
-            return ViharaManagementResponse(
+            return AramaManagementResponse(
                 status="success",
-                message="Vihara updated successfully.",
+                message="Arama updated successfully.",
                 data=updated,
             )
         except ValueError as exc:
@@ -145,19 +145,19 @@ def manage_vihara_records(
             raise validation_error([(None, str(exc))]) from exc
 
     if action == CRUDAction.DELETE:
-        if payload.vh_id is None:
+        if payload.ar_id is None:
             raise validation_error(
-                [("payload.vh_id", "vh_id is required for DELETE action")]
+                [("payload.ar_id", "ar_id is required for DELETE action")]
             )
         try:
-            vihara_service.delete_vihara(
+            arama_service.delete_arama(
                 db,
-                vh_id=payload.vh_id,
+                ar_id=payload.ar_id,
                 actor_id=user_id,
             )
-            return ViharaManagementResponse(
+            return AramaManagementResponse(
                 status="success",
-                message="Vihara deleted successfully.",
+                message="Arama deleted successfully.",
                 data=None,
             )
         except ValueError as exc:
@@ -166,19 +166,19 @@ def manage_vihara_records(
             ) from exc
 
     if action == CRUDAction.APPROVE:
-        if payload.vh_id is None:
+        if payload.ar_id is None:
             raise validation_error(
-                [("payload.vh_id", "vh_id is required for APPROVE action")]
+                [("payload.ar_id", "ar_id is required for APPROVE action")]
             )
         
         try:
-            approved_vihara = vihara_service.approve_vihara(
-                db, vh_id=payload.vh_id, actor_id=user_id
+            approved_arama = arama_service.approve_arama(
+                db, ar_id=payload.ar_id, actor_id=user_id
             )
-            return ViharaManagementResponse(
+            return AramaManagementResponse(
                 status="success",
-                message="Vihara approved successfully.",
-                data=approved_vihara,
+                message="Arama approved successfully.",
+                data=approved_arama,
             )
         except ValueError as exc:
             message = str(exc)
@@ -189,9 +189,9 @@ def manage_vihara_records(
             raise validation_error([(None, message)]) from exc
 
     if action == CRUDAction.REJECT:
-        if payload.vh_id is None:
+        if payload.ar_id is None:
             raise validation_error(
-                [("payload.vh_id", "vh_id is required for REJECT action")]
+                [("payload.ar_id", "ar_id is required for REJECT action")]
             )
         if not payload.rejection_reason:
             raise validation_error(
@@ -199,16 +199,16 @@ def manage_vihara_records(
             )
         
         try:
-            rejected_vihara = vihara_service.reject_vihara(
+            rejected_arama = arama_service.reject_arama(
                 db,
-                vh_id=payload.vh_id,
+                ar_id=payload.ar_id,
                 actor_id=user_id,
                 rejection_reason=payload.rejection_reason,
             )
-            return ViharaManagementResponse(
+            return AramaManagementResponse(
                 status="success",
-                message="Vihara rejected successfully.",
-                data=rejected_vihara,
+                message="Arama rejected successfully.",
+                data=rejected_arama,
             )
         except ValueError as exc:
             message = str(exc)
@@ -219,19 +219,19 @@ def manage_vihara_records(
             raise validation_error([(None, message)]) from exc
 
     if action == CRUDAction.MARK_PRINTED:
-        if payload.vh_id is None:
+        if payload.ar_id is None:
             raise validation_error(
-                [("payload.vh_id", "vh_id is required for MARK_PRINTED action")]
+                [("payload.ar_id", "ar_id is required for MARK_PRINTED action")]
             )
         
         try:
-            printed_vihara = vihara_service.mark_printed(
-                db, vh_id=payload.vh_id, actor_id=user_id
+            printed_arama = arama_service.mark_printed(
+                db, ar_id=payload.ar_id, actor_id=user_id
             )
-            return ViharaManagementResponse(
+            return AramaManagementResponse(
                 status="success",
-                message="Vihara certificate marked as printed successfully.",
-                data=printed_vihara,
+                message="Arama certificate marked as printed successfully.",
+                data=printed_arama,
             )
         except ValueError as exc:
             message = str(exc)
@@ -242,19 +242,19 @@ def manage_vihara_records(
             raise validation_error([(None, message)]) from exc
 
     if action == CRUDAction.MARK_SCANNED:
-        if payload.vh_id is None:
+        if payload.ar_id is None:
             raise validation_error(
-                [("payload.vh_id", "vh_id is required for MARK_SCANNED action")]
+                [("payload.ar_id", "ar_id is required for MARK_SCANNED action")]
             )
         
         try:
-            scanned_vihara = vihara_service.mark_scanned(
-                db, vh_id=payload.vh_id, actor_id=user_id
+            scanned_arama = arama_service.mark_scanned(
+                db, ar_id=payload.ar_id, actor_id=user_id
             )
-            return ViharaManagementResponse(
+            return AramaManagementResponse(
                 status="success",
-                message="Vihara certificate marked as scanned successfully.",
-                data=scanned_vihara,
+                message="Arama certificate marked as scanned successfully.",
+                data=scanned_arama,
             )
         except ValueError as exc:
             message = str(exc)
@@ -311,51 +311,51 @@ def _coerce_payload(
 
 
 @router.post(
-    "/{vh_id}/upload-scanned-document",
-    response_model=ViharaManagementResponse,
-    dependencies=[has_any_permission("vihara:update")],
+    "/{ar_id}/upload-scanned-document",
+    response_model=AramaManagementResponse,
+    dependencies=[has_any_permission("arama:update")],
 )
 async def upload_scanned_document(
-    vh_id: int,
+    ar_id: int,
     file: UploadFile = File(..., description="Scanned document file (max 5MB, PDF, JPG, PNG)"),
     db: Session = Depends(get_db),
     current_user: UserAccount = Depends(get_current_user),
 ):
     """
-    Upload a scanned document for a Vihara record.
+    Upload a scanned document for an Arama record.
     
     **NEW BEHAVIOR**: Automatically changes workflow status from PRINTED → PEND-APPROVAL when document is uploaded.
     
-    This endpoint allows uploading a scanned document (up to 5MB) for a specific vihara.
-    The file will be stored at: `app/storage/vihara_data/<year>/<month>/<day>/<vh_trn>/scanned_document_*.ext`
+    This endpoint allows uploading a scanned document (up to 5MB) for a specific arama.
+    The file will be stored at: `app/storage/arama_data/<year>/<month>/<day>/<ar_trn>/scanned_document_*.ext`
     
     **Requirements:**
     - Maximum file size: 5MB
     - Allowed formats: PDF, JPG, JPEG, PNG
     - Current workflow status must be PRINTED
-    - Requires: vihara:update permission
+    - Requires: arama:update permission
     
     **Auto-Workflow Transition:**
     - Status automatically changes from PRINTED → PEND-APPROVAL
-    - Sets vh_scanned_by and vh_scanned_at fields
+    - Sets ar_scanned_by and ar_scanned_at fields
     - Eliminates need for separate MARK_SCANNED action
     
     **Path Parameters:**
-    - vh_id: Vihara ID (e.g., 5)
+    - ar_id: Arama ID (e.g., 5)
     
     **Form Data:**
     - file: The scanned document file to upload
     
     **Response:**
-    Returns the updated Vihara record with:
-    - vh_scanned_document_path: File path stored  
-    - vh_workflow_status: "PEND-APPROVAL" (automatically set)
-    - vh_scanned_by: User who uploaded
-    - vh_scanned_at: Upload timestamp
+    Returns the updated Arama record with:
+    - ar_scanned_document_path: File path stored  
+    - ar_workflow_status: "PEND-APPROVAL" (automatically set)
+    - ar_scanned_by: User who uploaded
+    - ar_scanned_at: Upload timestamp
     
     **Example Usage (Postman):**
     1. Method: POST
-    2. URL: {{base_url}}/api/v1/vihara-data/5/upload-scanned-document
+    2. URL: {{base_url}}/api/v1/arama-data/5/upload-scanned-document
     3. Headers: Authorization: Bearer <token>
     4. Body: form-data
        - file: (select file)
@@ -379,15 +379,15 @@ async def upload_scanned_document(
         # Reset file pointer for later processing
         await file.seek(0)
         
-        # Upload the file and update the vihara record
-        updated_vihara = await vihara_service.upload_scanned_document(
-            db, vh_id=vh_id, file=file, actor_id=username
+        # Upload the file and update the arama record
+        updated_arama = await arama_service.upload_scanned_document(
+            db, ar_id=ar_id, file=file, actor_id=username
         )
         
-        return ViharaManagementResponse(
+        return AramaManagementResponse(
             status="success",
             message="Scanned document uploaded successfully. Status automatically changed to PEND-APPROVAL.",
-            data=updated_vihara,
+            data=updated_arama,
         )
         
     except ValueError as exc:

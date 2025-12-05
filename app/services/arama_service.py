@@ -5,24 +5,24 @@ from sqlalchemy import MetaData, Table, inspect, select
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import Session
 
-from app.models.vihara import ViharaData
-from app.repositories.vihara_repo import vihara_repo
-from app.schemas.vihara import ViharaCreate, ViharaUpdate
+from app.models.arama import AramaData
+from app.repositories.arama_repo import arama_repo
+from app.schemas.arama import AramaCreate, AramaUpdate
 
 
-class ViharaService:
-    """Business logic layer for vihara data."""
+class AramaService:
+    """Business logic layer for arama data."""
 
     def __init__(self) -> None:
         self._fk_targets: Optional[dict[str, tuple[Optional[str], str, str]]] = None
 
-    def create_vihara(
-        self, db: Session, *, payload: ViharaCreate, actor_id: Optional[str]
-    ) -> ViharaData:
+    def create_arama(
+        self, db: Session, *, payload: AramaCreate, actor_id: Optional[str]
+    ) -> AramaData:
         contact_fields = (
-            ("vh_mobile", payload.vh_mobile, vihara_repo.get_by_mobile),
-            ("vh_whtapp", payload.vh_whtapp, vihara_repo.get_by_whtapp),
-            ("vh_email", payload.vh_email, vihara_repo.get_by_email),
+            ("ar_mobile", payload.ar_mobile, arama_repo.get_by_mobile),
+            ("ar_whtapp", payload.ar_whtapp, arama_repo.get_by_whtapp),
+            ("ar_email", payload.ar_email, arama_repo.get_by_email),
         )
         for field_name, value, getter in contact_fields:
             if value and getter(db, value):
@@ -30,30 +30,30 @@ class ViharaService:
 
         now = datetime.utcnow()
         payload_dict = payload.model_dump(exclude_unset=True)
-        payload_dict.pop("vh_trn", None)
-        payload_dict.pop("vh_id", None)
-        payload_dict.pop("vh_version_number", None)
-        payload_dict["vh_created_by"] = actor_id
-        payload_dict["vh_updated_by"] = actor_id
-        payload_dict.setdefault("vh_created_at", now)
-        payload_dict.setdefault("vh_updated_at", now)
-        payload_dict.setdefault("vh_is_deleted", False)
-        payload_dict["vh_version_number"] = 1
+        payload_dict.pop("ar_trn", None)
+        payload_dict.pop("ar_id", None)
+        payload_dict.pop("ar_version_number", None)
+        payload_dict["ar_created_by"] = actor_id
+        payload_dict["ar_updated_by"] = actor_id
+        payload_dict.setdefault("ar_created_at", now)
+        payload_dict.setdefault("ar_updated_at", now)
+        payload_dict.setdefault("ar_is_deleted", False)
+        payload_dict["ar_version_number"] = 1
         # Set initial workflow status to PENDING (following bhikku_regist pattern)
-        payload_dict.setdefault("vh_workflow_status", "PENDING")
+        payload_dict.setdefault("ar_workflow_status", "PENDING")
 
         self._validate_foreign_keys(db, payload_dict)
-        enriched_payload = ViharaCreate(**payload_dict)
-        return vihara_repo.create(db, data=enriched_payload)
+        enriched_payload = AramaCreate(**payload_dict)
+        return arama_repo.create(db, data=enriched_payload)
 
-    def list_viharas(
+    def list_aramas(
         self,
         db: Session,
         *,
         skip: int = 0,
         limit: int = 100,
         search: Optional[str] = None,
-        vh_trn: Optional[str] = None,
+        ar_trn: Optional[str] = None,
         province: Optional[str] = None,
         district: Optional[str] = None,
         divisional_secretariat: Optional[str] = None,
@@ -64,18 +64,18 @@ class ViharaService:
         parshawaya: Optional[str] = None,
         category: Optional[str] = None,
         status: Optional[str] = None,
-        vh_typ: Optional[str] = None,
+        ar_typ: Optional[str] = None,
         date_from: Optional[Any] = None,
         date_to: Optional[Any] = None,
-    ) -> list[ViharaData]:
+    ) -> list[AramaData]:
         limit = max(1, min(limit, 200))
         skip = max(0, skip)
-        return vihara_repo.list(
+        return arama_repo.list(
             db,
             skip=skip,
             limit=limit,
             search=search,
-            vh_trn=vh_trn,
+            ar_trn=ar_trn,
             province=province,
             district=district,
             divisional_secretariat=divisional_secretariat,
@@ -86,17 +86,17 @@ class ViharaService:
             parshawaya=parshawaya,
             category=category,
             status=status,
-            vh_typ=vh_typ,
+            ar_typ=ar_typ,
             date_from=date_from,
             date_to=date_to,
         )
 
-    def count_viharas(
+    def count_aramas(
         self, 
         db: Session, 
         *, 
         search: Optional[str] = None,
-        vh_trn: Optional[str] = None,
+        ar_trn: Optional[str] = None,
         province: Optional[str] = None,
         district: Optional[str] = None,
         divisional_secretariat: Optional[str] = None,
@@ -107,14 +107,14 @@ class ViharaService:
         parshawaya: Optional[str] = None,
         category: Optional[str] = None,
         status: Optional[str] = None,
-        vh_typ: Optional[str] = None,
+        ar_typ: Optional[str] = None,
         date_from: Optional[Any] = None,
         date_to: Optional[Any] = None,
     ) -> int:
-        return vihara_repo.count(
+        return arama_repo.count(
             db,
             search=search,
-            vh_trn=vh_trn,
+            ar_trn=ar_trn,
             province=province,
             district=district,
             divisional_secretariat=divisional_secretariat,
@@ -125,18 +125,18 @@ class ViharaService:
             parshawaya=parshawaya,
             category=category,
             status=status,
-            vh_typ=vh_typ,
+            ar_typ=ar_typ,
             date_from=date_from,
             date_to=date_to,
         )
 
-    def get_vihara(self, db: Session, vh_id: int) -> Optional[ViharaData]:
-        return vihara_repo.get(db, vh_id)
+    def get_arama(self, db: Session, ar_id: int) -> Optional[AramaData]:
+        return arama_repo.get(db, ar_id)
 
-    def get_vihara_by_trn(self, db: Session, vh_trn: str) -> Optional[ViharaData]:
-        return vihara_repo.get_by_trn(db, vh_trn)
+    def get_arama_by_trn(self, db: Session, ar_trn: str) -> Optional[AramaData]:
+        return arama_repo.get_by_trn(db, ar_trn)
 
-    def list_viharas_simple(
+    def list_aramas_simple(
         self, 
         db: Session,
         *,
@@ -144,13 +144,13 @@ class ViharaService:
         limit: int = 10,
         search: Optional[str] = None,
     ) -> tuple[list[dict[str, Any]], int]:
-        """Return simplified list of viharas with just vh_trn and vh_vname, with pagination."""
+        """Return simplified list of aramas with just ar_trn and ar_vname, with pagination."""
         # Validate and sanitize inputs
         limit = max(1, min(limit, 200))  # Clamp limit between 1 and 200
         skip = max(0, skip)
         
-        # Get paginated viharas
-        viharas = vihara_repo.list(
+        # Get paginated aramas
+        aramas = arama_repo.list(
             db,
             skip=skip,
             limit=limit,
@@ -158,137 +158,135 @@ class ViharaService:
         )
         
         # Get total count for pagination
-        total_count = vihara_repo.count(
+        total_count = arama_repo.count(
             db,
             search=search,
         )
         
         # Build simplified response
-        simplified_viharas = [
+        simplified_aramas = [
             {
-                "vh_trn": vihara.vh_trn,
-                "vh_vname": vihara.vh_vname,
+                "ar_trn": arama.ar_trn,
+                "ar_vname": arama.ar_vname,
             }
-            for vihara in viharas
-            if not vihara.vh_is_deleted
+            for arama in aramas
+            if not arama.ar_is_deleted
         ]
         
-        return simplified_viharas, total_count
+        return simplified_aramas, total_count
 
-    def update_vihara(
+    def update_arama(
         self,
         db: Session,
         *,
-        vh_id: int,
-        payload: ViharaUpdate,
+        ar_id: int,
+        payload: AramaUpdate,
         actor_id: Optional[str],
-    ) -> ViharaData:
-        entity = vihara_repo.get(db, vh_id)
+    ) -> AramaData:
+        entity = arama_repo.get(db, ar_id)
         if not entity:
-            raise ValueError("Vihara record not found.")
+            raise ValueError("Arama record not found.")
 
-        if payload.vh_trn and payload.vh_trn != entity.vh_trn:
-            raise ValueError("vh_trn cannot be modified once generated.")
+        if payload.ar_trn and payload.ar_trn != entity.ar_trn:
+            raise ValueError("ar_trn cannot be modified once generated.")
 
-        if payload.vh_mobile and payload.vh_mobile != entity.vh_mobile:
-            conflict = vihara_repo.get_by_mobile(db, payload.vh_mobile)
-            if conflict and conflict.vh_id != entity.vh_id:
+        if payload.ar_mobile and payload.ar_mobile != entity.ar_mobile:
+            conflict = arama_repo.get_by_mobile(db, payload.ar_mobile)
+            if conflict and conflict.ar_id != entity.ar_id:
                 raise ValueError(
-                    f"vh_mobile '{payload.vh_mobile}' is already registered."
+                    f"ar_mobile '{payload.ar_mobile}' is already registered."
                 )
 
-        if payload.vh_whtapp and payload.vh_whtapp != entity.vh_whtapp:
-            conflict = vihara_repo.get_by_whtapp(db, payload.vh_whtapp)
-            if conflict and conflict.vh_id != entity.vh_id:
+        if payload.ar_whtapp and payload.ar_whtapp != entity.ar_whtapp:
+            conflict = arama_repo.get_by_whtapp(db, payload.ar_whtapp)
+            if conflict and conflict.ar_id != entity.ar_id:
                 raise ValueError(
-                    f"vh_whtapp '{payload.vh_whtapp}' is already registered."
+                    f"ar_whtapp '{payload.ar_whtapp}' is already registered."
                 )
 
-        if payload.vh_email and payload.vh_email != entity.vh_email:
-            conflict = vihara_repo.get_by_email(db, payload.vh_email)
-            if conflict and conflict.vh_id != entity.vh_id:
+        if payload.ar_email and payload.ar_email != entity.ar_email:
+            conflict = arama_repo.get_by_email(db, payload.ar_email)
+            if conflict and conflict.ar_id != entity.ar_id:
                 raise ValueError(
-                    f"vh_email '{payload.vh_email}' is already registered."
+                    f"ar_email '{payload.ar_email}' is already registered."
                 )
 
         update_data = payload.model_dump(exclude_unset=True)
-        update_data.pop("vh_version_number", None)
-        update_data["vh_updated_by"] = actor_id
-        update_data["vh_updated_at"] = datetime.utcnow()
+        update_data.pop("ar_version_number", None)
+        update_data["ar_updated_by"] = actor_id
+        update_data["ar_updated_at"] = datetime.utcnow()
 
         fk_values = self._build_fk_validation_payload(entity, update_data)
         self._validate_foreign_keys(db, fk_values)
 
-        patched_payload = ViharaUpdate(**update_data)
-        return vihara_repo.update(db, entity=entity, data=patched_payload)
+        patched_payload = AramaUpdate(**update_data)
+        return arama_repo.update(db, entity=entity, data=patched_payload)
 
-    def delete_vihara(
-        self, db: Session, *, vh_id: int, actor_id: Optional[str]
-    ) -> ViharaData:
-        entity = vihara_repo.get(db, vh_id)
+    def delete_arama(
+        self, db: Session, *, ar_id: int, actor_id: Optional[str]
+    ) -> AramaData:
+        entity = arama_repo.get(db, ar_id)
         if not entity:
-            raise ValueError("Vihara record not found.")
+            raise ValueError("Arama record not found.")
 
-        entity.vh_updated_by = actor_id
-        entity.vh_updated_at = datetime.utcnow()
-        return vihara_repo.soft_delete(db, entity=entity)
+        entity.ar_updated_by = actor_id
+        entity.ar_updated_at = datetime.utcnow()
+        return arama_repo.soft_delete(db, entity=entity)
 
     # --------------------------------------------------------------------- #
     # Workflow Methods (following bhikku_regist pattern)
     # --------------------------------------------------------------------- #
-    def approve_vihara(
+    def approve_arama(
         self,
         db: Session,
         *,
-        vh_id: int,
+        ar_id: int,
         actor_id: Optional[str],
-    ) -> ViharaData:
-        """Approve a vihara registration - transitions workflow from PEND-APPROVAL to COMPLETED status"""
-        entity = vihara_repo.get(db, vh_id)
+    ) -> AramaData:
+        """Approve a arama registration - transitions workflow from PEND-APPROVAL to COMPLETED status"""
+        entity = arama_repo.get(db, ar_id)
         if not entity:
-            raise ValueError("Vihara record not found.")
+            raise ValueError("Arama record not found.")
         
-        if entity.vh_workflow_status != "PEND-APPROVAL":
-            raise ValueError(f"Cannot approve vihara with workflow status: {entity.vh_workflow_status}. Must be PEND-APPROVAL.")
+        if entity.ar_workflow_status != "PEND-APPROVAL":
+            raise ValueError(f"Cannot approve arama with workflow status: {entity.ar_workflow_status}. Must be PEND-APPROVAL.")
         
         # Update workflow fields - goes to APPROVED then COMPLETED
-        entity.vh_workflow_status = "COMPLETED"
-        entity.vh_approval_status = "APPROVED"
-        entity.vh_approved_by = actor_id
-        entity.vh_approved_at = datetime.utcnow()
-        entity.vh_updated_by = actor_id
-        entity.vh_updated_at = datetime.utcnow()
-        entity.vh_version_number += 1
+        entity.ar_workflow_status = "COMPLETED"
+        entity.ar_approval_status = "APPROVED"
+        entity.ar_approved_by = actor_id
+        entity.ar_approved_at = datetime.utcnow()
+        entity.ar_updated_by = actor_id
+        entity.ar_updated_at = datetime.utcnow()
         
         db.commit()
         db.refresh(entity)
         return entity
 
-    def reject_vihara(
+    def reject_arama(
         self,
         db: Session,
         *,
-        vh_id: int,
+        ar_id: int,
         actor_id: Optional[str],
         rejection_reason: Optional[str] = None,
-    ) -> ViharaData:
-        """Reject a vihara registration - transitions workflow from PEND-APPROVAL to REJECTED status"""
-        entity = vihara_repo.get(db, vh_id)
+    ) -> AramaData:
+        """Reject a arama registration - transitions workflow from PEND-APPROVAL to REJECTED status"""
+        entity = arama_repo.get(db, ar_id)
         if not entity:
-            raise ValueError("Vihara record not found.")
+            raise ValueError("Arama record not found.")
         
-        if entity.vh_workflow_status != "PEND-APPROVAL":
-            raise ValueError(f"Cannot reject vihara with workflow status: {entity.vh_workflow_status}. Must be PEND-APPROVAL.")
+        if entity.ar_workflow_status != "PEND-APPROVAL":
+            raise ValueError(f"Cannot reject arama with workflow status: {entity.ar_workflow_status}. Must be PEND-APPROVAL.")
         
         # Update workflow fields
-        entity.vh_workflow_status = "REJECTED"
-        entity.vh_approval_status = "REJECTED"
-        entity.vh_rejected_by = actor_id
-        entity.vh_rejected_at = datetime.utcnow()
-        entity.vh_rejection_reason = rejection_reason
-        entity.vh_updated_by = actor_id
-        entity.vh_updated_at = datetime.utcnow()
-        entity.vh_version_number += 1
+        entity.ar_workflow_status = "REJECTED"
+        entity.ar_approval_status = "REJECTED"
+        entity.ar_rejected_by = actor_id
+        entity.ar_rejected_at = datetime.utcnow()
+        entity.ar_rejection_reason = rejection_reason
+        entity.ar_updated_by = actor_id
+        entity.ar_updated_at = datetime.utcnow()
         
         db.commit()
         db.refresh(entity)
@@ -298,24 +296,23 @@ class ViharaService:
         self,
         db: Session,
         *,
-        vh_id: int,
+        ar_id: int,
         actor_id: Optional[str],
-    ) -> ViharaData:
-        """Mark vihara certificate as printed - transitions workflow from PENDING to PRINTED status"""
-        entity = vihara_repo.get(db, vh_id)
+    ) -> AramaData:
+        """Mark arama certificate as printed - transitions workflow from PENDING to PRINTED status"""
+        entity = arama_repo.get(db, ar_id)
         if not entity:
-            raise ValueError("Vihara record not found.")
+            raise ValueError("Arama record not found.")
         
-        if entity.vh_workflow_status != "PENDING":
-            raise ValueError(f"Cannot mark as printed vihara with workflow status: {entity.vh_workflow_status}. Must be PENDING.")
+        if entity.ar_workflow_status != "PENDING":
+            raise ValueError(f"Cannot mark as printed arama with workflow status: {entity.ar_workflow_status}. Must be PENDING.")
         
         # Update workflow fields
-        entity.vh_workflow_status = "PRINTED"
-        entity.vh_printed_by = actor_id
-        entity.vh_printed_at = datetime.utcnow()
-        entity.vh_updated_by = actor_id
-        entity.vh_updated_at = datetime.utcnow()
-        entity.vh_version_number += 1
+        entity.ar_workflow_status = "PRINTED"
+        entity.ar_printed_by = actor_id
+        entity.ar_printed_at = datetime.utcnow()
+        entity.ar_updated_by = actor_id
+        entity.ar_updated_at = datetime.utcnow()
         
         db.commit()
         db.refresh(entity)
@@ -325,24 +322,23 @@ class ViharaService:
         self,
         db: Session,
         *,
-        vh_id: int,
+        ar_id: int,
         actor_id: Optional[str],
-    ) -> ViharaData:
-        """Mark vihara certificate as scanned - transitions workflow from PRINTED to PEND-APPROVAL status"""
-        entity = vihara_repo.get(db, vh_id)
+    ) -> AramaData:
+        """Mark arama certificate as scanned - transitions workflow from PRINTED to PEND-APPROVAL status"""
+        entity = arama_repo.get(db, ar_id)
         if not entity:
-            raise ValueError("Vihara record not found.")
+            raise ValueError("Arama record not found.")
         
-        if entity.vh_workflow_status != "PRINTED":
-            raise ValueError(f"Cannot mark as scanned vihara with workflow status: {entity.vh_workflow_status}. Must be PRINTED.")
+        if entity.ar_workflow_status != "PRINTED":
+            raise ValueError(f"Cannot mark as scanned arama with workflow status: {entity.ar_workflow_status}. Must be PRINTED.")
         
         # Update workflow fields
-        entity.vh_workflow_status = "PEND-APPROVAL"
-        entity.vh_scanned_by = actor_id
-        entity.vh_scanned_at = datetime.utcnow()
-        entity.vh_updated_by = actor_id
-        entity.vh_updated_at = datetime.utcnow()
-        entity.vh_version_number += 1
+        entity.ar_workflow_status = "PEND-APPROVAL"
+        entity.ar_scanned_by = actor_id
+        entity.ar_scanned_at = datetime.utcnow()
+        entity.ar_updated_by = actor_id
+        entity.ar_updated_at = datetime.utcnow()
         
         db.commit()
         db.refresh(entity)
@@ -352,40 +348,40 @@ class ViharaService:
         self,
         db: Session,
         *,
-        vh_id: int,
+        ar_id: int,
         file,  # UploadFile
         actor_id: Optional[str],
-    ) -> ViharaData:
+    ) -> AramaData:
         """
-        Upload a scanned document for a Vihara record.
+        Upload a scanned document for a Arama record.
         
         When uploading a new document, the old file is renamed with a version suffix (v1, v2, etc.)
         instead of being deleted, preserving the file history.
         
         Args:
             db: Database session
-            vh_id: Vihara ID
+            ar_id: Arama ID
             file: Uploaded file (PDF, JPG, PNG - max 5MB)
             actor_id: User ID performing the upload
             
         Returns:
-            Updated ViharaData instance with file path stored
+            Updated AramaData instance with file path stored
             
         Raises:
-            ValueError: If vihara not found or file upload fails
+            ValueError: If arama not found or file upload fails
         """
         import os
         from pathlib import Path
         from app.utils.file_storage import file_storage_service
         
-        # Get the vihara record
-        entity = vihara_repo.get(db, vh_id)
+        # Get the arama record
+        entity = arama_repo.get(db, ar_id)
         if not entity:
-            raise ValueError(f"Vihara with ID '{vh_id}' not found.")
+            raise ValueError(f"Arama with ID '{ar_id}' not found.")
         
         # Archive old file with version suffix instead of deleting it
-        if entity.vh_scanned_document_path:
-            old_file_path = entity.vh_scanned_document_path
+        if entity.ar_scanned_document_path:
+            old_file_path = entity.ar_scanned_document_path
             
             # Remove leading /storage/ if present for path parsing
             clean_path = old_file_path
@@ -428,27 +424,27 @@ class ViharaService:
                 print(f"Warning: Could not rename old file {old_file_path}: {e}")
         
         # Save new file using the file storage service
-        # File will be stored at: app/storage/vihara_data/<year>/<month>/<day>/<vh_trn>/scanned_document_*.*
+        # File will be stored at: app/storage/arama_data/<year>/<month>/<day>/<ar_trn>/scanned_document_*.*
         relative_path, _ = await file_storage_service.save_file(
             file,
-            entity.vh_trn,
+            entity.ar_trn,
             "scanned_document",
-            subdirectory="vihara_data"
+            subdirectory="arama_data"
         )
         
-        # Update the vihara record with the file path
-        entity.vh_scanned_document_path = relative_path
-        entity.vh_updated_by = actor_id
-        entity.vh_updated_at = datetime.utcnow()
+        # Update the arama record with the file path
+        entity.ar_scanned_document_path = relative_path
+        entity.ar_updated_by = actor_id
+        entity.ar_updated_at = datetime.utcnow()
         # Increment version number when new document is uploaded
-        entity.vh_version_number = (entity.vh_version_number or 0) + 1
+        entity.ar_version_number = (entity.ar_version_number or 0) + 1
         
         # Auto-transition workflow status to PEND-APPROVAL when document is uploaded
         # Only transition if currently in PRINTED status
-        if entity.vh_workflow_status == "PRINTED":
-            entity.vh_workflow_status = "PEND-APPROVAL"
-            entity.vh_scanned_by = actor_id
-            entity.vh_scanned_at = datetime.utcnow()
+        if entity.ar_workflow_status == "PRINTED":
+            entity.ar_workflow_status = "PEND-APPROVAL"
+            entity.ar_scanned_by = actor_id
+            entity.ar_scanned_at = datetime.utcnow()
         
         db.commit()
         db.refresh(entity)
@@ -463,10 +459,10 @@ class ViharaService:
                 "Unable to verify references due to temporary database connectivity issues."
             ) from exc
         fields_to_validate = {
-            "vh_gndiv": values.get("vh_gndiv"),
-            "vh_ownercd": values.get("vh_ownercd"),
-            "vh_parshawa": values.get("vh_parshawa"),
-            "vh_ssbmcode": values.get("vh_ssbmcode"),
+            "ar_gndiv": values.get("ar_gndiv"),
+            "ar_ownercd": values.get("ar_ownercd"),
+            "ar_parshawa": values.get("ar_parshawa"),
+            "ar_ssbmcode": values.get("ar_ssbmcode"),
         }
 
         for field, raw_value in fields_to_validate.items():
@@ -501,13 +497,13 @@ class ViharaService:
                 raise ValueError(f"Invalid reference: {field} not found")
 
     def _build_fk_validation_payload(
-        self, entity: ViharaData, update_values: Dict[str, Any]
+        self, entity: AramaData, update_values: Dict[str, Any]
     ) -> Dict[str, Any]:
         fk_fields = [
-            "vh_gndiv",
-            "vh_ownercd",
-            "vh_parshawa",
-            "vh_ssbmcode",
+            "ar_gndiv",
+            "ar_ownercd",
+            "ar_parshawa",
+            "ar_ssbmcode",
         ]
         payload: Dict[str, Any] = {}
         for field in fk_fields:
@@ -525,7 +521,7 @@ class ViharaService:
 
         inspector = inspect(db.get_bind())
         mapping: dict[str, tuple[Optional[str], str, str]] = {}
-        for fk in inspector.get_foreign_keys(ViharaData.__tablename__):
+        for fk in inspector.get_foreign_keys(AramaData.__tablename__):
             constrained_columns = fk.get("constrained_columns") or []
             referred_columns = fk.get("referred_columns") or []
             table_name = fk.get("referred_table")
@@ -564,4 +560,4 @@ class ViharaService:
         return result is not None
 
 
-vihara_service = ViharaService()
+arama_service = AramaService()

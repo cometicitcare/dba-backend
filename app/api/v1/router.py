@@ -2,6 +2,7 @@
 from fastapi import APIRouter
 
 from app.api.v1.routes import (
+    arama_data,
     audit_log,
     auth,
     bank_branches,
@@ -21,6 +22,8 @@ from app.api.v1.routes import (
     city,
     dashboard,
     debug,
+    devala_data,
+    direct_bhikku_high,
     district,
     divisional_secretariat,
     gramasewaka,
@@ -85,6 +88,11 @@ api_router.include_router(
     bhikku_high.router, 
     prefix="/bhikkus-high", 
     tags=["👤 DBA-HRMS: Bhikku Registration"]
+)
+api_router.include_router(
+    direct_bhikku_high.router, 
+    prefix="/direct-bhikku-high", 
+    tags=["👤 DBA-HRMS: Direct High Bhikku Registration"]
 )
 api_router.include_router(
     bhikku_summary.router,
@@ -154,6 +162,16 @@ api_router.include_router(
 api_router.include_router(
     vihara_data.router,
     prefix="/vihara-data",
+    tags=["🏛️ Vihara & Religious Data"]
+)
+api_router.include_router(
+    arama_data.router,
+    prefix="/arama-data",
+    tags=["🏛️ Vihara & Religious Data"]
+)
+api_router.include_router(
+    devala_data.router,
+    prefix="/devala-data",
     tags=["🏛️ Vihara & Religious Data"]
 )
 api_router.include_router(

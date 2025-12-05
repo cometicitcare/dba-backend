@@ -14,6 +14,10 @@ class CRUDAction(str, Enum):
     READ_ALL = "READ_ALL"
     UPDATE = "UPDATE"
     DELETE = "DELETE"
+    APPROVE = "APPROVE"
+    REJECT = "REJECT"
+    MARK_PRINTED = "MARK_PRINTED"
+    MARK_SCANNED = "MARK_SCANNED"
 
 
 class ViharaBase(BaseModel):
@@ -40,6 +44,23 @@ class ViharaBase(BaseModel):
     vh_minissecrsigdate: Optional[date] = None
     vh_minissecrmrks: Annotated[Optional[str], Field(default=None, max_length=200)]
     vh_ssbmsigdate: Optional[date] = None
+    
+    # Document Storage
+    vh_scanned_document_path: Annotated[Optional[str], Field(default=None, max_length=500)] = None
+    
+    # Workflow Fields
+    vh_workflow_status: Annotated[Optional[str], Field(default="PENDING", max_length=20)] = "PENDING"
+    vh_approval_status: Annotated[Optional[str], Field(default=None, max_length=20)] = None
+    vh_approved_by: Annotated[Optional[str], Field(default=None, max_length=25)] = None
+    vh_approved_at: Optional[datetime] = None
+    vh_rejected_by: Annotated[Optional[str], Field(default=None, max_length=25)] = None
+    vh_rejected_at: Optional[datetime] = None
+    vh_rejection_reason: Annotated[Optional[str], Field(default=None, max_length=500)] = None
+    vh_printed_at: Optional[datetime] = None
+    vh_printed_by: Annotated[Optional[str], Field(default=None, max_length=25)] = None
+    vh_scanned_at: Optional[datetime] = None
+    vh_scanned_by: Annotated[Optional[str], Field(default=None, max_length=25)] = None
+    
     vh_is_deleted: bool = False
     vh_created_at: Optional[datetime] = None
     vh_updated_at: Optional[datetime] = None
@@ -117,6 +138,23 @@ class ViharaUpdate(BaseModel):
     vh_minissecrsigdate: Optional[date] = None
     vh_minissecrmrks: Annotated[Optional[str], Field(default=None, max_length=200)]
     vh_ssbmsigdate: Optional[date] = None
+    
+    # Document Storage
+    vh_scanned_document_path: Annotated[Optional[str], Field(default=None, max_length=500)] = None
+    
+    # Workflow Fields
+    vh_workflow_status: Annotated[Optional[str], Field(default=None, max_length=20)] = None
+    vh_approval_status: Annotated[Optional[str], Field(default=None, max_length=20)] = None
+    vh_approved_by: Annotated[Optional[str], Field(default=None, max_length=25)] = None
+    vh_approved_at: Optional[datetime] = None
+    vh_rejected_by: Annotated[Optional[str], Field(default=None, max_length=25)] = None
+    vh_rejected_at: Optional[datetime] = None
+    vh_rejection_reason: Annotated[Optional[str], Field(default=None, max_length=500)] = None
+    vh_printed_at: Optional[datetime] = None
+    vh_printed_by: Annotated[Optional[str], Field(default=None, max_length=25)] = None
+    vh_scanned_at: Optional[datetime] = None
+    vh_scanned_by: Annotated[Optional[str], Field(default=None, max_length=25)] = None
+    
     vh_is_deleted: Optional[bool] = None
     vh_version_number: Annotated[Optional[int], Field(default=None, ge=1)] = None
     vh_updated_by: Annotated[Optional[str], Field(default=None, max_length=25)] = None
@@ -197,6 +235,9 @@ class ViharaRequestPayload(BaseModel):
     # Date range filters
     date_from: Optional[date] = None
     date_to: Optional[date] = None
+    
+    # Workflow action fields
+    rejection_reason: Annotated[Optional[str], Field(default=None, max_length=500)] = None
     
     # Data payload for CREATE/UPDATE
     data: Optional[Union[ViharaCreate, ViharaUpdate]] = None
