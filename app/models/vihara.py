@@ -6,6 +6,7 @@ from sqlalchemy import (
     Integer,
     String,
     func,
+    text,
 )
 from sqlalchemy.sql import expression
 
@@ -39,6 +40,23 @@ class ViharaData(Base):
     vh_minissecrsigdate = Column(Date)
     vh_minissecrmrks = Column(String(200))
     vh_ssbmsigdate = Column(Date)
+    
+    # Document Storage
+    vh_scanned_document_path = Column(String(500))
+    
+    # Workflow Fields (following bhikku_regist pattern)
+    vh_workflow_status = Column(String(20), server_default=text("'PENDING'"), nullable=False, index=True)
+    vh_approval_status = Column(String(20))
+    vh_approved_by = Column(String(25))
+    vh_approved_at = Column(DateTime(timezone=True))
+    vh_rejected_by = Column(String(25))
+    vh_rejected_at = Column(DateTime(timezone=True))
+    vh_rejection_reason = Column(String(500))
+    vh_printed_at = Column(DateTime(timezone=True))
+    vh_printed_by = Column(String(25))
+    vh_scanned_at = Column(DateTime(timezone=True))
+    vh_scanned_by = Column(String(25))
+    
     vh_version = Column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )

@@ -1,0 +1,289 @@
+from datetime import date, datetime
+import re
+from enum import Enum
+from typing import Annotated, Optional, Union, List, Any
+
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
+
+PHONE_PATTERN = re.compile(r"^[0-9]{10}$")
+
+
+class CRUDAction(str, Enum):
+    CREATE = "CREATE"
+    READ_ONE = "READ_ONE"
+    READ_ALL = "READ_ALL"
+    UPDATE = "UPDATE"
+    DELETE = "DELETE"
+    APPROVE = "APPROVE"
+    REJECT = "REJECT"
+    MARK_PRINTED = "MARK_PRINTED"
+    MARK_SCANNED = "MARK_SCANNED"
+
+
+class AramaBase(BaseModel):
+    ar_trn: Annotated[str, Field(min_length=1, max_length=10)]
+    ar_vname: Annotated[Optional[str], Field(default=None, max_length=200)]
+    ar_addrs: Annotated[Optional[str], Field(default=None, max_length=200)]
+    ar_mobile: Annotated[str, Field(min_length=10, max_length=10)]
+    ar_whtapp: Annotated[str, Field(min_length=10, max_length=10)]
+    ar_email: EmailStr
+    ar_typ: Annotated[str, Field(min_length=1, max_length=10)]
+    ar_gndiv: Annotated[str, Field(min_length=1, max_length=10)]
+    ar_fmlycnt: Annotated[Optional[int], Field(default=None, ge=0)]
+    ar_bgndate: Optional[date] = None
+    ar_ownercd: Annotated[str, Field(min_length=1, max_length=12)]
+    ar_parshawa: Annotated[str, Field(min_length=1, max_length=10)]
+    ar_ssbmcode: Annotated[Optional[str], Field(default=None, max_length=10)]
+    ar_syojakarmakrs: Annotated[Optional[str], Field(default=None, max_length=100)]
+    ar_syojakarmdate: Optional[date] = None
+    ar_landownrship: Annotated[Optional[str], Field(default=None, max_length=150)]
+    ar_pralename: Annotated[Optional[str], Field(default=None, max_length=50)]
+    ar_pralesigdate: Optional[date] = None
+    ar_bacgrecmn: Annotated[Optional[str], Field(default=None, max_length=100)]
+    ar_bacgrcmdate: Optional[date] = None
+    ar_minissecrsigdate: Optional[date] = None
+    ar_minissecrmrks: Annotated[Optional[str], Field(default=None, max_length=200)]
+    ar_ssbmsigdate: Optional[date] = None
+    
+    # Document Storage
+    ar_scanned_document_path: Annotated[Optional[str], Field(default=None, max_length=500)] = None
+    
+    # Workflow Fields
+    ar_workflow_status: Annotated[Optional[str], Field(default="PENDING", max_length=20)] = "PENDING"
+    ar_approval_status: Annotated[Optional[str], Field(default=None, max_length=20)] = None
+    ar_approved_by: Annotated[Optional[str], Field(default=None, max_length=25)] = None
+    ar_approved_at: Optional[datetime] = None
+    ar_rejected_by: Annotated[Optional[str], Field(default=None, max_length=25)] = None
+    ar_rejected_at: Optional[datetime] = None
+    ar_rejection_reason: Annotated[Optional[str], Field(default=None, max_length=500)] = None
+    ar_printed_at: Optional[datetime] = None
+    ar_printed_by: Annotated[Optional[str], Field(default=None, max_length=25)] = None
+    ar_scanned_at: Optional[datetime] = None
+    ar_scanned_by: Annotated[Optional[str], Field(default=None, max_length=25)] = None
+    
+    ar_is_deleted: bool = False
+    ar_created_at: Optional[datetime] = None
+    ar_updated_at: Optional[datetime] = None
+    ar_created_by: Annotated[Optional[str], Field(default=None, max_length=25)]
+    ar_updated_by: Annotated[Optional[str], Field(default=None, max_length=25)]
+    ar_version_number: Annotated[int, Field(ge=1)] = 1
+
+    @field_validator(
+        "ar_trn",
+        "ar_vname",
+        "ar_addrs",
+        "ar_typ",
+        "ar_gndiv",
+        "ar_ownercd",
+        "ar_parshawa",
+        "ar_ssbmcode",
+        "ar_syojakarmakrs",
+        "ar_landownrship",
+        "ar_pralename",
+        "ar_bacgrecmn",
+        "ar_minissecrmrks",
+        "ar_created_by",
+        "ar_updated_by",
+        mode="before",
+    )
+    @classmethod
+    def _strip_strings(cls, value: Optional[str]) -> Optional[str]:
+        if isinstance(value, str):
+            value = value.strip()
+            if value == "":
+                return None
+        return value
+
+    @field_validator("ar_mobile", "ar_whtapp")
+    @classmethod
+    def _validate_phone(cls, value: str) -> str:
+        if not PHONE_PATTERN.fullmatch(value):
+            raise ValueError("Phone numbers must be exactly 10 digits.")
+        return value
+
+    @field_validator("ar_email", mode="before")
+    @classmethod
+    def _normalize_email(cls, value: str) -> str:
+        if isinstance(value, str):
+            value = value.strip()
+        return value
+
+
+class AramaCreate(AramaBase):
+    ar_trn: Annotated[Optional[str], Field(default=None, min_length=1, max_length=10)]
+    ar_id: Annotated[Optional[int], Field(default=None, ge=1)] = None
+
+
+class AramaUpdate(BaseModel):
+    ar_trn: Annotated[Optional[str], Field(default=None, min_length=1, max_length=10)]
+    ar_vname: Annotated[Optional[str], Field(default=None, max_length=200)]
+    ar_addrs: Annotated[Optional[str], Field(default=None, max_length=200)]
+    ar_mobile: Annotated[Optional[str], Field(default=None, min_length=10, max_length=10)]
+    ar_whtapp: Annotated[Optional[str], Field(default=None, min_length=10, max_length=10)]
+    ar_email: Optional[EmailStr] = None
+    ar_typ: Annotated[Optional[str], Field(default=None, min_length=1, max_length=10)]
+    ar_gndiv: Annotated[Optional[str], Field(default=None, min_length=1, max_length=10)]
+    ar_fmlycnt: Annotated[Optional[int], Field(default=None, ge=0)]
+    ar_bgndate: Optional[date] = None
+    ar_ownercd: Annotated[Optional[str], Field(default=None, min_length=1, max_length=12)]
+    ar_parshawa: Annotated[Optional[str], Field(default=None, min_length=1, max_length=10)]
+    ar_ssbmcode: Annotated[Optional[str], Field(default=None, max_length=10)]
+    ar_syojakarmakrs: Annotated[Optional[str], Field(default=None, max_length=100)]
+    ar_syojakarmdate: Optional[date] = None
+    ar_landownrship: Annotated[Optional[str], Field(default=None, max_length=150)]
+    ar_pralename: Annotated[Optional[str], Field(default=None, max_length=50)]
+    ar_pralesigdate: Optional[date] = None
+    ar_bacgrecmn: Annotated[Optional[str], Field(default=None, max_length=100)]
+    ar_bacgrcmdate: Optional[date] = None
+    ar_minissecrsigdate: Optional[date] = None
+    ar_minissecrmrks: Annotated[Optional[str], Field(default=None, max_length=200)]
+    ar_ssbmsigdate: Optional[date] = None
+    
+    # Document Storage
+    ar_scanned_document_path: Annotated[Optional[str], Field(default=None, max_length=500)] = None
+    
+    # Workflow Fields
+    ar_workflow_status: Annotated[Optional[str], Field(default=None, max_length=20)] = None
+    ar_approval_status: Annotated[Optional[str], Field(default=None, max_length=20)] = None
+    ar_approved_by: Annotated[Optional[str], Field(default=None, max_length=25)] = None
+    ar_approved_at: Optional[datetime] = None
+    ar_rejected_by: Annotated[Optional[str], Field(default=None, max_length=25)] = None
+    ar_rejected_at: Optional[datetime] = None
+    ar_rejection_reason: Annotated[Optional[str], Field(default=None, max_length=500)] = None
+    ar_printed_at: Optional[datetime] = None
+    ar_printed_by: Annotated[Optional[str], Field(default=None, max_length=25)] = None
+    ar_scanned_at: Optional[datetime] = None
+    ar_scanned_by: Annotated[Optional[str], Field(default=None, max_length=25)] = None
+    
+    ar_is_deleted: Optional[bool] = None
+    ar_version_number: Annotated[Optional[int], Field(default=None, ge=1)] = None
+    ar_updated_by: Annotated[Optional[str], Field(default=None, max_length=25)] = None
+    ar_updated_at: Optional[datetime] = None
+
+    @field_validator(
+        "ar_trn",
+        "ar_vname",
+        "ar_addrs",
+        "ar_typ",
+        "ar_gndiv",
+        "ar_ownercd",
+        "ar_parshawa",
+        "ar_ssbmcode",
+        "ar_syojakarmakrs",
+        "ar_landownrship",
+        "ar_pralename",
+        "ar_bacgrecmn",
+        "ar_minissecrmrks",
+        "ar_updated_by",
+        mode="before",
+    )
+    @classmethod
+    def _strip_strings(cls, value: Optional[str]) -> Optional[str]:
+        if isinstance(value, str):
+            value = value.strip()
+            return value or None
+        return value
+
+    @field_validator("ar_mobile", "ar_whtapp")
+    @classmethod
+    def _validate_phone(cls, value: Optional[str]) -> Optional[str]:
+        if value is None:
+            return value
+        if not PHONE_PATTERN.fullmatch(value):
+            raise ValueError("Phone numbers must be exactly 10 digits.")
+        return value
+
+    @field_validator("ar_email", mode="before")
+    @classmethod
+    def _normalize_email(cls, value: Optional[str]) -> Optional[str]:
+        if isinstance(value, str):
+            value = value.strip()
+            return value or None
+        return value
+
+
+class AramaOut(AramaBase):
+    model_config = ConfigDict(from_attributes=True)
+
+    ar_id: int
+
+
+class AramaRequestPayload(BaseModel):
+    # Identifiers
+    ar_id: Optional[int] = None
+    ar_trn: Optional[str] = None
+    
+    # Pagination
+    skip: Annotated[int, Field(ge=0)] = 0
+    limit: Annotated[int, Field(ge=1, le=200)] = 10
+    page: Annotated[Optional[int], Field(default=1, ge=1)] = 1
+    
+    # Search and filters
+    search_key: Annotated[Optional[str], Field(default=None, max_length=200)] = None
+    province: Annotated[Optional[str], Field(default=None, max_length=10)] = None
+    district: Annotated[Optional[str], Field(default=None, max_length=10)] = None
+    divisional_secretariat: Annotated[Optional[str], Field(default=None, max_length=10)] = None
+    gn_division: Annotated[Optional[str], Field(default=None, max_length=10)] = None
+    temple: Annotated[Optional[str], Field(default=None, max_length=12)] = None  # ar_ownercd
+    child_temple: Annotated[Optional[str], Field(default=None, max_length=12)] = None
+    nikaya: Annotated[Optional[str], Field(default=None, max_length=10)] = None
+    parshawaya: Annotated[Optional[str], Field(default=None, max_length=10)] = None  # ar_parshawa
+    category: Annotated[Optional[str], Field(default=None, max_length=10)] = None
+    status: Annotated[Optional[str], Field(default=None, max_length=10)] = None
+    ar_typ: Annotated[Optional[str], Field(default=None, max_length=10)] = None  # arama type
+    
+    # Date range filters
+    date_from: Optional[date] = None
+    date_to: Optional[date] = None
+    
+    # Workflow action fields
+    rejection_reason: Annotated[Optional[str], Field(default=None, max_length=500)] = None
+    
+    # Data payload for CREATE/UPDATE
+    data: Optional[Union[AramaCreate, AramaUpdate]] = None
+
+
+class AramaManagementRequest(BaseModel):
+    action: CRUDAction
+    payload: AramaRequestPayload
+
+
+class AramaManagementResponse(BaseModel):
+    status: str
+    message: str
+    data: Optional[Union[AramaOut, List[AramaOut], Any]] = None
+    totalRecords: Optional[int] = None
+    page: Optional[int] = None
+    limit: Optional[int] = None
+
+
+# Simple Arama List Schema for Bhikku endpoints
+class BhikkuAramaListItem(BaseModel):
+    ar_trn: str
+    ar_vname: Optional[str] = None
+
+
+class BhikkuAramaListResponse(BaseModel):
+    status: str
+    message: str
+    data: List[BhikkuAramaListItem]
+    totalRecords: Optional[int] = None
+    page: Optional[int] = None
+    limit: Optional[int] = None
+
+
+# New schema for POST arama-list endpoint
+class BhikkuAramaReadOnePayload(BaseModel):
+    ar_id: int = Field(..., ge=1, description="Arama ID to retrieve")
+
+
+class BhikkuAramaReadAllPayload(BaseModel):
+    skip: Annotated[int, Field(ge=0)] = 0
+    limit: Annotated[int, Field(ge=1, le=200)] = 10
+    page: Annotated[Optional[int], Field(ge=1)] = 1
+    search_key: Annotated[Optional[str], Field(default=None, max_length=200)] = None
+
+
+class BhikkuAramaManagementRequest(BaseModel):
+    action: str = Field(..., description="Action to perform: 'READ_ONE' or 'READ_ALL'")
+    payload: Union[BhikkuAramaReadOnePayload, BhikkuAramaReadAllPayload]
