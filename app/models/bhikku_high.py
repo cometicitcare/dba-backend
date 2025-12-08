@@ -40,6 +40,9 @@ class BhikkuHighRegist(Base):
     bhr_updated_by = Column(String(25))
     bhr_version_number = Column(Integer, server_default=text("1"))
     
+    # Form ID
+    bhr_form_id = Column(String(50))
+    
     # Workflow fields
     bhr_workflow_status = Column(String(20), server_default=text("'PENDING'"), nullable=False, index=True)
     bhr_approval_status = Column(String(20))

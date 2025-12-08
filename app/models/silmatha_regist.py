@@ -43,6 +43,9 @@ class SilmathaRegist(Base):
     sil_mahanatemple = Column(String(10), ForeignKey('vihaddata.vh_trn'))
     sil_robing_after_residence_temple = Column(String(20), ForeignKey('vihaddata.vh_trn'))
     
+    # Form ID
+    sil_form_id = Column(String(50))
+    
     # Document Storage
     sil_scanned_document_path = Column(String(500))
     

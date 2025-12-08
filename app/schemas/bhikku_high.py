@@ -88,6 +88,9 @@ class BhikkuHighBase(BaseModel):
     bhr_tutors_tutor_regn: Optional[str] = Field(default=None, max_length=200)
     bhr_presiding_bhikshu_regn: Optional[str] = Field(default=None, max_length=200)
     bhr_declaration_date: Optional[date] = None
+    
+    # Form ID
+    bhr_form_id: Optional[str] = None
 
 class BhikkuHighCreate(BhikkuHighBase):
     pass
@@ -117,6 +120,9 @@ class BhikkuHighUpdate(BaseModel):
     bhr_tutors_tutor_regn: Optional[str] = Field(default=None, max_length=200)
     bhr_presiding_bhikshu_regn: Optional[str] = Field(default=None, max_length=200)
     bhr_declaration_date: Optional[date] = None
+    
+    # Form ID
+    bhr_form_id: Optional[str] = None
 
 
 class BhikkuHigh(BhikkuHighBase):

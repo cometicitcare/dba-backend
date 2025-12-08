@@ -60,6 +60,9 @@ class Bhikku(Base):
     # Serial Number
     br_upasampada_serial_no = Column(String(20))
     
+    # Form ID
+    br_form_id = Column(String(50))
+    
     # Document Storage
     br_scanned_document_path = Column(String(500))
     
