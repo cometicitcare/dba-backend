@@ -44,6 +44,7 @@ class ViharaService:
                 "vh_other_associations": payload.other_associations,
                 "temple_owned_land": [land.model_dump(by_alias=False) for land in payload.temple_owned_land],
                 "vh_land_info_certified": payload.land_info_certified,
+                "resident_bhikkhus": [bhikkhu.model_dump(by_alias=False) for bhikkhu in payload.resident_bhikkhus],
                 "vh_resident_bhikkhus_certified": payload.resident_bhikkhus_certified,
                 "vh_inspection_report": payload.inspection_report,
                 "vh_inspection_code": payload.inspection_code,
