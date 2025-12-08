@@ -181,6 +181,9 @@ class ViharaCreatePayload(BaseModel):
     temple_owned_land: List[ViharaLandCreate] = Field(default_factory=list)
     
     land_info_certified: Optional[bool] = None
+    
+    resident_bhikkhus: List[ResidentBhikkhuCreate] = Field(default_factory=list)
+    
     resident_bhikkhus_certified: Optional[bool] = None
     inspection_report: Optional[str] = Field(default=None, max_length=1000)
     inspection_code: Optional[str] = Field(default=None, max_length=100)

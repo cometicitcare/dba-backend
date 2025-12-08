@@ -1,11 +1,13 @@
 from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File
 from pydantic import BaseModel, ValidationError
 from sqlalchemy.orm import Session
+from typing import List
 
 from app.api.auth_middleware import get_current_user
 from app.api.auth_dependencies import has_permission, has_any_permission
 from app.api.deps import get_db
 from app.models.user import UserAccount
+from app.models.silmatha_regist import SilmathaRegist
 from app.schemas.arama import (
     CRUDAction,
     AramaCreate,
@@ -15,6 +17,8 @@ from app.schemas.arama import (
     AramaUpdate,
 )
 from app.services.arama_service import arama_service
+from app.services.silmatha_regist_service import silmatha_regist_service
+from app.repositories.silmatha_regist_repo import silmatha_regist_repo
 from app.utils.http_exceptions import validation_error
 
 router = APIRouter()  # Tags defined in router.py
@@ -397,3 +401,85 @@ async def upload_scanned_document(
         raise HTTPException(status_code=400, detail=message) from exc
     except RuntimeError as exc:
         raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+
+@router.get(
+    "/{ar_trn}/silmathas",
+    dependencies=[has_any_permission("arama:read", "silmatha:read")],
+)
+def get_silmathas_by_arama(
+    ar_trn: str,
+    skip: int = 0,
+    limit: int = 100,
+    db: Session = Depends(get_db),
+    current_user: UserAccount = Depends(get_current_user),
+):
+    """
+    Get all silmathas associated with a specific arama/temple by its TRN.
+    
+    This endpoint searches for silmatha records that are associated with the given
+    arama/temple TRN through the following fields:
+    - sil_robing_tutor_residence (robing tutor residence temple)
+    - sil_mahanatemple (mahana temple)
+    - sil_robing_after_residence_temple (robing after residence temple)
+    
+    **Path Parameters:**
+    - ar_trn: Arama/Temple TRN (e.g., "TRN0000001" or "ARN0000001")
+    
+    **Query Parameters:**
+    - skip: Number of records to skip (default: 0)
+    - limit: Maximum number of records to return (default: 100, max: 200)
+    
+    **Response:**
+    Returns a list of silmatha records enriched with nested foreign key data.
+    
+    **Example Usage:**
+    ```
+    GET /api/v1/arama-data/TRN0000001/silmathas?skip=0&limit=10
+    ```
+    """
+    # Validate limit
+    limit = max(1, min(limit, 200))
+    skip = max(0, skip)
+    
+    # First, verify the arama exists
+    arama = arama_service.get_arama_by_trn(db, ar_trn)
+    if not arama:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Arama with TRN '{ar_trn}' not found"
+        )
+    
+    # Search for silmathas associated with this arama/temple TRN
+    # Since silmatha references vihara (vh_trn), we search using the ar_trn
+    # as if it were a vh_trn (they may be the same or related in the system)
+    silmathas_query = db.query(SilmathaRegist).filter(
+        SilmathaRegist.sil_is_deleted.is_(False)
+    ).filter(
+        (SilmathaRegist.sil_robing_tutor_residence == ar_trn) |
+        (SilmathaRegist.sil_mahanatemple == ar_trn) |
+        (SilmathaRegist.sil_robing_after_residence_temple == ar_trn)
+    )
+    
+    # Get total count
+    total_count = silmathas_query.count()
+    
+    # Get paginated results
+    silmathas = silmathas_query.offset(skip).limit(limit).all()
+    
+    # Enrich silmatha records with nested foreign key data
+    enriched_silmathas = [
+        silmatha_regist_service.enrich_silmatha_dict(silmatha, db)
+        for silmatha in silmathas
+    ]
+    
+    return {
+        "status": "success",
+        "message": f"Found {total_count} silmatha(s) associated with arama '{ar_trn}'",
+        "data": enriched_silmathas,
+        "totalRecords": total_count,
+        "skip": skip,
+        "limit": limit,
+        "ar_trn": ar_trn,
+        "arama_name": arama.ar_vname,
+    }
