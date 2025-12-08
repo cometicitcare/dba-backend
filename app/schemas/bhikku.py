@@ -76,6 +76,9 @@ class BhikkuBase(BaseModel):
     br_mahanatemple: Optional[str] = None
     br_robing_after_residence_temple: Optional[str] = None
     
+    # Form ID
+    br_form_id: Optional[str] = None
+    
     # Location tracking (location-based access control)
     br_created_by_district: Optional[str] = None
     
@@ -140,6 +143,9 @@ class BhikkuUpdate(BaseModel):
     br_robing_tutor_residence: Optional[str] = None
     br_mahanatemple: Optional[str] = None
     br_robing_after_residence_temple: Optional[str] = None
+    
+    # Form ID
+    br_form_id: Optional[str] = None
     
     # Document Storage
     br_scanned_document_path: Optional[str] = None
