@@ -6,6 +6,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.models.devala import DevalaData
+from app.models.devala_land import DevalaLand
 from app.schemas.devala import DevalaCreate, DevalaUpdate
 
 
@@ -206,6 +207,10 @@ class DevalaRepository:
 
     def create(self, db: Session, *, data: DevalaCreate) -> DevalaData:
         base_payload = self._strip_strings(data.model_dump(exclude_unset=True))
+        
+        # Extract nested data before creating devala
+        temple_lands_data = base_payload.pop("temple_owned_land", [])
+        
         base_payload.setdefault("dv_is_deleted", False)
         base_payload.setdefault("dv_version_number", 1)
 
@@ -255,6 +260,20 @@ class DevalaRepository:
                 raise ValueError(self._translate_integrity_error(exc)) from exc
 
             db.refresh(devala)
+            
+            # Create related devala land records
+            if temple_lands_data:
+                for land_data in temple_lands_data:
+                    if isinstance(land_data, dict):
+                        land_data.pop("id", None)  # Remove id if present
+                        devala_land = DevalaLand(dv_id=devala.dv_id, **land_data)
+                        db.add(devala_land)
+            
+            # Commit the land records
+            if temple_lands_data:
+                db.commit()
+                db.refresh(devala)
+            
             return devala
 
         raise ValueError("Failed to create devala record after retries.")

@@ -26,19 +26,10 @@ class DirectBhikkuHighService:
         current_user=None,
     ) -> DirectBhikkuHigh:
         """Create a new direct high bhikku record"""
-        # Get district from current user for location-based access control
-        user_district = None
-        if current_user and hasattr(current_user, 'ua_district'):
-            user_district = current_user.ua_district
-        
-        # Create the record
-        entity = direct_bhikku_high_repo.create(db, payload=payload, actor_id=actor_id)
-        
-        # Set location-based access control field
-        if user_district:
-            entity.dbh_created_by_district = user_district
-            db.commit()
-            db.refresh(entity)
+        # Create the record with district tracking
+        entity = direct_bhikku_high_repo.create(
+            db, payload=payload, actor_id=actor_id, current_user=current_user
+        )
         
         return entity
 

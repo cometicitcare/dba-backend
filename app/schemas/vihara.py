@@ -5,6 +5,10 @@ from typing import Annotated, Optional, Union, List, Any
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
 
+from app.schemas.temple_land import TempleLandCreate, TempleLandInDB
+from app.schemas.resident_bhikkhu import ResidentBhikkhuCreate, ResidentBhikkhuInDB
+from app.schemas.vihara_land import ViharaLandCreate, ViharaLandInDB
+
 PHONE_PATTERN = re.compile(r"^[0-9]{10}$")
 
 
@@ -44,6 +48,39 @@ class ViharaBase(BaseModel):
     vh_minissecrsigdate: Optional[date] = None
     vh_minissecrmrks: Annotated[Optional[str], Field(default=None, max_length=200)]
     vh_ssbmsigdate: Optional[date] = None
+    
+    # Extended Fields
+    vh_province: Annotated[Optional[str], Field(default=None, max_length=100)] = None
+    vh_district: Annotated[Optional[str], Field(default=None, max_length=100)] = None
+    vh_divisional_secretariat: Annotated[Optional[str], Field(default=None, max_length=100)] = None
+    vh_pradeshya_sabha: Annotated[Optional[str], Field(default=None, max_length=100)] = None
+    vh_nikaya: Annotated[Optional[str], Field(default=None, max_length=50)] = None
+    vh_viharadhipathi_name: Annotated[Optional[str], Field(default=None, max_length=200)] = None
+    vh_period_established: Annotated[Optional[str], Field(default=None, max_length=100)] = None
+    vh_buildings_description: Annotated[Optional[str], Field(default=None, max_length=1000)] = None
+    vh_dayaka_families_count: Annotated[Optional[str], Field(default=None, max_length=50)] = None
+    vh_kulangana_committee: Annotated[Optional[str], Field(default=None, max_length=500)] = None
+    vh_dayaka_sabha: Annotated[Optional[str], Field(default=None, max_length=500)] = None
+    vh_temple_working_committee: Annotated[Optional[str], Field(default=None, max_length=500)] = None
+    vh_other_associations: Annotated[Optional[str], Field(default=None, max_length=500)] = None
+    vh_land_info_certified: Optional[bool] = None
+    vh_resident_bhikkhus_certified: Optional[bool] = None
+    vh_inspection_report: Annotated[Optional[str], Field(default=None, max_length=1000)] = None
+    vh_inspection_code: Annotated[Optional[str], Field(default=None, max_length=100)] = None
+    vh_grama_niladhari_division_ownership: Annotated[Optional[str], Field(default=None, max_length=200)] = None
+    vh_sanghika_donation_deed: Optional[bool] = None
+    vh_government_donation_deed: Optional[bool] = None
+    vh_government_donation_deed_in_progress: Optional[bool] = None
+    vh_authority_consent_attached: Optional[bool] = None
+    vh_recommend_new_center: Optional[bool] = None
+    vh_recommend_registered_temple: Optional[bool] = None
+    vh_annex2_recommend_construction: Optional[bool] = None
+    vh_annex2_land_ownership_docs: Optional[bool] = None
+    vh_annex2_chief_incumbent_letter: Optional[bool] = None
+    vh_annex2_coordinator_recommendation: Optional[bool] = None
+    vh_annex2_divisional_secretary_recommendation: Optional[bool] = None
+    vh_annex2_approval_construction: Optional[bool] = None
+    vh_annex2_referral_resubmission: Optional[bool] = None
     
     # Document Storage
     vh_scanned_document_path: Annotated[Optional[str], Field(default=None, max_length=500)] = None
@@ -112,6 +149,66 @@ class ViharaBase(BaseModel):
 class ViharaCreate(ViharaBase):
     vh_trn: Annotated[Optional[str], Field(default=None, min_length=1, max_length=10)]
     vh_id: Annotated[Optional[int], Field(default=None, ge=1)] = None
+    
+    # Nested data - use ViharaLandCreate for the new format with serial_number
+    temple_owned_land: List[ViharaLandCreate] = Field(default_factory=list)
+    resident_bhikkhus: List[ResidentBhikkhuCreate] = Field(default_factory=list)
+
+
+class ViharaCreatePayload(BaseModel):
+    """Payload schema for creating Vihara with camelCase field names"""
+    temple_name: Optional[str] = Field(default=None, max_length=200)
+    temple_address: Optional[str] = Field(default=None, max_length=200)
+    telephone_number: str = Field(min_length=10, max_length=10)
+    whatsapp_number: str = Field(min_length=10, max_length=10)
+    email_address: EmailStr
+    province: Optional[str] = Field(default=None, max_length=100)
+    district: Optional[str] = Field(default=None, max_length=100)
+    divisional_secretariat: Optional[str] = Field(default=None, max_length=100)
+    pradeshya_sabha: Optional[str] = Field(default=None, max_length=100)
+    grama_niladhari_division: str = Field(min_length=1, max_length=10)
+    nikaya: Optional[str] = Field(default=None, max_length=50)
+    parshawaya: str = Field(min_length=1, max_length=10)
+    viharadhipathi_name: Optional[str] = Field(default=None, max_length=200)
+    period_established: Optional[str] = Field(default=None, max_length=100)
+    buildings_description: Optional[str] = Field(default=None, max_length=1000)
+    dayaka_families_count: Optional[str] = Field(default=None, max_length=50)
+    kulangana_committee: Optional[str] = Field(default=None, max_length=500)
+    dayaka_sabha: Optional[str] = Field(default=None, max_length=500)
+    temple_working_committee: Optional[str] = Field(default=None, max_length=500)
+    other_associations: Optional[str] = Field(default=None, max_length=500)
+    
+    temple_owned_land: List[ViharaLandCreate] = Field(default_factory=list)
+    
+    land_info_certified: Optional[bool] = None
+    resident_bhikkhus_certified: Optional[bool] = None
+    inspection_report: Optional[str] = Field(default=None, max_length=1000)
+    inspection_code: Optional[str] = Field(default=None, max_length=100)
+    grama_niladhari_division_ownership: Optional[str] = Field(default=None, max_length=200)
+    
+    sanghika_donation_deed: Optional[bool] = None
+    government_donation_deed: Optional[bool] = None
+    government_donation_deed_in_progress: Optional[bool] = None
+    authority_consent_attached: Optional[bool] = None
+    recommend_new_center: Optional[bool] = None
+    recommend_registered_temple: Optional[bool] = None
+    
+    annex2_recommend_construction: Optional[bool] = None
+    annex2_land_ownership_docs: Optional[bool] = None
+    annex2_chief_incumbent_letter: Optional[bool] = None
+    annex2_coordinator_recommendation: Optional[bool] = None
+    annex2_divisional_secretary_recommendation: Optional[bool] = None
+    annex2_approval_construction: Optional[bool] = None
+    annex2_referral_resubmission: Optional[bool] = None
+    
+    form_id: Optional[str] = Field(default=None, max_length=50)
+
+    @field_validator("telephone_number", "whatsapp_number")
+    @classmethod
+    def _validate_phone(cls, value: str) -> str:
+        if not PHONE_PATTERN.fullmatch(value):
+            raise ValueError("Phone numbers must be exactly 10 digits.")
+        return value
 
 
 class ViharaUpdate(BaseModel):
@@ -138,6 +235,39 @@ class ViharaUpdate(BaseModel):
     vh_minissecrsigdate: Optional[date] = None
     vh_minissecrmrks: Annotated[Optional[str], Field(default=None, max_length=200)]
     vh_ssbmsigdate: Optional[date] = None
+    
+    # Extended Fields
+    vh_province: Annotated[Optional[str], Field(default=None, max_length=100)] = None
+    vh_district: Annotated[Optional[str], Field(default=None, max_length=100)] = None
+    vh_divisional_secretariat: Annotated[Optional[str], Field(default=None, max_length=100)] = None
+    vh_pradeshya_sabha: Annotated[Optional[str], Field(default=None, max_length=100)] = None
+    vh_nikaya: Annotated[Optional[str], Field(default=None, max_length=50)] = None
+    vh_viharadhipathi_name: Annotated[Optional[str], Field(default=None, max_length=200)] = None
+    vh_period_established: Annotated[Optional[str], Field(default=None, max_length=100)] = None
+    vh_buildings_description: Annotated[Optional[str], Field(default=None, max_length=1000)] = None
+    vh_dayaka_families_count: Annotated[Optional[str], Field(default=None, max_length=50)] = None
+    vh_kulangana_committee: Annotated[Optional[str], Field(default=None, max_length=500)] = None
+    vh_dayaka_sabha: Annotated[Optional[str], Field(default=None, max_length=500)] = None
+    vh_temple_working_committee: Annotated[Optional[str], Field(default=None, max_length=500)] = None
+    vh_other_associations: Annotated[Optional[str], Field(default=None, max_length=500)] = None
+    vh_land_info_certified: Optional[bool] = None
+    vh_resident_bhikkhus_certified: Optional[bool] = None
+    vh_inspection_report: Annotated[Optional[str], Field(default=None, max_length=1000)] = None
+    vh_inspection_code: Annotated[Optional[str], Field(default=None, max_length=100)] = None
+    vh_grama_niladhari_division_ownership: Annotated[Optional[str], Field(default=None, max_length=200)] = None
+    vh_sanghika_donation_deed: Optional[bool] = None
+    vh_government_donation_deed: Optional[bool] = None
+    vh_government_donation_deed_in_progress: Optional[bool] = None
+    vh_authority_consent_attached: Optional[bool] = None
+    vh_recommend_new_center: Optional[bool] = None
+    vh_recommend_registered_temple: Optional[bool] = None
+    vh_annex2_recommend_construction: Optional[bool] = None
+    vh_annex2_land_ownership_docs: Optional[bool] = None
+    vh_annex2_chief_incumbent_letter: Optional[bool] = None
+    vh_annex2_coordinator_recommendation: Optional[bool] = None
+    vh_annex2_divisional_secretary_recommendation: Optional[bool] = None
+    vh_annex2_approval_construction: Optional[bool] = None
+    vh_annex2_referral_resubmission: Optional[bool] = None
     
     # Document Storage
     vh_scanned_document_path: Annotated[Optional[str], Field(default=None, max_length=500)] = None
@@ -206,6 +336,8 @@ class ViharaOut(ViharaBase):
     model_config = ConfigDict(from_attributes=True)
 
     vh_id: int
+    temple_lands: List[TempleLandInDB] = Field(default_factory=list)
+    resident_bhikkhus: List[ResidentBhikkhuInDB] = Field(default_factory=list)
 
 
 class ViharaRequestPayload(BaseModel):

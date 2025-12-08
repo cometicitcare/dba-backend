@@ -126,25 +126,25 @@ class DirectBhikkuHigh(Base):
         "Province",
         primaryjoin="foreign(DirectBhikkuHigh.dbh_province) == Province.cp_code",
         viewonly=True,
-        lazy="joined"
+        lazy="select"
     )
     district_rel = relationship(
         "District",
         primaryjoin="foreign(DirectBhikkuHigh.dbh_district) == District.dd_dcode",
         viewonly=True,
-        lazy="joined"
+        lazy="select"
     )
     division_rel = relationship(
         "DivisionalSecretariat",
         primaryjoin="foreign(DirectBhikkuHigh.dbh_division) == DivisionalSecretariat.dv_dvcode",
         viewonly=True,
-        lazy="joined"
+        lazy="select"
     )
     gndiv_rel = relationship(
         "Gramasewaka",
         primaryjoin="foreign(DirectBhikkuHigh.dbh_gndiv) == Gramasewaka.gn_gnc",
         viewonly=True,
-        lazy="joined"
+        lazy="select"
     )
     
     # Status and administrative relationships
@@ -152,25 +152,25 @@ class DirectBhikkuHigh(Base):
         "StatusData",
         primaryjoin="foreign(DirectBhikkuHigh.dbh_currstat) == StatusData.st_statcd",
         viewonly=True,
-        lazy="joined"
+        lazy="select"
     )
     parshawaya_rel = relationship(
         "ParshawaData",
         primaryjoin="foreign(DirectBhikkuHigh.dbh_parshawaya) == ParshawaData.pr_prn",
         viewonly=True,
-        lazy="joined"
+        lazy="select"
     )
     category_rel = relationship(
         "BhikkuCategory",
         primaryjoin="foreign(DirectBhikkuHigh.dbh_cat) == BhikkuCategory.cc_code",
         viewonly=True,
-        lazy="joined"
+        lazy="select"
     )
     nikaya_rel = relationship(
         "NikayaData",
         primaryjoin="foreign(DirectBhikkuHigh.dbh_nikaya) == NikayaData.nk_nkn",
         viewonly=True,
-        lazy="joined"
+        lazy="select"
     )
     
     # Temple/Vihara relationships
@@ -178,37 +178,37 @@ class DirectBhikkuHigh(Base):
         "ViharaData",
         primaryjoin="foreign(DirectBhikkuHigh.dbh_livtemple) == ViharaData.vh_trn",
         viewonly=True,
-        lazy="joined"
+        lazy="select"
     )
     mahanatemple_rel = relationship(
         "ViharaData",
         primaryjoin="foreign(DirectBhikkuHigh.dbh_mahanatemple) == ViharaData.vh_trn",
         viewonly=True,
-        lazy="joined"
+        lazy="select"
     )
     robing_tutor_residence_rel = relationship(
         "ViharaData",
         primaryjoin="foreign(DirectBhikkuHigh.dbh_robing_tutor_residence) == ViharaData.vh_trn",
         viewonly=True,
-        lazy="joined"
+        lazy="select"
     )
     robing_after_residence_temple_rel = relationship(
         "ViharaData",
         primaryjoin="foreign(DirectBhikkuHigh.dbh_robing_after_residence_temple) == ViharaData.vh_trn",
         viewonly=True,
-        lazy="joined"
+        lazy="select"
     )
     residence_higher_ordination_rel = relationship(
         "ViharaData",
         primaryjoin="foreign(DirectBhikkuHigh.dbh_residence_higher_ordination_trn) == ViharaData.vh_trn",
         viewonly=True,
-        lazy="joined"
+        lazy="select"
     )
     residence_permanent_rel = relationship(
         "ViharaData",
         primaryjoin="foreign(DirectBhikkuHigh.dbh_residence_permanent_trn) == ViharaData.vh_trn",
         viewonly=True,
-        lazy="joined"
+        lazy="select"
     )
     
     # Bhikku relationships (for references to other bhikkus)
@@ -216,17 +216,17 @@ class DirectBhikkuHigh(Base):
         "Bhikku",
         primaryjoin="foreign(DirectBhikkuHigh.dbh_mahanaacharyacd) == remote(Bhikku.br_regn)",
         viewonly=True,
-        lazy="joined"
+        lazy="select"
     )
     viharadhipathi_rel = relationship(
         "Bhikku",
         primaryjoin="foreign(DirectBhikkuHigh.dbh_viharadhipathi) == remote(Bhikku.br_regn)",
         viewonly=True,
-        lazy="joined"
+        lazy="select"
     )
     mahanayaka_rel = relationship(
         "Bhikku",
         primaryjoin="foreign(DirectBhikkuHigh.dbh_mahanayaka_name) == remote(Bhikku.br_regn)",
         viewonly=True,
-        lazy="joined"
+        lazy="select"
     )

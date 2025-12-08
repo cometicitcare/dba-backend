@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 
 from app.models.vihara import ViharaData
 from app.repositories.vihara_repo import vihara_repo
-from app.schemas.vihara import ViharaCreate, ViharaUpdate
+from app.schemas.vihara import ViharaCreate, ViharaCreatePayload, ViharaUpdate
 
 
 class ViharaService:
@@ -17,22 +17,78 @@ class ViharaService:
         self._fk_targets: Optional[dict[str, tuple[Optional[str], str, str]]] = None
 
     def create_vihara(
-        self, db: Session, *, payload: ViharaCreate, actor_id: Optional[str]
+        self, db: Session, *, payload: ViharaCreate | ViharaCreatePayload, actor_id: Optional[str]
     ) -> ViharaData:
+        # Convert camelCase payload to snake_case if it's ViharaCreatePayload
+        if isinstance(payload, ViharaCreatePayload):
+            payload_dict = {
+                "vh_vname": payload.temple_name,
+                "vh_addrs": payload.temple_address,
+                "vh_mobile": payload.telephone_number,
+                "vh_whtapp": payload.whatsapp_number,
+                "vh_email": payload.email_address,
+                "vh_province": payload.province,
+                "vh_district": payload.district,
+                "vh_divisional_secretariat": payload.divisional_secretariat,
+                "vh_pradeshya_sabha": payload.pradeshya_sabha,
+                "vh_gndiv": payload.grama_niladhari_division,
+                "vh_nikaya": payload.nikaya,
+                "vh_parshawa": payload.parshawaya,
+                "vh_viharadhipathi_name": payload.viharadhipathi_name,
+                "vh_period_established": payload.period_established,
+                "vh_buildings_description": payload.buildings_description,
+                "vh_dayaka_families_count": payload.dayaka_families_count,
+                "vh_kulangana_committee": payload.kulangana_committee,
+                "vh_dayaka_sabha": payload.dayaka_sabha,
+                "vh_temple_working_committee": payload.temple_working_committee,
+                "vh_other_associations": payload.other_associations,
+                "temple_owned_land": [land.model_dump(by_alias=False) for land in payload.temple_owned_land],
+                "vh_land_info_certified": payload.land_info_certified,
+                "vh_resident_bhikkhus_certified": payload.resident_bhikkhus_certified,
+                "vh_inspection_report": payload.inspection_report,
+                "vh_inspection_code": payload.inspection_code,
+                "vh_grama_niladhari_division_ownership": payload.grama_niladhari_division_ownership,
+                "vh_sanghika_donation_deed": payload.sanghika_donation_deed,
+                "vh_government_donation_deed": payload.government_donation_deed,
+                "vh_government_donation_deed_in_progress": payload.government_donation_deed_in_progress,
+                "vh_authority_consent_attached": payload.authority_consent_attached,
+                "vh_recommend_new_center": payload.recommend_new_center,
+                "vh_recommend_registered_temple": payload.recommend_registered_temple,
+                "vh_annex2_recommend_construction": payload.annex2_recommend_construction,
+                "vh_annex2_land_ownership_docs": payload.annex2_land_ownership_docs,
+                "vh_annex2_chief_incumbent_letter": payload.annex2_chief_incumbent_letter,
+                "vh_annex2_coordinator_recommendation": payload.annex2_coordinator_recommendation,
+                "vh_annex2_divisional_secretary_recommendation": payload.annex2_divisional_secretary_recommendation,
+                "vh_annex2_approval_construction": payload.annex2_approval_construction,
+                "vh_annex2_referral_resubmission": payload.annex2_referral_resubmission,
+                "vh_form_id": payload.form_id,
+            }
+        else:
+            payload_dict = payload.model_dump(exclude_unset=True)
+        
+        # Validate contact fields
+        vh_mobile = payload_dict.get("vh_mobile")
+        vh_whtapp = payload_dict.get("vh_whtapp")
+        vh_email = payload_dict.get("vh_email")
+        
         contact_fields = (
-            ("vh_mobile", payload.vh_mobile, vihara_repo.get_by_mobile),
-            ("vh_whtapp", payload.vh_whtapp, vihara_repo.get_by_whtapp),
-            ("vh_email", payload.vh_email, vihara_repo.get_by_email),
+            ("vh_mobile", vh_mobile, vihara_repo.get_by_mobile),
+            ("vh_whtapp", vh_whtapp, vihara_repo.get_by_whtapp),
+            ("vh_email", vh_email, vihara_repo.get_by_email),
         )
         for field_name, value, getter in contact_fields:
             if value and getter(db, value):
                 raise ValueError(f"{field_name} '{value}' is already registered.")
 
         now = datetime.utcnow()
-        payload_dict = payload.model_dump(exclude_unset=True)
         payload_dict.pop("vh_trn", None)
         payload_dict.pop("vh_id", None)
         payload_dict.pop("vh_version_number", None)
+        
+        # Keep nested data for repository to handle
+        temple_lands = payload_dict.get("temple_owned_land", [])
+        resident_bhikkhus = payload_dict.get("resident_bhikkhus", [])
+        
         payload_dict["vh_created_by"] = actor_id
         payload_dict["vh_updated_by"] = actor_id
         payload_dict.setdefault("vh_created_at", now)

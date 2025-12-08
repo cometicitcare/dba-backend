@@ -379,7 +379,7 @@ async def manage_bhikku_id_card(
             
             return BhikkuIDCardManageResponse(
                 status="success",
-                message="Bhikku ID Card marked as printed successfully",
+                message="Bhikku ID Card marked as printed and completed successfully",
                 data=BhikkuIDCardResponse.from_orm(printed_card)
             )
         

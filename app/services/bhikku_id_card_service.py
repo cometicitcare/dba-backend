@@ -309,7 +309,10 @@ class BhikkuIDCardService:
         printed_by: str
     ) -> BhikkuIDCard:
         """
-        Mark a Bhikku ID Card as printed.
+        Mark a Bhikku ID Card as printed and automatically complete the workflow.
+        
+        This action transitions the workflow: APPROVED → COMPLETED
+        It sets both printed and completed timestamps/actors.
         
         Args:
             db: Database session
@@ -317,7 +320,7 @@ class BhikkuIDCardService:
             printed_by: Username who marked as printed
             
         Returns:
-            Updated BhikkuIDCard instance
+            Updated BhikkuIDCard instance with COMPLETED status
             
         Raises:
             HTTPException: If not found or not approved
