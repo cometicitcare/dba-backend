@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 
 from app.models.devala import DevalaData
 from app.repositories.devala_repo import devala_repo
-from app.schemas.devala import DevalaCreate, DevalaUpdate
+from app.schemas.devala import DevalaCreate, DevalaCreatePayload, DevalaUpdate
 
 
 class DevalaService:
@@ -17,12 +17,64 @@ class DevalaService:
         self._fk_targets: Optional[dict[str, tuple[Optional[str], str, str]]] = None
 
     def create_devala(
-        self, db: Session, *, payload: DevalaCreate, actor_id: Optional[str]
+        self, db: Session, *, payload: DevalaCreate | DevalaCreatePayload, actor_id: Optional[str]
     ) -> DevalaData:
+        # Convert camelCase payload to snake_case if it's DevalaCreatePayload
+        if isinstance(payload, DevalaCreatePayload):
+            payload_dict = {
+                "dv_vname": payload.temple_name,
+                "dv_addrs": payload.temple_address,
+                "dv_mobile": payload.telephone_number,
+                "dv_whtapp": payload.whatsapp_number,
+                "dv_email": payload.email_address,
+                "dv_province": payload.province,
+                "dv_district": payload.district,
+                "dv_divisional_secretariat": payload.divisional_secretariat,
+                "dv_pradeshya_sabha": payload.pradeshya_sabha,
+                "dv_gndiv": payload.grama_niladhari_division,
+                "dv_nikaya": payload.nikaya,
+                "dv_parshawa": payload.parshawaya,
+                "dv_viharadhipathi_name": payload.viharadhipathi_name,
+                "dv_period_established": payload.period_established,
+                "dv_buildings_description": payload.buildings_description,
+                "dv_dayaka_families_count": payload.dayaka_families_count,
+                "dv_kulangana_committee": payload.kulangana_committee,
+                "dv_dayaka_sabha": payload.dayaka_sabha,
+                "dv_temple_working_committee": payload.temple_working_committee,
+                "dv_other_associations": payload.other_associations,
+                "temple_owned_land": [land.model_dump(by_alias=False) for land in payload.temple_owned_land],
+                "dv_land_info_certified": payload.land_info_certified,
+                "dv_resident_bhikkhus": payload.resident_bhikkhus,
+                "dv_resident_bhikkhus_certified": payload.resident_bhikkhus_certified,
+                "dv_inspection_report": payload.inspection_report,
+                "dv_inspection_code": payload.inspection_code,
+                "dv_grama_niladhari_division_ownership": payload.grama_niladhari_division_ownership,
+                "dv_sanghika_donation_deed": payload.sanghika_donation_deed,
+                "dv_government_donation_deed": payload.government_donation_deed,
+                "dv_government_donation_deed_in_progress": payload.government_donation_deed_in_progress,
+                "dv_authority_consent_attached": payload.authority_consent_attached,
+                "dv_recommend_new_center": payload.recommend_new_center,
+                "dv_recommend_registered_temple": payload.recommend_registered_temple,
+                "dv_annex2_recommend_construction": payload.annex2_recommend_construction,
+                "dv_annex2_land_ownership_docs": payload.annex2_land_ownership_docs,
+                "dv_annex2_chief_incumbent_letter": payload.annex2_chief_incumbent_letter,
+                "dv_annex2_coordinator_recommendation": payload.annex2_coordinator_recommendation,
+                "dv_annex2_divisional_secretary_recommendation": payload.annex2_divisional_secretary_recommendation,
+                "dv_annex2_approval_construction": payload.annex2_approval_construction,
+                "dv_annex2_referral_resubmission": payload.annex2_referral_resubmission,
+            }
+        else:
+            payload_dict = payload.model_dump(exclude_unset=True)
+        
+        # Validate contact fields
+        dv_mobile = payload_dict.get("dv_mobile")
+        dv_whtapp = payload_dict.get("dv_whtapp")
+        dv_email = payload_dict.get("dv_email")
+        
         contact_fields = (
-            ("dv_mobile", payload.dv_mobile, devala_repo.get_by_mobile),
-            ("dv_whtapp", payload.dv_whtapp, devala_repo.get_by_whtapp),
-            ("dv_email", payload.dv_email, devala_repo.get_by_email),
+            ("dv_mobile", dv_mobile, devala_repo.get_by_mobile),
+            ("dv_whtapp", dv_whtapp, devala_repo.get_by_whtapp),
+            ("dv_email", dv_email, devala_repo.get_by_email),
         )
         for field_name, value, getter in contact_fields:
             if value and getter(db, value):

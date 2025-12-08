@@ -6,6 +6,9 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.models.vihara import ViharaData
+from app.models.temple_land import TempleLand
+from app.models.resident_bhikkhu import ResidentBhikkhu
+from app.models.vihara_land import ViharaLand
 from app.schemas.vihara import ViharaCreate, ViharaUpdate
 
 
@@ -206,6 +209,11 @@ class ViharaRepository:
 
     def create(self, db: Session, *, data: ViharaCreate) -> ViharaData:
         base_payload = self._strip_strings(data.model_dump(exclude_unset=True))
+        
+        # Extract nested data before creating vihara
+        temple_lands_data = base_payload.pop("temple_owned_land", [])
+        resident_bhikkhus_data = base_payload.pop("resident_bhikkhus", [])
+        
         base_payload.setdefault("vh_is_deleted", False)
         base_payload.setdefault("vh_version_number", 1)
 
@@ -255,6 +263,33 @@ class ViharaRepository:
                 raise ValueError(self._translate_integrity_error(exc)) from exc
 
             db.refresh(vihara)
+            
+            # Create related vihara land records (from new payload format)
+            if temple_lands_data:
+                for land_data in temple_lands_data:
+                    if isinstance(land_data, dict):
+                        land_data.pop("id", None)  # Remove id if present
+                        # Check if this is temple_land or vihara_land based on fields
+                        if "serial_number" in land_data:
+                            vihara_land = ViharaLand(vh_id=vihara.vh_id, **land_data)
+                            db.add(vihara_land)
+                        else:
+                            temple_land = TempleLand(vh_id=vihara.vh_id, **land_data)
+                            db.add(temple_land)
+            
+            # Create related resident bhikkhu records
+            if resident_bhikkhus_data:
+                for bhikkhu_data in resident_bhikkhus_data:
+                    if isinstance(bhikkhu_data, dict):
+                        bhikkhu_data.pop("id", None)  # Remove id if present
+                        resident_bhikkhu = ResidentBhikkhu(vh_id=vihara.vh_id, **bhikkhu_data)
+                        db.add(resident_bhikkhu)
+            
+            # Commit all related records
+            if temple_lands_data or resident_bhikkhus_data:
+                db.commit()
+                db.refresh(vihara)
+            
             return vihara
 
         raise ValueError("Failed to create vihara record after retries.")
@@ -374,7 +409,10 @@ class ViharaRepository:
         return trimmed.lower() if lower else trimmed
 
     def _get_latest_trn_number(self, db: Session) -> int:
-        stmt = select(func.max(ViharaData.vh_trn))
+        # Filter by TRN prefix to avoid mixing with legacy VH prefixes
+        stmt = select(func.max(ViharaData.vh_trn)).where(
+            ViharaData.vh_trn.like(f"{self.TRN_PREFIX}%")
+        )
         latest = db.execute(stmt).scalar()
         return self._extract_trn_number(latest)
 

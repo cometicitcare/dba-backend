@@ -5,6 +5,8 @@ from typing import Annotated, Optional, Union, List, Any
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
 
+from app.schemas.arama_land import AramaLandCreate, AramaLandInDB
+
 PHONE_PATTERN = re.compile(r"^[0-9]{10}$")
 
 
@@ -45,8 +47,41 @@ class AramaBase(BaseModel):
     ar_minissecrmrks: Annotated[Optional[str], Field(default=None, max_length=200)]
     ar_ssbmsigdate: Optional[date] = None
     
+    # Extended Fields
+    ar_province: Annotated[Optional[str], Field(default=None, max_length=100)] = None
+    ar_district: Annotated[Optional[str], Field(default=None, max_length=100)] = None
+    ar_divisional_secretariat: Annotated[Optional[str], Field(default=None, max_length=100)] = None
+    ar_pradeshya_sabha: Annotated[Optional[str], Field(default=None, max_length=100)] = None
+    ar_nikaya: Annotated[Optional[str], Field(default=None, max_length=50)] = None
+    ar_viharadhipathi_name: Annotated[Optional[str], Field(default=None, max_length=200)] = None
+    ar_period_established: Annotated[Optional[str], Field(default=None, max_length=100)] = None
+    ar_buildings_description: Annotated[Optional[str], Field(default=None, max_length=1000)] = None
+    ar_dayaka_families_count: Annotated[Optional[str], Field(default=None, max_length=50)] = None
+    ar_kulangana_committee: Annotated[Optional[str], Field(default=None, max_length=500)] = None
+    ar_dayaka_sabha: Annotated[Optional[str], Field(default=None, max_length=500)] = None
+    ar_temple_working_committee: Annotated[Optional[str], Field(default=None, max_length=500)] = None
+    ar_other_associations: Annotated[Optional[str], Field(default=None, max_length=500)] = None
+    ar_land_info_certified: Optional[bool] = None
+    ar_inspection_report: Annotated[Optional[str], Field(default=None, max_length=1000)] = None
+    ar_inspection_code: Annotated[Optional[str], Field(default=None, max_length=100)] = None
+    ar_grama_niladhari_division_ownership: Annotated[Optional[str], Field(default=None, max_length=200)] = None
+    ar_sanghika_donation_deed: Optional[bool] = None
+    ar_government_donation_deed: Optional[bool] = None
+    ar_government_donation_deed_in_progress: Optional[bool] = None
+    ar_authority_consent_attached: Optional[bool] = None
+    ar_recommend_new_center: Optional[bool] = None
+    ar_recommend_registered_temple: Optional[bool] = None
+    ar_annex2_recommend_construction: Optional[bool] = None
+    ar_annex2_land_ownership_docs: Optional[bool] = None
+    ar_annex2_chief_incumbent_letter: Optional[bool] = None
+    ar_annex2_coordinator_recommendation: Optional[bool] = None
+    ar_annex2_divisional_secretary_recommendation: Optional[bool] = None
+    ar_annex2_approval_construction: Optional[bool] = None
+    ar_annex2_referral_resubmission: Optional[bool] = None
+    
     # Document Storage
     ar_scanned_document_path: Annotated[Optional[str], Field(default=None, max_length=500)] = None
+    ar_form_id: Annotated[Optional[str], Field(default=None, max_length=50)] = None
     
     # Workflow Fields
     ar_workflow_status: Annotated[Optional[str], Field(default="PENDING", max_length=20)] = "PENDING"
@@ -112,6 +147,64 @@ class AramaBase(BaseModel):
 class AramaCreate(AramaBase):
     ar_trn: Annotated[Optional[str], Field(default=None, min_length=1, max_length=10)]
     ar_id: Annotated[Optional[int], Field(default=None, ge=1)] = None
+    
+    # Nested data - use AramaLandCreate for the new format with serial_number
+    temple_owned_land: List[AramaLandCreate] = Field(default_factory=list)
+
+
+class AramaCreatePayload(BaseModel):
+    """Payload schema for creating Arama with camelCase field names"""
+    temple_name: Optional[str] = Field(default=None, max_length=200)
+    temple_address: Optional[str] = Field(default=None, max_length=200)
+    telephone_number: str = Field(min_length=10, max_length=10)
+    whatsapp_number: str = Field(min_length=10, max_length=10)
+    email_address: EmailStr
+    province: Optional[str] = Field(default=None, max_length=100)
+    district: Optional[str] = Field(default=None, max_length=100)
+    divisional_secretariat: Optional[str] = Field(default=None, max_length=100)
+    pradeshya_sabha: Optional[str] = Field(default=None, max_length=100)
+    grama_niladhari_division: str = Field(min_length=1, max_length=10)
+    nikaya: Optional[str] = Field(default=None, max_length=50)
+    parshawaya: str = Field(min_length=1, max_length=10)
+    viharadhipathi_name: Optional[str] = Field(default=None, max_length=200)
+    period_established: Optional[str] = Field(default=None, max_length=100)
+    buildings_description: Optional[str] = Field(default=None, max_length=1000)
+    dayaka_families_count: Optional[str] = Field(default=None, max_length=50)
+    kulangana_committee: Optional[str] = Field(default=None, max_length=500)
+    dayaka_sabha: Optional[str] = Field(default=None, max_length=500)
+    temple_working_committee: Optional[str] = Field(default=None, max_length=500)
+    other_associations: Optional[str] = Field(default=None, max_length=500)
+    
+    temple_owned_land: List[AramaLandCreate] = Field(default_factory=list)
+    
+    land_info_certified: Optional[bool] = None
+    resident_bhikkhus: Optional[str] = Field(default=None, max_length=2000)
+    resident_bhikkhus_certified: Optional[bool] = None
+    inspection_report: Optional[str] = Field(default=None, max_length=1000)
+    inspection_code: Optional[str] = Field(default=None, max_length=100)
+    grama_niladhari_division_ownership: Optional[str] = Field(default=None, max_length=200)
+    
+    sanghika_donation_deed: Optional[bool] = None
+    government_donation_deed: Optional[bool] = None
+    government_donation_deed_in_progress: Optional[bool] = None
+    authority_consent_attached: Optional[bool] = None
+    recommend_new_center: Optional[bool] = None
+    recommend_registered_temple: Optional[bool] = None
+    
+    annex2_recommend_construction: Optional[bool] = None
+    annex2_land_ownership_docs: Optional[bool] = None
+    annex2_chief_incumbent_letter: Optional[bool] = None
+    annex2_coordinator_recommendation: Optional[bool] = None
+    annex2_divisional_secretary_recommendation: Optional[bool] = None
+    annex2_approval_construction: Optional[bool] = None
+    annex2_referral_resubmission: Optional[bool] = None
+
+    @field_validator("telephone_number", "whatsapp_number")
+    @classmethod
+    def _validate_phone(cls, value: str) -> str:
+        if not PHONE_PATTERN.fullmatch(value):
+            raise ValueError("Phone numbers must be exactly 10 digits.")
+        return value
 
 
 class AramaUpdate(BaseModel):
@@ -139,8 +232,41 @@ class AramaUpdate(BaseModel):
     ar_minissecrmrks: Annotated[Optional[str], Field(default=None, max_length=200)]
     ar_ssbmsigdate: Optional[date] = None
     
+    # Extended Fields
+    ar_province: Annotated[Optional[str], Field(default=None, max_length=100)] = None
+    ar_district: Annotated[Optional[str], Field(default=None, max_length=100)] = None
+    ar_divisional_secretariat: Annotated[Optional[str], Field(default=None, max_length=100)] = None
+    ar_pradeshya_sabha: Annotated[Optional[str], Field(default=None, max_length=100)] = None
+    ar_nikaya: Annotated[Optional[str], Field(default=None, max_length=50)] = None
+    ar_viharadhipathi_name: Annotated[Optional[str], Field(default=None, max_length=200)] = None
+    ar_period_established: Annotated[Optional[str], Field(default=None, max_length=100)] = None
+    ar_buildings_description: Annotated[Optional[str], Field(default=None, max_length=1000)] = None
+    ar_dayaka_families_count: Annotated[Optional[str], Field(default=None, max_length=50)] = None
+    ar_kulangana_committee: Annotated[Optional[str], Field(default=None, max_length=500)] = None
+    ar_dayaka_sabha: Annotated[Optional[str], Field(default=None, max_length=500)] = None
+    ar_temple_working_committee: Annotated[Optional[str], Field(default=None, max_length=500)] = None
+    ar_other_associations: Annotated[Optional[str], Field(default=None, max_length=500)] = None
+    ar_land_info_certified: Optional[bool] = None
+    ar_inspection_report: Annotated[Optional[str], Field(default=None, max_length=1000)] = None
+    ar_inspection_code: Annotated[Optional[str], Field(default=None, max_length=100)] = None
+    ar_grama_niladhari_division_ownership: Annotated[Optional[str], Field(default=None, max_length=200)] = None
+    ar_sanghika_donation_deed: Optional[bool] = None
+    ar_government_donation_deed: Optional[bool] = None
+    ar_government_donation_deed_in_progress: Optional[bool] = None
+    ar_authority_consent_attached: Optional[bool] = None
+    ar_recommend_new_center: Optional[bool] = None
+    ar_recommend_registered_temple: Optional[bool] = None
+    ar_annex2_recommend_construction: Optional[bool] = None
+    ar_annex2_land_ownership_docs: Optional[bool] = None
+    ar_annex2_chief_incumbent_letter: Optional[bool] = None
+    ar_annex2_coordinator_recommendation: Optional[bool] = None
+    ar_annex2_divisional_secretary_recommendation: Optional[bool] = None
+    ar_annex2_approval_construction: Optional[bool] = None
+    ar_annex2_referral_resubmission: Optional[bool] = None
+    
     # Document Storage
     ar_scanned_document_path: Annotated[Optional[str], Field(default=None, max_length=500)] = None
+    ar_form_id: Annotated[Optional[str], Field(default=None, max_length=50)] = None
     
     # Workflow Fields
     ar_workflow_status: Annotated[Optional[str], Field(default=None, max_length=20)] = None
@@ -206,6 +332,7 @@ class AramaOut(AramaBase):
     model_config = ConfigDict(from_attributes=True)
 
     ar_id: int
+    arama_lands: List[AramaLandInDB] = Field(default_factory=list)
 
 
 class AramaRequestPayload(BaseModel):
@@ -240,7 +367,7 @@ class AramaRequestPayload(BaseModel):
     rejection_reason: Annotated[Optional[str], Field(default=None, max_length=500)] = None
     
     # Data payload for CREATE/UPDATE
-    data: Optional[Union[AramaCreate, AramaUpdate]] = None
+    data: Optional[Union[AramaCreate, AramaCreatePayload, AramaUpdate]] = None
 
 
 class AramaManagementRequest(BaseModel):

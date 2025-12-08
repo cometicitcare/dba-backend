@@ -8,6 +8,7 @@ from sqlalchemy import (
     func,
     text,
 )
+from sqlalchemy.orm import relationship
 from sqlalchemy.sql import expression
 
 from app.db.base import Base
@@ -41,8 +42,44 @@ class DevalaData(Base):
     dv_minissecrmrks = Column(String(200))
     dv_ssbmsigdate = Column(Date)
     
+    # Extended Fields
+    dv_province = Column(String(100))
+    dv_district = Column(String(100))
+    dv_divisional_secretariat = Column(String(100))
+    dv_pradeshya_sabha = Column(String(100))
+    dv_nikaya = Column(String(50))
+    dv_viharadhipathi_name = Column(String(200))
+    dv_period_established = Column(String(100))
+    dv_buildings_description = Column(String(1000))
+    dv_dayaka_families_count = Column(String(50))
+    dv_kulangana_committee = Column(String(500))
+    dv_dayaka_sabha = Column(String(500))
+    dv_temple_working_committee = Column(String(500))
+    dv_other_associations = Column(String(500))
+    dv_temple_owned_land = Column(String(2000))
+    dv_land_info_certified = Column(Boolean)
+    dv_resident_bhikkhus = Column(String(2000))
+    dv_resident_bhikkhus_certified = Column(Boolean)
+    dv_inspection_report = Column(String(1000))
+    dv_inspection_code = Column(String(100))
+    dv_grama_niladhari_division_ownership = Column(String(200))
+    dv_sanghika_donation_deed = Column(Boolean)
+    dv_government_donation_deed = Column(Boolean)
+    dv_government_donation_deed_in_progress = Column(Boolean)
+    dv_authority_consent_attached = Column(Boolean)
+    dv_recommend_new_center = Column(Boolean)
+    dv_recommend_registered_temple = Column(Boolean)
+    dv_annex2_recommend_construction = Column(Boolean)
+    dv_annex2_land_ownership_docs = Column(Boolean)
+    dv_annex2_chief_incumbent_letter = Column(Boolean)
+    dv_annex2_coordinator_recommendation = Column(Boolean)
+    dv_annex2_divisional_secretary_recommendation = Column(Boolean)
+    dv_annex2_approval_construction = Column(Boolean)
+    dv_annex2_referral_resubmission = Column(Boolean)
+    
     # Document Storage
     dv_scanned_document_path = Column(String(500))
+    dv_form_id = Column(String(50), index=True)
     
     # Workflow Fields (following bhikku_regist pattern)
     dv_workflow_status = Column(String(20), server_default=text("'PENDING'"), nullable=False, index=True)
@@ -73,3 +110,6 @@ class DevalaData(Base):
     dv_created_by = Column(String(25))
     dv_updated_by = Column(String(25))
     dv_version_number = Column(Integer, nullable=False, server_default="1")
+    
+    # Relationships
+    devala_lands = relationship("DevalaLand", back_populates="devala", cascade="all, delete-orphan")

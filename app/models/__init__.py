@@ -32,8 +32,15 @@ from app.models.bhikku_id_card import BhikkuIDCard
 
 # Temple/Vihara models
 from app.models.vihara import ViharaData
+from app.models.temple_land import TempleLand
+from app.models.resident_bhikkhu import ResidentBhikkhu
+from app.models.vihara_land import ViharaLand
 from app.models.nikaya import NikayaData
 from app.models.parshawadata import ParshawaData
+from app.models.arama import AramaData
+from app.models.arama_land import AramaLand
+from app.models.devala import DevalaData
+from app.models.devala_land import DevalaLand
 # from app.models.nilame import Nilame
 from app.models.silmatha_regist import SilmathaRegist
 from app.models.silmatha_id_card import SilmathaIDCard

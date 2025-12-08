@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 
 from app.models.arama import AramaData
 from app.repositories.arama_repo import arama_repo
-from app.schemas.arama import AramaCreate, AramaUpdate
+from app.schemas.arama import AramaCreate, AramaCreatePayload, AramaUpdate
 
 
 class AramaService:
@@ -17,22 +17,77 @@ class AramaService:
         self._fk_targets: Optional[dict[str, tuple[Optional[str], str, str]]] = None
 
     def create_arama(
-        self, db: Session, *, payload: AramaCreate, actor_id: Optional[str]
+        self, db: Session, *, payload: AramaCreate | AramaCreatePayload, actor_id: Optional[str]
     ) -> AramaData:
+        # Convert camelCase payload to snake_case if it's AramaCreatePayload
+        if isinstance(payload, AramaCreatePayload):
+            payload_dict = {
+                "ar_vname": payload.temple_name,
+                "ar_addrs": payload.temple_address,
+                "ar_mobile": payload.telephone_number,
+                "ar_whtapp": payload.whatsapp_number,
+                "ar_email": payload.email_address,
+                "ar_province": payload.province,
+                "ar_district": payload.district,
+                "ar_divisional_secretariat": payload.divisional_secretariat,
+                "ar_pradeshya_sabha": payload.pradeshya_sabha,
+                "ar_gndiv": payload.grama_niladhari_division,
+                "ar_nikaya": payload.nikaya,
+                "ar_parshawa": payload.parshawaya,
+                "ar_viharadhipathi_name": payload.viharadhipathi_name,
+                "ar_period_established": payload.period_established,
+                "ar_buildings_description": payload.buildings_description,
+                "ar_dayaka_families_count": payload.dayaka_families_count,
+                "ar_kulangana_committee": payload.kulangana_committee,
+                "ar_dayaka_sabha": payload.dayaka_sabha,
+                "ar_temple_working_committee": payload.temple_working_committee,
+                "ar_other_associations": payload.other_associations,
+                "temple_owned_land": [land.model_dump(by_alias=False) for land in payload.temple_owned_land],
+                "ar_land_info_certified": payload.land_info_certified,
+                "ar_resident_bhikkhus": payload.resident_bhikkhus,
+                "ar_resident_bhikkhus_certified": payload.resident_bhikkhus_certified,
+                "ar_inspection_report": payload.inspection_report,
+                "ar_inspection_code": payload.inspection_code,
+                "ar_grama_niladhari_division_ownership": payload.grama_niladhari_division_ownership,
+                "ar_sanghika_donation_deed": payload.sanghika_donation_deed,
+                "ar_government_donation_deed": payload.government_donation_deed,
+                "ar_government_donation_deed_in_progress": payload.government_donation_deed_in_progress,
+                "ar_authority_consent_attached": payload.authority_consent_attached,
+                "ar_recommend_new_center": payload.recommend_new_center,
+                "ar_recommend_registered_temple": payload.recommend_registered_temple,
+                "ar_annex2_recommend_construction": payload.annex2_recommend_construction,
+                "ar_annex2_land_ownership_docs": payload.annex2_land_ownership_docs,
+                "ar_annex2_chief_incumbent_letter": payload.annex2_chief_incumbent_letter,
+                "ar_annex2_coordinator_recommendation": payload.annex2_coordinator_recommendation,
+                "ar_annex2_divisional_secretary_recommendation": payload.annex2_divisional_secretary_recommendation,
+                "ar_annex2_approval_construction": payload.annex2_approval_construction,
+                "ar_annex2_referral_resubmission": payload.annex2_referral_resubmission,
+            }
+        else:
+            payload_dict = payload.model_dump(exclude_unset=True)
+        
+        # Validate contact fields
+        ar_mobile = payload_dict.get("ar_mobile")
+        ar_whtapp = payload_dict.get("ar_whtapp")
+        ar_email = payload_dict.get("ar_email")
+        
         contact_fields = (
-            ("ar_mobile", payload.ar_mobile, arama_repo.get_by_mobile),
-            ("ar_whtapp", payload.ar_whtapp, arama_repo.get_by_whtapp),
-            ("ar_email", payload.ar_email, arama_repo.get_by_email),
+            ("ar_mobile", ar_mobile, arama_repo.get_by_mobile),
+            ("ar_whtapp", ar_whtapp, arama_repo.get_by_whtapp),
+            ("ar_email", ar_email, arama_repo.get_by_email),
         )
         for field_name, value, getter in contact_fields:
             if value and getter(db, value):
                 raise ValueError(f"{field_name} '{value}' is already registered.")
 
         now = datetime.utcnow()
-        payload_dict = payload.model_dump(exclude_unset=True)
         payload_dict.pop("ar_trn", None)
         payload_dict.pop("ar_id", None)
         payload_dict.pop("ar_version_number", None)
+        
+        # Keep nested data for repository to handle
+        temple_lands = payload_dict.get("temple_owned_land", [])
+        
         payload_dict["ar_created_by"] = actor_id
         payload_dict["ar_updated_by"] = actor_id
         payload_dict.setdefault("ar_created_at", now)

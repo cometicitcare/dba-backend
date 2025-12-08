@@ -8,6 +8,7 @@ from sqlalchemy import (
     func,
     text,
 )
+from sqlalchemy.orm import relationship
 from sqlalchemy.sql import expression
 
 from app.db.base import Base
@@ -41,8 +42,42 @@ class ViharaData(Base):
     vh_minissecrmrks = Column(String(200))
     vh_ssbmsigdate = Column(Date)
     
+    # Extended Fields
+    vh_province = Column(String(100))
+    vh_district = Column(String(100))
+    vh_divisional_secretariat = Column(String(100))
+    vh_pradeshya_sabha = Column(String(100))
+    vh_nikaya = Column(String(50))
+    vh_viharadhipathi_name = Column(String(200))
+    vh_period_established = Column(String(100))
+    vh_buildings_description = Column(String(1000))
+    vh_dayaka_families_count = Column(String(50))
+    vh_kulangana_committee = Column(String(500))
+    vh_dayaka_sabha = Column(String(500))
+    vh_temple_working_committee = Column(String(500))
+    vh_other_associations = Column(String(500))
+    vh_land_info_certified = Column(Boolean)
+    vh_resident_bhikkhus_certified = Column(Boolean)
+    vh_inspection_report = Column(String(1000))
+    vh_inspection_code = Column(String(100))
+    vh_grama_niladhari_division_ownership = Column(String(200))
+    vh_sanghika_donation_deed = Column(Boolean)
+    vh_government_donation_deed = Column(Boolean)
+    vh_government_donation_deed_in_progress = Column(Boolean)
+    vh_authority_consent_attached = Column(Boolean)
+    vh_recommend_new_center = Column(Boolean)
+    vh_recommend_registered_temple = Column(Boolean)
+    vh_annex2_recommend_construction = Column(Boolean)
+    vh_annex2_land_ownership_docs = Column(Boolean)
+    vh_annex2_chief_incumbent_letter = Column(Boolean)
+    vh_annex2_coordinator_recommendation = Column(Boolean)
+    vh_annex2_divisional_secretary_recommendation = Column(Boolean)
+    vh_annex2_approval_construction = Column(Boolean)
+    vh_annex2_referral_resubmission = Column(Boolean)
+    
     # Document Storage
     vh_scanned_document_path = Column(String(500))
+    vh_form_id = Column(String(50), index=True)
     
     # Workflow Fields (following bhikku_regist pattern)
     vh_workflow_status = Column(String(20), server_default=text("'PENDING'"), nullable=False, index=True)
@@ -73,3 +108,8 @@ class ViharaData(Base):
     vh_created_by = Column(String(25))
     vh_updated_by = Column(String(25))
     vh_version_number = Column(Integer, nullable=False, server_default="1")
+    
+    # Relationships
+    temple_lands = relationship("TempleLand", back_populates="vihara", cascade="all, delete-orphan")
+    resident_bhikkhus = relationship("ResidentBhikkhu", back_populates="vihara", cascade="all, delete-orphan")
+    vihara_lands = relationship("ViharaLand", back_populates="vihara", cascade="all, delete-orphan")

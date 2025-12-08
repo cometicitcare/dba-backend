@@ -74,7 +74,14 @@ class BhikkuIDCardRepository:
         # Convert stay_history to dict format if present
         stay_history_data = None
         if bhikku_id_card.bic_stay_history:
-            stay_history_data = [item.dict() for item in bhikku_id_card.bic_stay_history]
+            stay_history_data = [
+                {
+                    **item.dict(),
+                    'from_date': item.from_date.isoformat() if item.from_date else None,
+                    'to_date': item.to_date.isoformat() if item.to_date else None
+                }
+                for item in bhikku_id_card.bic_stay_history
+            ]
         
         # Create DB model
         db_bhikku_id_card = BhikkuIDCard(
@@ -246,10 +253,18 @@ class BhikkuIDCardRepository:
         
         # Convert stay_history if present
         if "bic_stay_history" in update_data and update_data["bic_stay_history"] is not None:
-            update_data["bic_stay_history"] = [
-                item.dict() if hasattr(item, "dict") else item 
-                for item in update_data["bic_stay_history"]
-            ]
+            converted_history = []
+            for item in update_data["bic_stay_history"]:
+                if hasattr(item, "dict"):
+                    # It's a Pydantic model
+                    item_dict = item.dict()
+                    item_dict['from_date'] = item.from_date.isoformat() if item.from_date else None
+                    item_dict['to_date'] = item.to_date.isoformat() if item.to_date else None
+                    converted_history.append(item_dict)
+                else:
+                    # It's already a dict
+                    converted_history.append(item)
+            update_data["bic_stay_history"] = converted_history
         
         for field, value in update_data.items():
             setattr(db_record, field, value)
@@ -362,7 +377,9 @@ class BhikkuIDCardRepository:
         printed_by: str
     ) -> Optional[BhikkuIDCard]:
         """
-        Mark a Bhikku ID Card as printed.
+        Mark a Bhikku ID Card as printed and automatically complete the workflow.
+        
+        When marked as printed, the workflow automatically goes to COMPLETED status.
         
         Args:
             db: Database session
@@ -376,11 +393,15 @@ class BhikkuIDCardRepository:
         if not db_record:
             return None
         
-        db_record.bic_workflow_status = "PRINTED"
+        # Mark as printed and automatically complete the workflow
+        now = datetime.utcnow()
+        db_record.bic_workflow_status = "COMPLETED"
         db_record.bic_printed_by = printed_by
-        db_record.bic_printed_at = datetime.utcnow()
+        db_record.bic_printed_at = now
+        db_record.bic_completed_by = printed_by
+        db_record.bic_completed_at = now
         db_record.bic_updated_by = printed_by
-        db_record.bic_updated_at = datetime.utcnow()
+        db_record.bic_updated_at = now
         db_record.bic_version_number += 1
         
         db.commit()

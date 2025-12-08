@@ -18,7 +18,7 @@ class DirectBhikkuHighRepository:
     """Data access helpers for direct high bhikku records."""
 
     REGN_PREFIX = "DBH"
-    REGN_WIDTH = 9  # e.g., DBH2025001
+    REGN_WIDTH = 3  # Sequence width: 001, 002, 003 (3 digits)
     SEQUENCE_NAME = "direct_bhikku_high_dbh_id_seq"
     PRIMARY_KEY_CONSTRAINT = "direct_bhikku_high_pkey"
     REGN_UNIQUE_CONSTRAINT = "direct_bhikku_high_dbh_regn_key"
@@ -192,21 +192,27 @@ class DirectBhikkuHighRepository:
         return query.scalar() or 0
 
     def create(
-        self, db: Session, *, payload: DirectBhikkuHighCreate, actor_id: str
+        self, db: Session, *, payload: DirectBhikkuHighCreate, actor_id: str, current_user=None
     ) -> DirectBhikkuHigh:
         """Create a new direct high bhikku record"""
-        # Generate registration number if not provided
-        regn = payload.dbh_regn
-        if not regn:
-            regn = self._generate_regn(db)
-
         # Convert payload to dict
         data = payload.model_dump(exclude_unset=True, exclude_none=False)
+        
+        # Always generate registration number (ignore any provided value)
+        data.pop("dbh_regn", None)
+        regn = self._generate_regn(db)
+        
         data["dbh_regn"] = regn
         data["dbh_created_by"] = actor_id
         data["dbh_updated_by"] = actor_id
         data["dbh_workflow_status"] = "PENDING"
         data.setdefault("dbh_version_number", 1)
+        
+        # Set location-based access control field
+        if current_user and hasattr(current_user, 'ua_district'):
+            user_district = current_user.ua_district
+            if user_district:
+                data["dbh_created_by_district"] = user_district
 
         entity = DirectBhikkuHigh(**data)
 
@@ -285,35 +291,40 @@ class DirectBhikkuHighRepository:
         """
         Generate a unique registration number in format: DBH{YEAR}{SEQUENCE}.
         
-        Example: DBH2025000001, DBH2025000002, ..., DBH2026000001 (resets each year)
-        Total length: DBH(3) + YEAR(4) + SEQUENCE(5) = 12 characters.
+        Example: DBH2025001, DBH2025002, ..., DBH2026001 (resets each year)
+        Total length: DBH(3) + YEAR(4) + SEQUENCE(3) = 10 characters.
         """
         from datetime import datetime
         
         current_year = datetime.utcnow().year
         prefix = f"{self.REGN_PREFIX}{current_year}"
+        expected_length = len(prefix) + self.REGN_WIDTH  # e.g., 7 + 3 = 10
         
-        # Find the latest registration number for this year
-        latest = (
-            db.query(DirectBhikkuHigh)
-            .filter(DirectBhikkuHigh.dbh_regn.like(f"{prefix}%"))
-            .order_by(DirectBhikkuHigh.dbh_regn.desc())
-            .first()
+        # Find the latest VALID registration number for this year
+        # Filter by exact length to avoid malformed records
+        all_records = (
+            db.query(DirectBhikkuHigh.dbh_regn)
+            .filter(
+                DirectBhikkuHigh.dbh_regn.like(f"{prefix}%"),
+                func.length(DirectBhikkuHigh.dbh_regn) == expected_length
+            )
+            .all()
         )
         
-        if latest:
+        # Extract sequences and find the maximum
+        max_sequence = 0
+        for (regn,) in all_records:
             try:
-                # Extract sequence part after prefix (e.g., "00001" from "DBH202500001")
-                sequence_part = latest.dbh_regn[len(prefix):]
-                last_sequence = int(sequence_part)
-                next_sequence = last_sequence + 1
+                sequence_part = regn[len(prefix):]
+                sequence = int(sequence_part)
+                max_sequence = max(max_sequence, sequence)
             except (ValueError, IndexError):
-                next_sequence = 1
-        else:
-            # First record for this year
-            next_sequence = 1
+                continue
         
-        # Format: DBH2025 + 00001 (5 digits)
+        next_sequence = max_sequence + 1
+        
+        # Format: DBH2025 + 004 (3 digits using REGN_WIDTH)
+        return f"{prefix}{next_sequence:0{self.REGN_WIDTH}d}"
         return f"{prefix}{next_sequence:05d}"
 
 

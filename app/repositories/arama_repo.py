@@ -6,6 +6,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.models.arama import AramaData
+from app.models.arama_land import AramaLand
 from app.schemas.arama import AramaCreate, AramaUpdate
 
 
@@ -206,6 +207,10 @@ class AramaRepository:
 
     def create(self, db: Session, *, data: AramaCreate) -> AramaData:
         base_payload = self._strip_strings(data.model_dump(exclude_unset=True))
+        
+        # Extract nested data before creating arama
+        temple_lands_data = base_payload.pop("temple_owned_land", [])
+        
         base_payload.setdefault("ar_is_deleted", False)
         base_payload.setdefault("ar_version_number", 1)
 
@@ -255,6 +260,20 @@ class AramaRepository:
                 raise ValueError(self._translate_integrity_error(exc)) from exc
 
             db.refresh(arama)
+            
+            # Create related arama land records
+            if temple_lands_data:
+                for land_data in temple_lands_data:
+                    if isinstance(land_data, dict):
+                        land_data.pop("id", None)  # Remove id if present
+                        arama_land = AramaLand(ar_id=arama.ar_id, **land_data)
+                        db.add(arama_land)
+            
+            # Commit the land records
+            if temple_lands_data:
+                db.commit()
+                db.refresh(arama)
+            
             return arama
 
         raise ValueError("Failed to create arama record after retries.")
@@ -374,7 +393,10 @@ class AramaRepository:
         return trimmed.lower() if lower else trimmed
 
     def _get_latest_trn_number(self, db: Session) -> int:
-        stmt = select(func.max(AramaData.ar_trn))
+        # Filter by ARN prefix to avoid mixing with legacy prefixes
+        stmt = select(func.max(AramaData.ar_trn)).where(
+            AramaData.ar_trn.like(f"{self.ARN_PREFIX}%")
+        )
         latest = db.execute(stmt).scalar()
         return self._extract_trn_number(latest)
 

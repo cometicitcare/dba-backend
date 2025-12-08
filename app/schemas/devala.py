@@ -5,6 +5,8 @@ from typing import Annotated, Optional, Union, List, Any
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
 
+from app.schemas.devala_land import DevalaLandCreate, DevalaLandInDB
+
 PHONE_PATTERN = re.compile(r"^[0-9]{10}$")
 
 
@@ -45,8 +47,44 @@ class DevalaBase(BaseModel):
     dv_minissecrmrks: Annotated[Optional[str], Field(default=None, max_length=200)]
     dv_ssbmsigdate: Optional[date] = None
     
+    # Extended Fields
+    dv_province: Annotated[Optional[str], Field(default=None, max_length=100)] = None
+    dv_district: Annotated[Optional[str], Field(default=None, max_length=100)] = None
+    dv_divisional_secretariat: Annotated[Optional[str], Field(default=None, max_length=100)] = None
+    dv_pradeshya_sabha: Annotated[Optional[str], Field(default=None, max_length=100)] = None
+    dv_nikaya: Annotated[Optional[str], Field(default=None, max_length=50)] = None
+    dv_viharadhipathi_name: Annotated[Optional[str], Field(default=None, max_length=200)] = None
+    dv_period_established: Annotated[Optional[str], Field(default=None, max_length=100)] = None
+    dv_buildings_description: Annotated[Optional[str], Field(default=None, max_length=1000)] = None
+    dv_dayaka_families_count: Annotated[Optional[str], Field(default=None, max_length=50)] = None
+    dv_kulangana_committee: Annotated[Optional[str], Field(default=None, max_length=500)] = None
+    dv_dayaka_sabha: Annotated[Optional[str], Field(default=None, max_length=500)] = None
+    dv_temple_working_committee: Annotated[Optional[str], Field(default=None, max_length=500)] = None
+    dv_other_associations: Annotated[Optional[str], Field(default=None, max_length=500)] = None
+    dv_temple_owned_land: Annotated[Optional[str], Field(default=None, max_length=2000)] = None
+    dv_land_info_certified: Optional[bool] = None
+    dv_resident_bhikkhus: Annotated[Optional[str], Field(default=None, max_length=2000)] = None
+    dv_resident_bhikkhus_certified: Optional[bool] = None
+    dv_inspection_report: Annotated[Optional[str], Field(default=None, max_length=1000)] = None
+    dv_inspection_code: Annotated[Optional[str], Field(default=None, max_length=100)] = None
+    dv_grama_niladhari_division_ownership: Annotated[Optional[str], Field(default=None, max_length=200)] = None
+    dv_sanghika_donation_deed: Optional[bool] = None
+    dv_government_donation_deed: Optional[bool] = None
+    dv_government_donation_deed_in_progress: Optional[bool] = None
+    dv_authority_consent_attached: Optional[bool] = None
+    dv_recommend_new_center: Optional[bool] = None
+    dv_recommend_registered_temple: Optional[bool] = None
+    dv_annex2_recommend_construction: Optional[bool] = None
+    dv_annex2_land_ownership_docs: Optional[bool] = None
+    dv_annex2_chief_incumbent_letter: Optional[bool] = None
+    dv_annex2_coordinator_recommendation: Optional[bool] = None
+    dv_annex2_divisional_secretary_recommendation: Optional[bool] = None
+    dv_annex2_approval_construction: Optional[bool] = None
+    dv_annex2_referral_resubmission: Optional[bool] = None
+    
     # Document Storage
     dv_scanned_document_path: Annotated[Optional[str], Field(default=None, max_length=500)] = None
+    dv_form_id: Annotated[Optional[str], Field(default=None, max_length=50)] = None
     
     # Workflow Fields
     dv_workflow_status: Annotated[Optional[str], Field(default="PENDING", max_length=20)] = "PENDING"
@@ -114,6 +152,61 @@ class DevalaCreate(DevalaBase):
     dv_id: Annotated[Optional[int], Field(default=None, ge=1)] = None
 
 
+class DevalaCreatePayload(BaseModel):
+    """Payload schema for creating Devala with camelCase field names"""
+    temple_name: Optional[str] = Field(default=None, max_length=200)
+    temple_address: Optional[str] = Field(default=None, max_length=200)
+    telephone_number: str = Field(min_length=10, max_length=10)
+    whatsapp_number: str = Field(min_length=10, max_length=10)
+    email_address: EmailStr
+    province: Optional[str] = Field(default=None, max_length=100)
+    district: Optional[str] = Field(default=None, max_length=100)
+    divisional_secretariat: Optional[str] = Field(default=None, max_length=100)
+    pradeshya_sabha: Optional[str] = Field(default=None, max_length=100)
+    grama_niladhari_division: str = Field(min_length=1, max_length=10)
+    nikaya: Optional[str] = Field(default=None, max_length=50)
+    parshawaya: str = Field(min_length=1, max_length=10)
+    viharadhipathi_name: Optional[str] = Field(default=None, max_length=200)
+    period_established: Optional[str] = Field(default=None, max_length=100)
+    buildings_description: Optional[str] = Field(default=None, max_length=1000)
+    dayaka_families_count: Optional[str] = Field(default=None, max_length=50)
+    kulangana_committee: Optional[str] = Field(default=None, max_length=500)
+    dayaka_sabha: Optional[str] = Field(default=None, max_length=500)
+    temple_working_committee: Optional[str] = Field(default=None, max_length=500)
+    other_associations: Optional[str] = Field(default=None, max_length=500)
+    
+    temple_owned_land: List[DevalaLandCreate] = Field(default_factory=list)
+    
+    land_info_certified: Optional[bool] = None
+    resident_bhikkhus: Optional[str] = Field(default=None, max_length=2000)
+    resident_bhikkhus_certified: Optional[bool] = None
+    inspection_report: Optional[str] = Field(default=None, max_length=1000)
+    inspection_code: Optional[str] = Field(default=None, max_length=100)
+    grama_niladhari_division_ownership: Optional[str] = Field(default=None, max_length=200)
+    
+    sanghika_donation_deed: Optional[bool] = None
+    government_donation_deed: Optional[bool] = None
+    government_donation_deed_in_progress: Optional[bool] = None
+    authority_consent_attached: Optional[bool] = None
+    recommend_new_center: Optional[bool] = None
+    recommend_registered_temple: Optional[bool] = None
+    
+    annex2_recommend_construction: Optional[bool] = None
+    annex2_land_ownership_docs: Optional[bool] = None
+    annex2_chief_incumbent_letter: Optional[bool] = None
+    annex2_coordinator_recommendation: Optional[bool] = None
+    annex2_divisional_secretary_recommendation: Optional[bool] = None
+    annex2_approval_construction: Optional[bool] = None
+    annex2_referral_resubmission: Optional[bool] = None
+
+    @field_validator("telephone_number", "whatsapp_number")
+    @classmethod
+    def _validate_phone(cls, value: str) -> str:
+        if not PHONE_PATTERN.fullmatch(value):
+            raise ValueError("Phone numbers must be exactly 10 digits.")
+        return value
+
+
 class DevalaUpdate(BaseModel):
     dv_trn: Annotated[Optional[str], Field(default=None, min_length=1, max_length=10)]
     dv_vname: Annotated[Optional[str], Field(default=None, max_length=200)]
@@ -139,8 +232,44 @@ class DevalaUpdate(BaseModel):
     dv_minissecrmrks: Annotated[Optional[str], Field(default=None, max_length=200)]
     dv_ssbmsigdate: Optional[date] = None
     
+    # Extended Fields
+    dv_province: Annotated[Optional[str], Field(default=None, max_length=100)] = None
+    dv_district: Annotated[Optional[str], Field(default=None, max_length=100)] = None
+    dv_divisional_secretariat: Annotated[Optional[str], Field(default=None, max_length=100)] = None
+    dv_pradeshya_sabha: Annotated[Optional[str], Field(default=None, max_length=100)] = None
+    dv_nikaya: Annotated[Optional[str], Field(default=None, max_length=50)] = None
+    dv_viharadhipathi_name: Annotated[Optional[str], Field(default=None, max_length=200)] = None
+    dv_period_established: Annotated[Optional[str], Field(default=None, max_length=100)] = None
+    dv_buildings_description: Annotated[Optional[str], Field(default=None, max_length=1000)] = None
+    dv_dayaka_families_count: Annotated[Optional[str], Field(default=None, max_length=50)] = None
+    dv_kulangana_committee: Annotated[Optional[str], Field(default=None, max_length=500)] = None
+    dv_dayaka_sabha: Annotated[Optional[str], Field(default=None, max_length=500)] = None
+    dv_temple_working_committee: Annotated[Optional[str], Field(default=None, max_length=500)] = None
+    dv_other_associations: Annotated[Optional[str], Field(default=None, max_length=500)] = None
+    dv_temple_owned_land: Annotated[Optional[str], Field(default=None, max_length=2000)] = None
+    dv_land_info_certified: Optional[bool] = None
+    dv_resident_bhikkhus: Annotated[Optional[str], Field(default=None, max_length=2000)] = None
+    dv_resident_bhikkhus_certified: Optional[bool] = None
+    dv_inspection_report: Annotated[Optional[str], Field(default=None, max_length=1000)] = None
+    dv_inspection_code: Annotated[Optional[str], Field(default=None, max_length=100)] = None
+    dv_grama_niladhari_division_ownership: Annotated[Optional[str], Field(default=None, max_length=200)] = None
+    dv_sanghika_donation_deed: Optional[bool] = None
+    dv_government_donation_deed: Optional[bool] = None
+    dv_government_donation_deed_in_progress: Optional[bool] = None
+    dv_authority_consent_attached: Optional[bool] = None
+    dv_recommend_new_center: Optional[bool] = None
+    dv_recommend_registered_temple: Optional[bool] = None
+    dv_annex2_recommend_construction: Optional[bool] = None
+    dv_annex2_land_ownership_docs: Optional[bool] = None
+    dv_annex2_chief_incumbent_letter: Optional[bool] = None
+    dv_annex2_coordinator_recommendation: Optional[bool] = None
+    dv_annex2_divisional_secretary_recommendation: Optional[bool] = None
+    dv_annex2_approval_construction: Optional[bool] = None
+    dv_annex2_referral_resubmission: Optional[bool] = None
+    
     # Document Storage
     dv_scanned_document_path: Annotated[Optional[str], Field(default=None, max_length=500)] = None
+    dv_form_id: Annotated[Optional[str], Field(default=None, max_length=50)] = None
     
     # Workflow Fields
     dv_workflow_status: Annotated[Optional[str], Field(default=None, max_length=20)] = None
