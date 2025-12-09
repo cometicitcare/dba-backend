@@ -119,6 +119,15 @@ class SilmathaRegistBase(BaseModel):
     sil_robing_tutor_residence: Optional[str] = None
     sil_mahanatemple: Optional[str] = None
     sil_robing_after_residence_temple: Optional[str] = None
+    
+    # Form ID
+    sil_form_id: Optional[str] = None
+    
+    # Signature Fields (Boolean - true/false)
+    sil_student_signature: Optional[bool] = None  # ශිෂ්‍ය මෑණියන් වහන්සේගේ අත්සන
+    sil_acharya_signature: Optional[bool] = None  # ආචාර්ය මෑණියන් වහන්සේගේ අත්සන
+    sil_aramadhipathi_signature: Optional[bool] = None  # ආරාමාධිපති මෑණියන් වහන්සේගේ අත්සන
+    sil_district_secretary_signature: Optional[bool] = None  # දිස්ත්‍රික් සිල්මාතා සංගමයේ ලේකම් අත්සන
 
 
 class SilmathaRegistCreate(SilmathaRegistBase):
@@ -163,6 +172,12 @@ class SilmathaRegistUpdate(BaseModel):
     sil_robing_tutor_residence: Optional[str] = None
     sil_mahanatemple: Optional[str] = None
     sil_robing_after_residence_temple: Optional[str] = None
+    
+    # Signature Fields (Boolean - true/false)
+    sil_student_signature: Optional[bool] = None
+    sil_acharya_signature: Optional[bool] = None
+    sil_aramadhipathi_signature: Optional[bool] = None
+    sil_district_secretary_signature: Optional[bool] = None
     
     # Form ID
     sil_form_id: Optional[str] = None
