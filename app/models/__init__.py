@@ -39,6 +39,7 @@ from app.models.nikaya import NikayaData
 from app.models.parshawadata import ParshawaData
 from app.models.arama import AramaData
 from app.models.arama_land import AramaLand
+from app.models.arama_resident_silmatha import AramaResidentSilmatha
 from app.models.devala import DevalaData
 from app.models.devala_land import DevalaLand
 # from app.models.nilame import Nilame

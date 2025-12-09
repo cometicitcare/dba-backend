@@ -6,6 +6,7 @@ from typing import Annotated, Optional, Union, List, Any
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
 
 from app.schemas.arama_land import AramaLandCreate, AramaLandInDB
+from app.schemas.arama_resident_silmatha import AramaResidentSilmathaCreate, AramaResidentSilmathaInDB
 
 PHONE_PATTERN = re.compile(r"^[0-9]{10}$")
 
@@ -150,6 +151,7 @@ class AramaCreate(AramaBase):
     
     # Nested data - use AramaLandCreate for the new format with serial_number
     temple_owned_land: List[AramaLandCreate] = Field(default_factory=list)
+    resident_silmathas: List[AramaResidentSilmathaCreate] = Field(default_factory=list)
 
 
 class AramaCreatePayload(BaseModel):
@@ -178,8 +180,8 @@ class AramaCreatePayload(BaseModel):
     temple_owned_land: List[AramaLandCreate] = Field(default_factory=list)
     
     land_info_certified: Optional[bool] = None
-    resident_bhikkhus: Optional[str] = Field(default=None, max_length=2000)
-    resident_bhikkhus_certified: Optional[bool] = None
+    resident_silmathas: List[AramaResidentSilmathaCreate] = Field(default_factory=list)
+    resident_silmathas_certified: Optional[bool] = None
     inspection_report: Optional[str] = Field(default=None, max_length=1000)
     inspection_code: Optional[str] = Field(default=None, max_length=100)
     grama_niladhari_division_ownership: Optional[str] = Field(default=None, max_length=200)
@@ -333,6 +335,7 @@ class AramaOut(AramaBase):
 
     ar_id: int
     arama_lands: List[AramaLandInDB] = Field(default_factory=list)
+    resident_silmathas: List[AramaResidentSilmathaInDB] = Field(default_factory=list)
 
 
 class AramaRequestPayload(BaseModel):

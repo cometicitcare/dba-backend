@@ -84,6 +84,7 @@ class ViharaBase(BaseModel):
     
     # Document Storage
     vh_scanned_document_path: Annotated[Optional[str], Field(default=None, max_length=500)] = None
+    vh_form_id: Annotated[Optional[str], Field(default=None, max_length=50)] = None
     
     # Workflow Fields
     vh_workflow_status: Annotated[Optional[str], Field(default="PENDING", max_length=20)] = "PENDING"
@@ -178,7 +179,7 @@ class ViharaCreatePayload(BaseModel):
     temple_working_committee: Optional[str] = Field(default=None, max_length=500)
     other_associations: Optional[str] = Field(default=None, max_length=500)
     
-    temple_owned_land: List[ViharaLandCreate] = Field(default_factory=list)
+    temple_owned_land: List[TempleLandCreate] = Field(default_factory=list)
     
     land_info_certified: Optional[bool] = None
     
