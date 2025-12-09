@@ -57,6 +57,7 @@ class AramaData(Base):
     ar_temple_working_committee = Column(String(500))
     ar_other_associations = Column(String(500))
     ar_land_info_certified = Column(Boolean)
+    ar_resident_silmathas_certified = Column(Boolean)
     ar_inspection_report = Column(String(1000))
     ar_inspection_code = Column(String(100))
     ar_grama_niladhari_division_ownership = Column(String(200))
@@ -110,3 +111,4 @@ class AramaData(Base):
     
     # Relationships
     arama_lands = relationship("AramaLand", back_populates="arama", cascade="all, delete-orphan")
+    resident_silmathas = relationship("AramaResidentSilmatha", back_populates="arama", cascade="all, delete-orphan")

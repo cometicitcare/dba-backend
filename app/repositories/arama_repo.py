@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 
 from app.models.arama import AramaData
 from app.models.arama_land import AramaLand
+from app.models.arama_resident_silmatha import AramaResidentSilmatha
 from app.schemas.arama import AramaCreate, AramaUpdate
 
 
@@ -210,6 +211,7 @@ class AramaRepository:
         
         # Extract nested data before creating arama
         temple_lands_data = base_payload.pop("temple_owned_land", [])
+        resident_silmathas_data = base_payload.pop("resident_silmathas", [])
         
         base_payload.setdefault("ar_is_deleted", False)
         base_payload.setdefault("ar_version_number", 1)
@@ -269,8 +271,16 @@ class AramaRepository:
                         arama_land = AramaLand(ar_id=arama.ar_id, **land_data)
                         db.add(arama_land)
             
-            # Commit the land records
-            if temple_lands_data:
+            # Create related resident silmatha records
+            if resident_silmathas_data:
+                for silmatha_data in resident_silmathas_data:
+                    if isinstance(silmatha_data, dict):
+                        silmatha_data.pop("id", None)  # Remove id if present
+                        resident_silmatha = AramaResidentSilmatha(ar_id=arama.ar_id, **silmatha_data)
+                        db.add(resident_silmatha)
+            
+            # Commit the related records
+            if temple_lands_data or resident_silmathas_data:
                 db.commit()
                 db.refresh(arama)
             

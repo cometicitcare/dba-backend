@@ -264,18 +264,14 @@ class ViharaRepository:
 
             db.refresh(vihara)
             
-            # Create related vihara land records (from new payload format)
+            # Create related temple land records (from new payload format)
             if temple_lands_data:
                 for land_data in temple_lands_data:
                     if isinstance(land_data, dict):
                         land_data.pop("id", None)  # Remove id if present
-                        # Check if this is temple_land or vihara_land based on fields
-                        if "serial_number" in land_data:
-                            vihara_land = ViharaLand(vh_id=vihara.vh_id, **land_data)
-                            db.add(vihara_land)
-                        else:
-                            temple_land = TempleLand(vh_id=vihara.vh_id, **land_data)
-                            db.add(temple_land)
+                        # Create TempleLand record (not ViharaLand)
+                        temple_land = TempleLand(vh_id=vihara.vh_id, **land_data)
+                        db.add(temple_land)
             
             # Create related resident bhikkhu records
             if resident_bhikkhus_data:
