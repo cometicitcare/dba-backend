@@ -8,6 +8,7 @@ from app.api.auth_dependencies import has_permission, has_any_permission, get_us
 from app.models.user import UserAccount
 from app.schemas import silmatha_regist as schemas
 from app.services.silmatha_regist_service import silmatha_regist_service
+from app.services.arama_service import arama_service
 from app.repositories.silmatha_regist_repo import silmatha_regist_repo
 from app.utils.http_exceptions import validation_error
 from pydantic import ValidationError
@@ -719,3 +720,65 @@ def update_silmatha_workflow(
         message=message,
         data=silmatha_schema,
     )
+
+
+@router.post(
+    "/arama-list",
+    response_model=schemas.AramaListResponse,
+    dependencies=[has_any_permission("silmatha:create", "silmatha:read", "silmatha:update")],
+)
+def get_arama_list_for_silmatha(
+    request: schemas.AramaListRequest,
+    db: Session = Depends(get_db),
+    current_user: UserAccount = Depends(get_current_user),
+):
+    """
+    Get a simplified list of aramas for silmatha users.
+    Returns only ar_trn, ar_vname, and ar_addrs.
+    
+    Requires: silmatha:read or silmatha:create or silmatha:update permission
+    """
+    if request.action != "READ_ALL":
+        raise validation_error([("action", "Only READ_ALL action is supported")])
+    
+    payload = request.payload
+    page = payload.page
+    limit = payload.limit
+    search = payload.search_key.strip() if payload.search_key else None
+    if search == "":
+        search = None
+    skip = payload.skip if payload.page == 1 else (page - 1) * limit
+    
+    # Get aramas using the arama service
+    aramas = arama_service.list_aramas(
+        db,
+        skip=skip,
+        limit=limit,
+        search=search,
+    )
+    
+    # Get total count
+    total = arama_service.count_aramas(
+        db,
+        search=search,
+    )
+    
+    # Map to simplified response
+    simple_aramas = [
+        schemas.AramaSimpleItem(
+            ar_trn=arama.ar_trn,
+            ar_vname=arama.ar_vname,
+            ar_addrs=arama.ar_addrs,
+        )
+        for arama in aramas
+    ]
+    
+    return schemas.AramaListResponse(
+        status="success",
+        message="Arama records retrieved successfully.",
+        data=simple_aramas,
+        totalRecords=total,
+        page=page,
+        limit=limit,
+    )
+
