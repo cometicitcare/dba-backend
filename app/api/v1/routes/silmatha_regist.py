@@ -782,3 +782,68 @@ def get_arama_list_for_silmatha(
         limit=limit,
     )
 
+
+@router.post(
+    "/limited-list",
+    response_model=schemas.SilmathaLimitedListResponse,
+    dependencies=[has_any_permission("silmatha:read", "silmatha:create", "silmatha:update")],
+)
+def get_silmatha_limited_list(
+    request: schemas.SilmathaLimitedListRequest,
+    db: Session = Depends(get_db),
+    current_user: UserAccount = Depends(get_current_user),
+):
+    """
+    Get a limited list of silmathas for dropdown or selection purposes.
+    Returns only sil_regn and sil_mahananame fields.
+    
+    This endpoint is optimized for scenarios where you need to show a list of silmathas
+    for selection purposes (e.g., dropdowns, autocomplete) without loading all the details.
+    
+    Requires: silmatha:read or silmatha:create or silmatha:update permission
+    """
+    if request.action != "READ_ALL":
+        raise validation_error([("action", "Only READ_ALL action is supported")])
+    
+    payload = request.payload
+    page = payload.page
+    limit = payload.limit
+    search = payload.search_key.strip() if payload.search_key else None
+    if search == "":
+        search = None
+    skip = payload.skip if payload.page == 1 else (page - 1) * limit
+    
+    # Get silmatha records with limited fields
+    silmatha_records = silmatha_regist_repo.get_all(
+        db,
+        skip=skip,
+        limit=limit,
+        search_key=search,
+        current_user=current_user
+    )
+    
+    # Get total count
+    total_count = silmatha_regist_repo.get_total_count(
+        db,
+        search_key=search,
+        current_user=current_user
+    )
+    
+    # Map to limited response - only sil_regn and sil_mahananame
+    limited_silmathas = [
+        schemas.SilmathaLimitedItem(
+            sil_regn=record.sil_regn,
+            sil_mahananame=record.sil_mahananame,
+        )
+        for record in silmatha_records
+    ]
+    
+    return schemas.SilmathaLimitedListResponse(
+        status="success",
+        message="Silmatha records retrieved successfully.",
+        data=limited_silmathas,
+        totalRecords=total_count,
+        page=page,
+        limit=limit,
+    )
+

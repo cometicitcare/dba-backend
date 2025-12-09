@@ -421,3 +421,36 @@ class AramaListResponse(BaseModel):
     totalRecords: int
     page: int
     limit: int
+
+
+# --- Limited Silmatha List Schemas ---
+class SilmathaLimitedItem(BaseModel):
+    """Limited silmatha item - only registration number and maha name"""
+    sil_regn: str
+    sil_mahananame: Optional[str] = None
+    
+    model_config = ConfigDict(from_attributes=True)
+
+
+class SilmathaLimitedListPayload(BaseModel):
+    """Payload for listing silmathas with limited info"""
+    page: int = Field(default=1, ge=1)
+    limit: int = Field(default=10, ge=1, le=200)
+    skip: int = Field(default=0, ge=0)
+    search_key: Optional[str] = Field(default=None, max_length=200)
+
+
+class SilmathaLimitedListRequest(BaseModel):
+    """Request for silmatha limited list endpoint"""
+    action: str = Field(..., description="Action type: READ_ALL")
+    payload: SilmathaLimitedListPayload
+
+
+class SilmathaLimitedListResponse(BaseModel):
+    """Response for silmatha limited list endpoint"""
+    status: str
+    message: str
+    data: List[SilmathaLimitedItem]
+    totalRecords: int = Field(default=0)
+    page: int
+    limit: int

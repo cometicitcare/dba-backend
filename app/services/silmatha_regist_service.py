@@ -118,10 +118,10 @@ class SilmathaRegistService:
             # Assuming comma-separated registration numbers
             regns = [r.strip() for r in silmatha.sil_mahanaacharyacd.split(',') if r.strip()]
             if regns:
-                # Query all at once for efficiency
-                bhikku_names = db.query(Bhikku.br_regn, Bhikku.br_mahananame, Bhikku.br_upasampadaname).filter(
-                    Bhikku.br_regn.in_(regns),
-                    Bhikku.br_is_deleted.is_(False)
+                # Query all at once for efficiency - checking silmatha table
+                silmatha_names = db.query(SilmathaRegist.sil_regn, SilmathaRegist.sil_gihiname).filter(
+                    SilmathaRegist.sil_regn.in_(regns),
+                    SilmathaRegist.sil_is_deleted.is_(False)
                 ).all()
                 # For mahanaacharyacd, we can resolve to nested objects
                 # But since it can be multiple, we'll keep it as is for now or create array
@@ -568,7 +568,7 @@ class SilmathaRegistService:
             db, payload.get("sil_currstat"), "sil_currstat"
         )
         
-        # Validate sil_mahanaacharyacd -> bhikku_regist.br_regn (can be multiple comma-separated)
+        # Validate sil_mahanaacharyacd -> silmatha_regist.sil_regn (can be multiple comma-separated)
         self._validate_mahanaacharyacd_reference(
             db, payload.get("sil_mahanaacharyacd"), "sil_mahanaacharyacd"
         )
@@ -725,7 +725,7 @@ class SilmathaRegistService:
     def _validate_mahanaacharyacd_reference(
         self, db: Session, value: Optional[str], field_name: str
     ) -> None:
-        """Validate mahanaacharyacd - can be single br_regn or comma-separated list of br_regn values"""
+        """Validate mahanaacharyacd - can be single sil_regn or comma-separated list of sil_regn values"""
         if not self._has_meaningful_value(value):
             return
 
@@ -734,15 +734,15 @@ class SilmathaRegistService:
         
         for regn in regns:
             exists = (
-                db.query(Bhikku.br_regn)
+                db.query(SilmathaRegist.sil_regn)
                 .filter(
-                    Bhikku.br_regn == regn,
-                    Bhikku.br_is_deleted.is_(False),
+                    SilmathaRegist.sil_regn == regn,
+                    SilmathaRegist.sil_is_deleted.is_(False),
                 )
                 .first()
             )
             if not exists:
-                raise ValueError(f"Invalid reference: {field_name} contains invalid br_regn '{regn}' not found in bhikku table.")
+                raise ValueError(f"Invalid reference: {field_name} contains invalid sil_regn '{regn}' not found in silmatha table.")
 
     @staticmethod
     def _has_meaningful_value(value: Any) -> bool:
