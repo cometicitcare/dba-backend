@@ -46,6 +46,12 @@ class SilmathaRegist(Base):
     # Form ID
     sil_form_id = Column(String(50))
     
+    # Signature Fields (Boolean - true/false)
+    sil_student_signature = Column(Boolean)  # ශිෂ්‍ය මෑණියන් වහන්සේගේ අත්සන
+    sil_acharya_signature = Column(Boolean)  # ආචාර්ය මෑණියන් වහන්සේගේ අත්සන
+    sil_aramadhipathi_signature = Column(Boolean)  # ආරාමාධිපති මෑණියන් වහන්සේගේ අත්සන
+    sil_district_secretary_signature = Column(Boolean)  # දිස්ත්‍රික් සිල්මාතා සංගමයේ ලේකම් අත්සන
+    
     # Document Storage
     sil_scanned_document_path = Column(String(500))
     

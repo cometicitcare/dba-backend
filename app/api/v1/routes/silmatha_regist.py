@@ -451,6 +451,136 @@ async def upload_scanned_document(
 
 
 @router.post(
+    "/{sil_regn}/mark-printed",
+    response_model=schemas.SilmathaRegistWorkflowResponse,
+    dependencies=[has_any_permission("silmatha:update")],
+)
+def mark_silmatha_printed(
+    sil_regn: str,
+    db: Session = Depends(get_db),
+    current_user: UserAccount = Depends(get_current_user),
+):
+    """
+    Mark silmatha certificate as printed.
+    
+    Transitions: PENDING → PRINTED
+    
+    Indicates that the certificate has been physically printed.
+    This is the first action after creating a silmatha record.
+    
+    Requires: silmatha:update permission
+    """
+    user_id = current_user.ua_user_id
+    
+    try:
+        updated_silmatha = silmatha_regist_service.mark_printed(
+            db, sil_regn=sil_regn, actor_id=user_id
+        )
+    except ValueError as exc:
+        error_msg = str(exc)
+        if "not found" in error_msg.lower():
+            raise HTTPException(status_code=404, detail=error_msg) from exc
+        raise validation_error([(None, error_msg)]) from exc
+    except RuntimeError as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+    
+    silmatha_schema = schemas.SilmathaRegistInternal.model_validate(updated_silmatha)
+    return schemas.SilmathaRegistWorkflowResponse(
+        success=True,
+        message="Silmatha certificate marked as printed successfully.",
+        data=silmatha_schema,
+    )
+
+
+@router.post(
+    "/{sil_regn}/mark-scanned",
+    response_model=schemas.SilmathaRegistWorkflowResponse,
+    dependencies=[has_any_permission("silmatha:update")],
+)
+def mark_silmatha_scanned(
+    sil_regn: str,
+    db: Session = Depends(get_db),
+    current_user: UserAccount = Depends(get_current_user),
+):
+    """
+    Mark silmatha certificate as scanned.
+    
+    Transitions: PRINTED → PEND-APPROVAL
+    
+    Indicates that the printed certificate has been scanned back into the system.
+    After this step, the record can be approved or rejected.
+    
+    Requires: silmatha:update permission
+    """
+    user_id = current_user.ua_user_id
+    
+    try:
+        # Note: mark_scanned expects a document path, but this endpoint doesn't handle file upload
+        # Use the upload-scanned-document endpoint instead for auto-transition
+        updated_silmatha = silmatha_regist_service.mark_scanned(
+            db, 
+            sil_regn=sil_regn, 
+            scanned_document_path="",  # Empty path for manual marking
+            actor_id=user_id
+        )
+    except ValueError as exc:
+        error_msg = str(exc)
+        if "not found" in error_msg.lower():
+            raise HTTPException(status_code=404, detail=error_msg) from exc
+        raise validation_error([(None, error_msg)]) from exc
+    except RuntimeError as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+    
+    silmatha_schema = schemas.SilmathaRegistInternal.model_validate(updated_silmatha)
+    return schemas.SilmathaRegistWorkflowResponse(
+        success=True,
+        message="Silmatha certificate marked as scanned successfully.",
+        data=silmatha_schema,
+    )
+
+
+@router.post(
+    "/{sil_regn}/approve",
+    response_model=schemas.SilmathaRegistWorkflowResponse,
+    dependencies=[has_any_permission("silmatha:approve")],
+)
+def approve_silmatha_record(
+    sil_regn: str,
+    db: Session = Depends(get_db),
+    current_user: UserAccount = Depends(get_current_user),
+):
+    """
+    Approve silmatha registration.
+    
+    Transitions: PEND-APPROVAL → COMPLETED (with approval_status = APPROVED)
+    
+    Once approved, the workflow is completed. This is the final step for successful registrations.
+    
+    Requires: silmatha:approve permission
+    """
+    user_id = current_user.ua_user_id
+    
+    try:
+        updated_silmatha = silmatha_regist_service.approve_silmatha(
+            db, sil_regn=sil_regn, actor_id=user_id
+        )
+    except ValueError as exc:
+        error_msg = str(exc)
+        if "not found" in error_msg.lower():
+            raise HTTPException(status_code=404, detail=error_msg) from exc
+        raise validation_error([(None, error_msg)]) from exc
+    except RuntimeError as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+    
+    silmatha_schema = schemas.SilmathaRegistInternal.model_validate(updated_silmatha)
+    return schemas.SilmathaRegistWorkflowResponse(
+        success=True,
+        message="Silmatha registration approved and completed successfully.",
+        data=silmatha_schema,
+    )
+
+
+@router.post(
     "/workflow",
     response_model=schemas.SilmathaRegistWorkflowResponse,
     dependencies=[has_any_permission("silmatha:approve", "silmatha:update")],

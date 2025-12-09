@@ -144,38 +144,34 @@ class SilmathaRegistService:
             # Geographic/Birth Information with nested objects
             "sil_birthpls": silmatha.sil_birthpls,
             "sil_province": {
-                "cp_code": silmatha.province_rel.cp_code,
-                "cp_name": silmatha.province_rel.cp_name
+                "pr_code": silmatha.province_rel.cp_code,
+                "pr_name": silmatha.province_rel.cp_name
             } if silmatha.province_rel else silmatha.sil_province,
             "sil_district": {
-                "dd_dcode": silmatha.district_rel.dd_dcode,
-                "dd_dname": silmatha.district_rel.dd_dname
+                "ds_code": silmatha.district_rel.dd_dcode,
+                "ds_name": silmatha.district_rel.dd_dname
             } if silmatha.district_rel else silmatha.sil_district,
             "sil_korale": silmatha.sil_korale,
             "sil_pattu": silmatha.sil_pattu,
             "sil_division": {
-                "dv_dvcode": silmatha.division_rel.dv_dvcode,
-                "dv_dvname": silmatha.division_rel.dv_dvname
+                "dv_code": silmatha.division_rel.dv_dvcode,
+                "dv_name": silmatha.division_rel.dv_dvname
             } if silmatha.division_rel else silmatha.sil_division,
             "sil_vilage": silmatha.sil_vilage,
             "sil_gndiv": {
-                "gn_gnc": silmatha.gndiv_rel.gn_gnc,
-                "gn_gnname": silmatha.gndiv_rel.gn_gnname
+                "gn_code": silmatha.gndiv_rel.gn_gnc,
+                "gn_name": silmatha.gndiv_rel.gn_gnname
             } if silmatha.gndiv_rel else silmatha.sil_gndiv,
             
             # Temple/Religious Information with nested objects
-            "sil_viharadhipathi": {
-                "br_regn": silmatha.viharadhipathi_rel.br_regn,
-                "br_mahananame": silmatha.viharadhipathi_rel.br_mahananame or "",
-                "br_upasampadaname": silmatha.viharadhipathi_rel.br_upasampadaname or ""
-            } if silmatha.viharadhipathi_rel else silmatha.sil_viharadhipathi,
+            "sil_viharadhipathi": silmatha.sil_viharadhipathi,  # Keep as string (FK to bhikku)
             "sil_cat": {
-                "cc_code": silmatha.category_rel.cc_code,
-                "cc_catogry": silmatha.category_rel.cc_catogry
+                "cat_code": silmatha.category_rel.cc_code,
+                "cat_description": silmatha.category_rel.cc_catogry
             } if silmatha.category_rel else silmatha.sil_cat,
             "sil_currstat": {
-                "st_statcd": silmatha.status_rel.st_statcd,
-                "st_descr": silmatha.status_rel.st_descr
+                "st_code": silmatha.status_rel.st_statcd,
+                "st_description": silmatha.status_rel.st_descr
             } if silmatha.status_rel else silmatha.sil_currstat,
             "sil_declaration_date": silmatha.sil_declaration_date,
             "sil_remarks": silmatha.sil_remarks,
@@ -194,6 +190,15 @@ class SilmathaRegistService:
                 "vh_trn": silmatha.robing_after_residence_temple_rel.vh_trn,
                 "vh_vname": silmatha.robing_after_residence_temple_rel.vh_vname
             } if silmatha.robing_after_residence_temple_rel else silmatha.sil_robing_after_residence_temple,
+            
+            # Form ID
+            "sil_form_id": silmatha.sil_form_id,
+            
+            # Signature Fields (Boolean)
+            "sil_student_signature": silmatha.sil_student_signature,
+            "sil_acharya_signature": silmatha.sil_acharya_signature,
+            "sil_aramadhipathi_signature": silmatha.sil_aramadhipathi_signature,
+            "sil_district_secretary_signature": silmatha.sil_district_secretary_signature,
             
             # Document Storage
             "sil_scanned_document_path": silmatha.sil_scanned_document_path,
