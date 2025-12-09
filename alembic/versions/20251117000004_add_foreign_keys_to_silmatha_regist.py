@@ -201,7 +201,7 @@ def upgrade() -> None:
             ondelete='SET NULL'
         )
     
-    # Note: sil_mahanaacharyacd can contain comma-separated br_regn values,
+    # Note: sil_mahanaacharyacd can contain comma-separated sil_regn values,
     # so we cannot create a direct foreign key constraint for it.
     # Validation will be done at the application level in the service layer.
 
