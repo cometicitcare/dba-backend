@@ -387,3 +387,37 @@ class SilmathaRegistWorkflowResponse(BaseModel):
     success: bool
     message: str
     data: Optional[SilmathaRegistInternal] = None
+
+
+# --- Arama List Schemas for Silmatha Users ---
+class AramaSimpleItem(BaseModel):
+    """Simplified arama item for silmatha users"""
+    ar_trn: str
+    ar_vname: Optional[str] = None
+    ar_addrs: Optional[str] = None
+    
+    model_config = ConfigDict(from_attributes=True)
+
+
+class AramaListPayload(BaseModel):
+    """Payload for listing aramas"""
+    page: int = Field(default=1, ge=1)
+    limit: int = Field(default=10, ge=1, le=200)
+    skip: int = Field(default=0, ge=0)
+    search_key: Optional[str] = Field(default=None, max_length=200)
+
+
+class AramaListRequest(BaseModel):
+    """Request for arama list endpoint"""
+    action: str = Field(..., description="Action type: READ_ALL")
+    payload: AramaListPayload
+
+
+class AramaListResponse(BaseModel):
+    """Response for arama list endpoint"""
+    status: str
+    message: str
+    data: List[AramaSimpleItem]
+    totalRecords: int
+    page: int
+    limit: int
