@@ -146,6 +146,14 @@ class ViharaBase(BaseModel):
             value = value.strip()
         return value
 
+    @field_validator("vh_ownercd", mode="before")
+    @classmethod
+    def _truncate_ownercd(cls, value: Optional[str]) -> Optional[str]:
+        """Truncate vh_ownercd to max 12 characters if needed"""
+        if isinstance(value, str) and len(value) > 12:
+            return value[:12]
+        return value
+
 
 class ViharaCreate(ViharaBase):
     vh_trn: Annotated[Optional[str], Field(default=None, min_length=1, max_length=10)]
@@ -333,6 +341,14 @@ class ViharaUpdate(BaseModel):
         if isinstance(value, str):
             value = value.strip()
             return value or None
+        return value
+
+    @field_validator("vh_ownercd", mode="before")
+    @classmethod
+    def _truncate_ownercd(cls, value: Optional[str]) -> Optional[str]:
+        """Truncate vh_ownercd to max 12 characters if needed"""
+        if isinstance(value, str) and len(value) > 12:
+            return value[:12]
         return value
 
 
