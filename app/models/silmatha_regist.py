@@ -32,6 +32,7 @@ class SilmathaRegist(Base):
     
     # Temple/Religious Information
     sil_viharadhipathi = Column(String(20), ForeignKey('bhikku_regist.br_regn'))
+    sil_aramadhipathi = Column(String(20))  # Aramadhipathi - can be Silmatha regn
     sil_cat = Column(String(5), ForeignKey('cmm_cat.cc_code'))
     sil_currstat = Column(String(5), ForeignKey('statusdata.st_statcd'), nullable=False)
     sil_declaration_date = Column(Date)
