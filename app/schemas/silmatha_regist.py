@@ -86,6 +86,7 @@ class SilmathaRefResponse(BaseModel):
     """Nested response for silmatha references (viharadhipathi, mahanaacharyacd, etc.)"""
     sil_regn: str
     sil_mahananame: str
+    sil_gihiname: str = ""
 
 
 # --- Silmatha Schemas ---
@@ -212,6 +213,7 @@ class Silmatha(SilmathaRegistBase):
     sil_currstat: Union[StatusResponse, str]
     sil_cat: Optional[Union[CategoryResponse, str]] = None
     sil_viharadhipathi: Optional[Union[SilmathaRefResponse, str]] = None
+    sil_aramadhipathi: Optional[Union[SilmathaRefResponse, str]] = None
     sil_mahanaacharyacd: Optional[Union[SilmathaRefResponse, str]] = None
     sil_robing_tutor_residence: Optional[Union[AramaResponse, str]] = None
     sil_mahanatemple: Optional[Union[AramaResponse, str]] = None

@@ -113,20 +113,42 @@ class SilmathaRegistService:
     def enrich_silmatha_dict(self, silmatha: SilmathaRegist, db: Session = None) -> dict:
         """Transform SilmathaRegist model to dictionary with resolved foreign key names as nested objects"""
         
-        # Handle multi_mahanaacharyacd - split and resolve names
+        # Resolve sil_mahanaacharyacd to nested object (single or comma-separated)
         mahanaacharyacd_value = silmatha.sil_mahanaacharyacd
         if silmatha.sil_mahanaacharyacd and db:
-            # Assuming comma-separated registration numbers
+            # Check if it's a comma-separated list or single value
             regns = [r.strip() for r in silmatha.sil_mahanaacharyacd.split(',') if r.strip()]
             if regns:
                 # Query all at once for efficiency - checking silmatha table
-                silmatha_names = db.query(SilmathaRegist.sil_regn, SilmathaRegist.sil_gihiname).filter(
+                mahanaacharyacd_records = db.query(SilmathaRegist).filter(
                     SilmathaRegist.sil_regn.in_(regns),
                     SilmathaRegist.sil_is_deleted.is_(False)
                 ).all()
-                # For mahanaacharyacd, we can resolve to nested objects
-                # But since it can be multiple, we'll keep it as is for now or create array
-                mahanaacharyacd_value = silmatha.sil_mahanaacharyacd
+                
+                if mahanaacharyacd_records:
+                    # If single record, return as object; if multiple, return first one as object
+                    # (Following the pattern - you can modify this if you want a list)
+                    first_record = mahanaacharyacd_records[0]
+                    mahanaacharyacd_value = {
+                        "sil_regn": first_record.sil_regn,
+                        "sil_mahananame": first_record.sil_mahananame or "",
+                        "sil_gihiname": first_record.sil_gihiname or ""
+                    }
+        
+        # Resolve sil_aramadhipathi to nested object (Silmatha reference)
+        aramadhipathi_value = silmatha.sil_aramadhipathi
+        if silmatha.sil_aramadhipathi and db:
+            aramadhipathi_record = db.query(SilmathaRegist).filter(
+                SilmathaRegist.sil_regn == silmatha.sil_aramadhipathi,
+                SilmathaRegist.sil_is_deleted.is_(False)
+            ).first()
+            
+            if aramadhipathi_record:
+                aramadhipathi_value = {
+                    "sil_regn": aramadhipathi_record.sil_regn,
+                    "sil_mahananame": aramadhipathi_record.sil_mahananame or "",
+                    "sil_gihiname": aramadhipathi_record.sil_gihiname or ""
+                }
         
         silmatha_dict = {
             "sil_id": silmatha.sil_id,
@@ -166,7 +188,7 @@ class SilmathaRegistService:
             
             # Temple/Religious Information with nested objects
             "sil_viharadhipathi": silmatha.sil_viharadhipathi,  # Keep as string (FK to bhikku)
-            "sil_aramadhipathi": silmatha.sil_aramadhipathi,  # Keep as string (can be sil_regn)
+            "sil_aramadhipathi": aramadhipathi_value,  # Resolved to nested object
             "sil_cat": {
                 "cat_code": silmatha.category_rel.cc_code,
                 "cat_description": silmatha.category_rel.cc_catogry
@@ -179,7 +201,7 @@ class SilmathaRegistService:
             "sil_remarks": silmatha.sil_remarks,
             "sil_mahanadate": silmatha.sil_mahanadate,
             "sil_mahananame": silmatha.sil_mahananame,
-            "sil_mahanaacharyacd": mahanaacharyacd_value,
+            "sil_mahanaacharyacd": mahanaacharyacd_value,  # Resolved to nested object
             "sil_robing_tutor_residence": {
                 "ar_trn": silmatha.robing_tutor_residence_rel.ar_trn,
                 "ar_vname": silmatha.robing_tutor_residence_rel.ar_vname
