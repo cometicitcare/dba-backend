@@ -76,6 +76,12 @@ class ViharaResponse(BaseModel):
     vh_vname: str
 
 
+class AramaResponse(BaseModel):
+    """Nested response for arama"""
+    ar_trn: str
+    ar_vname: str
+
+
 class SilmathaRefResponse(BaseModel):
     """Nested response for silmatha references (viharadhipathi, mahanaacharyacd, etc.)"""
     sil_regn: str
@@ -205,9 +211,9 @@ class Silmatha(SilmathaRegistBase):
     sil_cat: Optional[Union[CategoryResponse, str]] = None
     sil_viharadhipathi: Optional[Union[SilmathaRefResponse, str]] = None
     sil_mahanaacharyacd: Optional[Union[SilmathaRefResponse, str]] = None
-    sil_robing_tutor_residence: Optional[Union[ViharaResponse, str]] = None
-    sil_mahanatemple: Optional[Union[ViharaResponse, str]] = None
-    sil_robing_after_residence_temple: Optional[Union[ViharaResponse, str]] = None
+    sil_robing_tutor_residence: Optional[Union[AramaResponse, str]] = None
+    sil_mahanatemple: Optional[Union[AramaResponse, str]] = None
+    sil_robing_after_residence_temple: Optional[Union[AramaResponse, str]] = None
     
     # Workflow Fields - expose same set as Bhikku responses
     sil_workflow_status: Optional[str] = None

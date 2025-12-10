@@ -39,9 +39,9 @@ class SilmathaRegist(Base):
     sil_mahanadate = Column(Date)
     sil_mahananame = Column(String(50))
     sil_mahanaacharyacd = Column(String(12))  # Can be comma-separated sil_regn values
-    sil_robing_tutor_residence = Column(String(20), ForeignKey('vihaddata.vh_trn'))
-    sil_mahanatemple = Column(String(10), ForeignKey('vihaddata.vh_trn'))
-    sil_robing_after_residence_temple = Column(String(20), ForeignKey('vihaddata.vh_trn'))
+    sil_robing_tutor_residence = Column(String(20), ForeignKey('aramadata.ar_trn'))
+    sil_mahanatemple = Column(String(10), ForeignKey('aramadata.ar_trn'))
+    sil_robing_after_residence_temple = Column(String(20), ForeignKey('aramadata.ar_trn'))
     
     # Form ID
     sil_form_id = Column(String(50))
@@ -104,7 +104,7 @@ class SilmathaRegist(Base):
     viharadhipathi_rel = relationship("Bhikku", foreign_keys=[sil_viharadhipathi], lazy="joined")
     category_rel = relationship("BhikkuCategory", foreign_keys=[sil_cat], lazy="joined")
     status_rel = relationship("StatusData", foreign_keys=[sil_currstat], lazy="joined")
-    robing_tutor_residence_rel = relationship("ViharaData", foreign_keys=[sil_robing_tutor_residence], lazy="joined")
-    mahanatemple_rel = relationship("ViharaData", foreign_keys=[sil_mahanatemple], lazy="joined")
-    robing_after_residence_temple_rel = relationship("ViharaData", foreign_keys=[sil_robing_after_residence_temple], lazy="joined")
+    robing_tutor_residence_rel = relationship("AramaData", foreign_keys=[sil_robing_tutor_residence], lazy="joined")
+    mahanatemple_rel = relationship("AramaData", foreign_keys=[sil_mahanatemple], lazy="joined")
+    robing_after_residence_temple_rel = relationship("AramaData", foreign_keys=[sil_robing_after_residence_temple], lazy="joined")
 
