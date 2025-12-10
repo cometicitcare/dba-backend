@@ -12,6 +12,7 @@ from app.models.silmatha_regist import SilmathaRegist
 from app.models.user import UserAccount
 from app.models.bhikku import Bhikku
 from app.models.vihara import ViharaData
+from app.models.arama import AramaData
 from app.models.province import Province
 from app.models.district import District
 from app.models.divisional_secretariat import DivisionalSecretariat
@@ -179,16 +180,16 @@ class SilmathaRegistService:
             "sil_mahananame": silmatha.sil_mahananame,
             "sil_mahanaacharyacd": mahanaacharyacd_value,
             "sil_robing_tutor_residence": {
-                "vh_trn": silmatha.robing_tutor_residence_rel.vh_trn,
-                "vh_vname": silmatha.robing_tutor_residence_rel.vh_vname
+                "ar_trn": silmatha.robing_tutor_residence_rel.ar_trn,
+                "ar_vname": silmatha.robing_tutor_residence_rel.ar_vname
             } if silmatha.robing_tutor_residence_rel else silmatha.sil_robing_tutor_residence,
             "sil_mahanatemple": {
-                "vh_trn": silmatha.mahanatemple_rel.vh_trn,
-                "vh_vname": silmatha.mahanatemple_rel.vh_vname
+                "ar_trn": silmatha.mahanatemple_rel.ar_trn,
+                "ar_vname": silmatha.mahanatemple_rel.ar_vname
             } if silmatha.mahanatemple_rel else silmatha.sil_mahanatemple,
             "sil_robing_after_residence_temple": {
-                "vh_trn": silmatha.robing_after_residence_temple_rel.vh_trn,
-                "vh_vname": silmatha.robing_after_residence_temple_rel.vh_vname
+                "ar_trn": silmatha.robing_after_residence_temple_rel.ar_trn,
+                "ar_vname": silmatha.robing_after_residence_temple_rel.ar_vname
             } if silmatha.robing_after_residence_temple_rel else silmatha.sil_robing_after_residence_temple,
             
             # Form ID
@@ -573,18 +574,18 @@ class SilmathaRegistService:
             db, payload.get("sil_mahanaacharyacd"), "sil_mahanaacharyacd"
         )
         
-        # Validate sil_robing_tutor_residence -> vihaddata.vh_trn
-        self._validate_vihara_reference(
+        # Validate sil_robing_tutor_residence -> aramadata.ar_trn
+        self._validate_arama_reference(
             db, payload.get("sil_robing_tutor_residence"), "sil_robing_tutor_residence"
         )
         
-        # Validate sil_mahanatemple -> vihaddata.vh_trn
-        self._validate_vihara_reference(
+        # Validate sil_mahanatemple -> aramadata.ar_trn
+        self._validate_arama_reference(
             db, payload.get("sil_mahanatemple"), "sil_mahanatemple"
         )
         
-        # Validate sil_robing_after_residence_temple -> vihaddata.vh_trn
-        self._validate_vihara_reference(
+        # Validate sil_robing_after_residence_temple -> aramadata.ar_trn
+        self._validate_arama_reference(
             db, payload.get("sil_robing_after_residence_temple"), "sil_robing_after_residence_temple"
         )
 
@@ -689,6 +690,23 @@ class SilmathaRegistService:
         )
         if not exists:
             raise ValueError(f"Invalid reference: {field_name} '{value}' not found in vihara table.")
+
+    def _validate_arama_reference(
+        self, db: Session, value: Optional[str], field_name: str
+    ) -> None:
+        if not self._has_meaningful_value(value):
+            return
+
+        exists = (
+            db.query(AramaData.ar_trn)
+            .filter(
+                AramaData.ar_trn == value,
+                AramaData.ar_is_deleted.is_(False),
+            )
+            .first()
+        )
+        if not exists:
+            raise ValueError(f"Invalid reference: {field_name} '{value}' not found in arama table.")
 
     def _validate_category_reference(
         self, db: Session, value: Optional[str], field_name: str
