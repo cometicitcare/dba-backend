@@ -38,7 +38,7 @@ class SilmathaRegist(Base):
     sil_remarks = Column(String(100))
     sil_mahanadate = Column(Date)
     sil_mahananame = Column(String(50))
-    sil_mahanaacharyacd = Column(String(12))  # Can be comma-separated sil_regn values
+    sil_mahanaacharyacd = Column(String(500))  # Can be comma-separated sil_regn values
     sil_robing_tutor_residence = Column(String(20), ForeignKey('aramadata.ar_trn'))
     sil_mahanatemple = Column(String(10), ForeignKey('aramadata.ar_trn'))
     sil_robing_after_residence_temple = Column(String(20), ForeignKey('aramadata.ar_trn'))
