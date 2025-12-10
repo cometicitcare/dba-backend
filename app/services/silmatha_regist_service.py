@@ -166,6 +166,7 @@ class SilmathaRegistService:
             
             # Temple/Religious Information with nested objects
             "sil_viharadhipathi": silmatha.sil_viharadhipathi,  # Keep as string (FK to bhikku)
+            "sil_aramadhipathi": silmatha.sil_aramadhipathi,  # Keep as string (can be sil_regn)
             "sil_cat": {
                 "cat_code": silmatha.category_rel.cc_code,
                 "cat_description": silmatha.category_rel.cc_catogry

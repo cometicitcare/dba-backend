@@ -115,6 +115,7 @@ class SilmathaRegistBase(BaseModel):
     
     # Temple/Religious Information
     sil_viharadhipathi: Optional[str] = None
+    sil_aramadhipathi: Optional[str] = None
     sil_cat: Optional[str] = None
     sil_currstat: str
     sil_declaration_date: Optional[date] = None
@@ -168,6 +169,7 @@ class SilmathaRegistUpdate(BaseModel):
     
     # Temple/Religious Information
     sil_viharadhipathi: Optional[str] = None
+    sil_aramadhipathi: Optional[str] = None
     sil_cat: Optional[str] = None
     sil_currstat: Optional[str] = None
     sil_declaration_date: Optional[date] = None
