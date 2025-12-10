@@ -46,6 +46,9 @@ from app.models.devala_land import DevalaLand
 from app.models.silmatha_regist import SilmathaRegist
 from app.models.silmatha_id_card import SilmathaIDCard
 
+# Objection model
+from app.models.objection import Objection
+
 # Other models
 from app.models.status import StatusData
 # from app.models.certificate import Certificate

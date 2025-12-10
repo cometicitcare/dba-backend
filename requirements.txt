@@ -21,3 +21,6 @@ python-multipart==0.0.9
 # Industry-level email and OTP services
 redis==5.0.1
 hiredis==2.3.2
+# Testing
+pytest==8.0.0
+pytest-asyncio==0.23.0
