@@ -146,6 +146,14 @@ class DevalaBase(BaseModel):
             value = value.strip()
         return value
 
+    @field_validator("dv_ownercd", mode="before")
+    @classmethod
+    def _truncate_ownercd(cls, value: Optional[str]) -> Optional[str]:
+        """Truncate dv_ownercd to max 12 characters if needed"""
+        if isinstance(value, str) and len(value) > 12:
+            return value[:12]
+        return value
+
 
 class DevalaCreate(DevalaBase):
     dv_trn: Annotated[Optional[str], Field(default=None, min_length=1, max_length=10)]
@@ -328,6 +336,14 @@ class DevalaUpdate(BaseModel):
         if isinstance(value, str):
             value = value.strip()
             return value or None
+        return value
+
+    @field_validator("dv_ownercd", mode="before")
+    @classmethod
+    def _truncate_ownercd(cls, value: Optional[str]) -> Optional[str]:
+        """Truncate dv_ownercd to max 12 characters if needed"""
+        if isinstance(value, str) and len(value) > 12:
+            return value[:12]
         return value
 
 

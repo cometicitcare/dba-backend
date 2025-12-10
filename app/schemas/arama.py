@@ -3,7 +3,7 @@ import re
 from enum import Enum
 from typing import Annotated, Optional, Union, List, Any
 
-from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator, model_validator
 
 from app.schemas.arama_land import AramaLandCreate, AramaLandInDB
 from app.schemas.arama_resident_silmatha import AramaResidentSilmathaCreate, AramaResidentSilmathaInDB
@@ -142,6 +142,14 @@ class AramaBase(BaseModel):
     def _normalize_email(cls, value: str) -> str:
         if isinstance(value, str):
             value = value.strip()
+        return value
+
+    @field_validator("ar_ownercd", mode="before")
+    @classmethod
+    def _truncate_ownercd(cls, value: Optional[str]) -> Optional[str]:
+        """Truncate ar_ownercd to max 12 characters if needed"""
+        if isinstance(value, str) and len(value) > 12:
+            return value[:12]
         return value
 
 
@@ -329,6 +337,14 @@ class AramaUpdate(BaseModel):
             return value or None
         return value
 
+    @field_validator("ar_ownercd", mode="before")
+    @classmethod
+    def _truncate_ownercd(cls, value: Optional[str]) -> Optional[str]:
+        """Truncate ar_ownercd to max 12 characters if needed"""
+        if isinstance(value, str) and len(value) > 12:
+            return value[:12]
+        return value
+
 
 class AramaOut(AramaBase):
     model_config = ConfigDict(from_attributes=True)
@@ -369,8 +385,8 @@ class AramaRequestPayload(BaseModel):
     # Workflow action fields
     rejection_reason: Annotated[Optional[str], Field(default=None, max_length=500)] = None
     
-    # Data payload for CREATE/UPDATE
-    data: Optional[Union[AramaCreate, AramaCreatePayload, AramaUpdate]] = None
+    # Data payload for CREATE/UPDATE - order matters: snake_case first, then camelCase
+    data: Optional[Union[AramaCreate, AramaUpdate, AramaCreatePayload]] = None
 
 
 class AramaManagementRequest(BaseModel):
