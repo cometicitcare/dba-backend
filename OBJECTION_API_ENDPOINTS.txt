@@ -1,0 +1,654 @@
+================================================================================
+OBJECTION SYSTEM API ENDPOINTS - FRONTEND DEVELOPER GUIDE
+================================================================================
+Base URL: https://api.dbagovlk.com/api/v1
+Local: http://localhost:8000/api/v1
+
+All endpoints require authentication (login first to get session cookie).
+
+================================================================================
+OVERVIEW
+================================================================================
+
+The Objection System allows administrators to restrict the addition of resident 
+bhikkus/silmathas to specific viharas, aramas, or devalas. Once an objection is 
+approved, no new resident bhikkus/silmathas can be added to that entity.
+
+Workflow:
+1. Someone submits an objection → Status: PENDING
+2. Admin approves → Status: APPROVED (resident additions blocked ❌)
+   OR Admin rejects → Status: REJECTED (no restriction ✅)
+3. Later, admin can cancel → Status: CANCELLED (restriction removed ✅)
+
+================================================================================
+1. CREATE OBJECTION
+================================================================================
+Endpoint: POST /objections/manage
+Permission: objection:create
+
+Description: Submit a new objection to restrict resident bhikkus/silmathas from 
+being added to a specific vihara, arama, or devala.
+
+Request Body:
+{
+  "action": "CREATE",
+  "payload": {
+    "data": {
+      "obj_entity_type": "VIHARA",           // VIHARA, ARAMA, or DEVALA
+      "obj_entity_trn": "TRN0000001",        // TRN of the entity
+      "obj_entity_name": "Temple Name",      // Optional - auto-populated if not provided
+      "obj_reason": "Cannot add more resident bhikkus due to capacity constraints"
+    }
+  }
+}
+
+Response (200 OK):
+{
+  "status": "success",
+  "message": "Objection submitted successfully. Status: PENDING",
+  "data": {
+    "obj_id": 1,
+    "obj_entity_type": "VIHARA",
+    "obj_entity_trn": "TRN0000001",
+    "obj_entity_name": "Temple Name",
+    "obj_reason": "Cannot add more resident bhikkus due to capacity constraints",
+    "obj_status": "PENDING",
+    "obj_submitted_by": "UA0001",
+    "obj_submitted_at": "2025-12-10T10:30:00+05:30",
+    "obj_approved_by": null,
+    "obj_approved_at": null,
+    "obj_rejected_by": null,
+    "obj_rejected_at": null,
+    "obj_rejection_reason": null,
+    "obj_cancelled_by": null,
+    "obj_cancelled_at": null,
+    "obj_cancellation_reason": null,
+    "obj_is_deleted": false,
+    "obj_created_at": "2025-12-10T10:30:00+05:30",
+    "obj_updated_at": "2025-12-10T10:30:00+05:30",
+    "obj_updated_by": null
+  }
+}
+
+Entity Types:
+- VIHARA  - For vihara/temple entities
+- ARAMA   - For arama entities
+- DEVALA  - For devala entities
+
+================================================================================
+2. READ ONE OBJECTION
+================================================================================
+Endpoint: POST /objections/manage
+Permission: objection:read OR objection:create OR objection:update OR objection:delete
+
+Description: Get details of a specific objection by its ID.
+
+Request Body:
+{
+  "action": "READ_ONE",
+  "payload": {
+    "obj_id": 1
+  }
+}
+
+Response (200 OK):
+{
+  "status": "success",
+  "message": "Objection retrieved successfully.",
+  "data": {
+    "obj_id": 1,
+    "obj_entity_type": "VIHARA",
+    "obj_entity_trn": "TRN0000001",
+    "obj_entity_name": "Temple Name",
+    "obj_reason": "Cannot add more resident bhikkus due to capacity",
+    "obj_status": "APPROVED",
+    "obj_submitted_by": "UA0001",
+    "obj_submitted_at": "2025-12-10T10:30:00+05:30",
+    "obj_approved_by": "UA0002",
+    "obj_approved_at": "2025-12-10T11:00:00+05:30",
+    ... (all fields)
+  }
+}
+
+================================================================================
+3. READ ALL OBJECTIONS (with pagination and filters)
+================================================================================
+Endpoint: POST /objections/manage
+Permission: objection:read OR objection:create OR objection:update OR objection:delete
+
+Description: Get a list of objections with optional filters and pagination.
+
+Request Body:
+{
+  "action": "READ_ALL",
+  "payload": {
+    // Optional filters
+    "obj_entity_type": "VIHARA",      // Filter by entity type
+    "obj_entity_trn": "TRN0000001",   // Filter by specific entity
+    "obj_status": "APPROVED",         // Filter by status (PENDING, APPROVED, REJECTED, CANCELLED)
+    
+    // Pagination
+    "page": 1,                        // Default: 1
+    "limit": 10                       // Default: 10, max: 100
+  }
+}
+
+Response (200 OK):
+{
+  "status": "success",
+  "message": "Retrieved 5 objections.",
+  "data": [
+    {
+      "obj_id": 1,
+      "obj_entity_type": "VIHARA",
+      "obj_entity_trn": "TRN0000001",
+      "obj_status": "APPROVED",
+      ... (all fields)
+    },
+    {
+      "obj_id": 2,
+      "obj_entity_type": "ARAMA",
+      "obj_entity_trn": "ARN0000001",
+      "obj_status": "PENDING",
+      ... (all fields)
+    }
+  ],
+  "totalRecords": 5,
+  "page": 1,
+  "limit": 10
+}
+
+Filter Examples:
+
+// Get all PENDING objections
+{
+  "action": "READ_ALL",
+  "payload": {
+    "obj_status": "PENDING",
+    "page": 1,
+    "limit": 20
+  }
+}
+
+// Get all objections for a specific vihara
+{
+  "action": "READ_ALL",
+  "payload": {
+    "obj_entity_type": "VIHARA",
+    "obj_entity_trn": "TRN0000001"
+  }
+}
+
+// Get all APPROVED objections for aramas
+{
+  "action": "READ_ALL",
+  "payload": {
+    "obj_entity_type": "ARAMA",
+    "obj_status": "APPROVED",
+    "limit": 50
+  }
+}
+
+================================================================================
+4. APPROVE OBJECTION
+================================================================================
+Endpoint: POST /objections/manage
+Permission: objection:update
+
+Description: Approve a pending objection. This will activate the restriction 
+and prevent resident bhikkus/silmathas from being added to the entity.
+
+Request Body:
+{
+  "action": "APPROVE",
+  "payload": {
+    "obj_id": 1
+  }
+}
+
+Response (200 OK):
+{
+  "status": "success",
+  "message": "Objection approved. Resident additions are now restricted for this entity.",
+  "data": {
+    "obj_id": 1,
+    "obj_entity_type": "VIHARA",
+    "obj_entity_trn": "TRN0000001",
+    "obj_status": "APPROVED",
+    "obj_approved_by": "UA0002",
+    "obj_approved_at": "2025-12-10T11:00:00+05:30",
+    ... (all fields)
+  }
+}
+
+Status Transition: PENDING → APPROVED
+Effect: Resident additions to this entity are now BLOCKED ❌
+
+================================================================================
+5. REJECT OBJECTION
+================================================================================
+Endpoint: POST /objections/manage
+Permission: objection:update
+
+Description: Reject a pending objection. No restriction will be applied.
+Rejection reason is required.
+
+Request Body:
+{
+  "action": "REJECT",
+  "payload": {
+    "obj_id": 1,
+    "rejection_reason": "Reason does not justify restriction"
+  }
+}
+
+Response (200 OK):
+{
+  "status": "success",
+  "message": "Objection rejected.",
+  "data": {
+    "obj_id": 1,
+    "obj_entity_type": "VIHARA",
+    "obj_entity_trn": "TRN0000001",
+    "obj_status": "REJECTED",
+    "obj_rejected_by": "UA0002",
+    "obj_rejected_at": "2025-12-10T11:00:00+05:30",
+    "obj_rejection_reason": "Reason does not justify restriction",
+    ... (all fields)
+  }
+}
+
+Status Transition: PENDING → REJECTED
+Effect: No restriction applied - resident additions are ALLOWED ✅
+
+================================================================================
+6. CANCEL OBJECTION
+================================================================================
+Endpoint: POST /objections/manage
+Permission: objection:delete
+
+Description: Cancel a pending or approved objection. If the objection was 
+approved, this will remove the restriction and allow resident additions again.
+Cancellation reason is optional.
+
+Request Body:
+{
+  "action": "CANCEL",
+  "payload": {
+    "obj_id": 1,
+    "cancellation_reason": "Capacity issue resolved"  // Optional
+  }
+}
+
+Response (200 OK):
+{
+  "status": "success",
+  "message": "Objection cancelled. Resident additions are now allowed for this entity.",
+  "data": {
+    "obj_id": 1,
+    "obj_entity_type": "VIHARA",
+    "obj_entity_trn": "TRN0000001",
+    "obj_status": "CANCELLED",
+    "obj_cancelled_by": "UA0002",
+    "obj_cancelled_at": "2025-12-10T12:00:00+05:30",
+    "obj_cancellation_reason": "Capacity issue resolved",
+    ... (all fields)
+  }
+}
+
+Status Transition: PENDING → CANCELLED or APPROVED → CANCELLED
+Effect: Restriction removed - resident additions are now ALLOWED ✅
+
+================================================================================
+7. CHECK OBJECTION STATUS
+================================================================================
+Endpoint: GET /objections/check/{entity_type}/{entity_trn}
+Permission: Any authenticated user
+
+Description: Check if a specific vihara, arama, or devala has an active 
+(approved) objection. Use this before allowing resident additions.
+
+Examples:
+GET /objections/check/VIHARA/TRN0000001
+GET /objections/check/ARAMA/ARN0000001
+GET /objections/check/DEVALA/DVL0000001
+
+Response (200 OK) - With Active Objection:
+{
+  "has_active_objection": true,
+  "objection": {
+    "obj_id": 1,
+    "obj_entity_type": "VIHARA",
+    "obj_entity_trn": "TRN0000001",
+    "obj_status": "APPROVED",
+    "obj_reason": "Cannot add more resident bhikkus due to capacity",
+    "obj_approved_by": "UA0002",
+    "obj_approved_at": "2025-12-10T11:00:00+05:30",
+    ... (all fields)
+  },
+  "message": "Active objection exists. Cannot add resident bhikkus/silmathas to this VIHARA."
+}
+
+Response (200 OK) - No Active Objection:
+{
+  "has_active_objection": false,
+  "objection": null,
+  "message": "No active objection. Can add resident bhikkus/silmathas to this VIHARA."
+}
+
+Use Cases:
+- Before showing "Add Resident Bhikku" button
+- When validating resident addition forms
+- Display warning message if objection exists
+
+================================================================================
+OBJECTION STATUS FLOW
+================================================================================
+
+Status Meanings:
+
+PENDING     - Objection submitted, awaiting review
+APPROVED    - Objection approved, resident additions are BLOCKED ❌
+REJECTED    - Objection rejected, no restriction applied ✅
+CANCELLED   - Objection cancelled, restriction removed ✅
+
+Status Transitions:
+
+PENDING ──[APPROVE]──> APPROVED  (blocks resident additions)
+   │
+   └──[REJECT]──> REJECTED  (no restriction)
+   │
+   └──[CANCEL]──> CANCELLED (no restriction)
+
+APPROVED ──[CANCEL]──> CANCELLED (removes restriction)
+
+Valid Transitions:
+- PENDING → APPROVED    ✅ (via APPROVE action)
+- PENDING → REJECTED    ✅ (via REJECT action)
+- PENDING → CANCELLED   ✅ (via CANCEL action)
+- APPROVED → CANCELLED  ✅ (via CANCEL action)
+
+Invalid Transitions:
+- APPROVED → PENDING    ❌
+- REJECTED → APPROVED   ❌
+- REJECTED → PENDING    ❌
+- CANCELLED → any       ❌
+
+================================================================================
+UI/UX GUIDELINES
+================================================================================
+
+Display Status with Icons:
+- PENDING: ⏳ Orange/Yellow badge
+- APPROVED: ❌ Red badge (restriction active)
+- REJECTED: ✅ Gray badge
+- CANCELLED: ✅ Green badge (restriction removed)
+
+Action Buttons Based on Status:
+
+PENDING objections:
+- Show "Approve" button (permission: objection:update)
+- Show "Reject" button (permission: objection:update)
+- Show "Cancel" button (permission: objection:delete)
+
+APPROVED objections:
+- Show "Cancel" button (permission: objection:delete)
+- Display warning: "⚠️ Resident additions are currently blocked"
+
+REJECTED/CANCELLED objections:
+- No action buttons (final states)
+- Show as historical records
+
+Form Validation:
+- When user tries to add resident bhikku/silmatha, call CHECK endpoint first
+- If has_active_objection = true, show error:
+  "Cannot add residents to this {entity_type}. Reason: {objection.obj_reason}"
+- Disable "Add Resident" button if active objection exists
+
+================================================================================
+ERROR RESPONSES
+================================================================================
+
+400 Bad Request - Missing Required Field:
+{
+  "detail": "Validation error",
+  "errors": [
+    {
+      "field": "obj_reason",
+      "message": "obj_reason is required for CREATE action"
+    }
+  ]
+}
+
+400 Bad Request - Invalid Status Transition:
+{
+  "detail": "Cannot approve objection with status APPROVED. Only PENDING objections can be approved."
+}
+
+400 Bad Request - Duplicate Active Objection:
+{
+  "detail": "Active objection already exists for this VIHARA"
+}
+
+400 Bad Request - Missing Rejection Reason:
+{
+  "detail": "Validation error",
+  "errors": [
+    {
+      "field": "rejection_reason",
+      "message": "rejection_reason is required for REJECT action"
+    }
+  ]
+}
+
+403 Forbidden - Active Objection Exists:
+{
+  "detail": "Cannot add resident bhikkus to this VIHARA. An active objection exists (ID: 1). Reason: Cannot add more residents due to capacity"
+}
+
+404 Not Found - Objection Not Found:
+{
+  "detail": "Objection with ID 99 not found"
+}
+
+404 Not Found - Entity Not Found:
+{
+  "detail": "VIHARA with TRN 'TRN9999999' not found"
+}
+
+403 Forbidden - Permission Denied:
+{
+  "detail": "Permission denied. Required permission: objection:update"
+}
+
+================================================================================
+REQUIRED PERMISSIONS
+================================================================================
+
+- objection:create  - Submit new objections
+- objection:read    - View objections (automatically included with other objection permissions)
+- objection:update  - Approve/reject objections
+- objection:delete  - Cancel objections
+
+Note: Any user with objection:create, objection:update, or objection:delete 
+automatically has objection:read permission.
+
+================================================================================
+AUTHENTICATION
+================================================================================
+
+Login First:
+POST /auth/login
+{
+  "ua_username": "your_username",
+  "ua_password": "your_password"
+}
+
+Store the session cookie from the login response and send it with all subsequent requests.
+
+================================================================================
+INTEGRATION WITH VIHARA/ARAMA/DEVALA
+================================================================================
+
+When displaying "Add Resident Bhikku/Silmatha" functionality:
+
+1. Call CHECK endpoint:
+   GET /objections/check/{entity_type}/{entity_trn}
+
+2. If has_active_objection = true:
+   - Disable "Add Resident" button
+   - Show warning message with objection reason
+   - Display objection details (who approved, when, why)
+
+3. If has_active_objection = false:
+   - Enable "Add Resident" button
+   - Allow normal resident addition workflow
+
+Example Frontend Logic:
+
+```javascript
+// Before showing Add Resident form
+async function checkObjection(entityType, entityTrn) {
+  const response = await fetch(`/api/v1/objections/check/${entityType}/${entityTrn}`);
+  const data = await response.json();
+  
+  if (data.has_active_objection) {
+    // Show warning
+    showWarning(`Cannot add residents. Reason: ${data.objection.obj_reason}`);
+    disableAddButton();
+  } else {
+    // Allow addition
+    enableAddButton();
+  }
+}
+
+// When trying to add resident
+async function addResident(data) {
+  try {
+    const response = await fetch('/api/v1/vihara-data/manage', {
+      method: 'POST',
+      body: JSON.stringify(data)
+    });
+    
+    if (response.status === 403) {
+      // Active objection exists
+      const error = await response.json();
+      showError(error.detail);
+    }
+  } catch (error) {
+    console.error(error);
+  }
+}
+```
+
+================================================================================
+COMMON USE CASES
+================================================================================
+
+Use Case 1: Temple Reached Maximum Capacity
+------------------------------------------
+1. District admin submits objection:
+   - Entity: VIHARA TRN0000001
+   - Reason: "Temple has reached maximum capacity of 10 resident bhikkus"
+2. Provincial admin reviews and approves objection
+3. System blocks any further resident bhikku additions
+4. When capacity increases, admin cancels objection
+5. Resident bhikku additions are allowed again
+
+Use Case 2: Temporary Construction Work
+---------------------------------------
+1. Submit objection: "Ongoing construction, temporarily cannot accommodate residents"
+2. Approve objection
+3. After construction completes, cancel objection
+4. Resume normal operations
+
+Use Case 3: Administrative Review
+---------------------------------
+1. Submit objection for administrative review
+2. After review, reject objection if no issues found
+3. Resident additions continue normally
+
+================================================================================
+TESTING CHECKLIST FOR FRONTEND DEVELOPERS
+================================================================================
+
+✅ Create new objection (all entity types)
+✅ View list of objections with filters
+✅ View single objection details
+✅ Approve pending objection
+✅ Reject pending objection with reason
+✅ Cancel pending objection
+✅ Cancel approved objection
+✅ Check objection status for entity
+✅ Display warning when active objection exists
+✅ Disable resident addition when objection is active
+✅ Handle all error responses gracefully
+✅ Show appropriate status badges/icons
+✅ Filter objections by status, entity type, entity TRN
+✅ Pagination works correctly
+✅ Permission-based button visibility
+
+================================================================================
+SAMPLE DATA FOR TESTING
+================================================================================
+
+Sample Objection Creation:
+{
+  "action": "CREATE",
+  "payload": {
+    "data": {
+      "obj_entity_type": "VIHARA",
+      "obj_entity_trn": "TRN0000001",
+      "obj_reason": "පදිංචිකරුවන් සඳහා ඉඩ සීමිතය - Maximum capacity reached"
+    }
+  }
+}
+
+Sample Filter Queries:
+
+// All pending objections
+{"action": "READ_ALL", "payload": {"obj_status": "PENDING"}}
+
+// All objections for specific temple
+{"action": "READ_ALL", "payload": {"obj_entity_trn": "TRN0000001"}}
+
+// All approved vihara objections
+{"action": "READ_ALL", "payload": {"obj_entity_type": "VIHARA", "obj_status": "APPROVED"}}
+
+================================================================================
+NOTES FOR FRONTEND DEVELOPERS
+================================================================================
+
+1. All dates/timestamps are in ISO 8601 format with timezone
+2. Entity names are auto-populated from the entity record
+3. Check objection status BEFORE showing resident addition forms
+4. Status transitions are enforced - invalid transitions return 400 error
+5. Only APPROVED objections block resident additions
+6. Cancelled objections immediately remove restrictions
+7. Rejection reason is REQUIRED for REJECT action
+8. Cancellation reason is OPTIONAL for CANCEL action
+9. Use appropriate icons/colors for different statuses
+10. Show objection details when displaying restriction message
+11. Pagination limit max is 100, default is 10
+12. All list responses include totalRecords for pagination
+13. The check endpoint is public (any authenticated user can call it)
+14. Action buttons should be permission-based
+
+================================================================================
+ENDPOINT SUMMARY
+================================================================================
+
+POST   /objections/manage               - Manage objections (all CRUD operations)
+GET    /objections/check/{type}/{trn}   - Check if entity has active objection
+
+Actions for /objections/manage:
+- CREATE      - Submit new objection
+- READ_ONE    - Get specific objection
+- READ_ALL    - List objections with filters
+- APPROVE     - Approve pending objection
+- REJECT      - Reject pending objection (requires reason)
+- CANCEL      - Cancel pending/approved objection
+
+================================================================================
+END OF DOCUMENT
+================================================================================
