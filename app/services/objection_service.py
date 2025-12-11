@@ -2,9 +2,10 @@ from typing import Optional, List
 from sqlalchemy.orm import Session
 from fastapi import HTTPException
 
-from app.models.objection import Objection, ObjectionStatus, EntityType
+from app.models.objection import Objection, ObjectionStatus
 from app.schemas.objection import ObjectionCreate, ObjectionUpdate
 from app.repositories.objection_repo import objection_repo
+from app.repositories.objection_type_repo import objection_type_repo
 from app.repositories.vihara_repo import vihara_repo
 from app.repositories.arama_repo import arama_repo
 from app.repositories.devala_repo import devala_repo
@@ -16,30 +17,71 @@ class ObjectionService:
     def __init__(self):
         self.repository = objection_repo
 
-    def validate_entity_exists(
+    def validate_entity_by_id(
         self, 
         db: Session, 
-        entity_type: EntityType, 
-        entity_trn: str
-    ) -> tuple[bool, Optional[str]]:
+        vh_id: Optional[int] = None,
+        ar_id: Optional[int] = None,
+        dv_id: Optional[int] = None
+    ) -> tuple[bool, str]:
         """
-        Validate that the entity exists
-        Returns: (exists: bool, entity_name: Optional[str])
+        Validate that exactly one entity exists by ID
+        Returns: (exists: bool, entity_type: str)
         """
-        if entity_type == EntityType.VIHARA:
-            entity = vihara_repo.get_by_trn(db, entity_trn)
+        if vh_id:
+            entity = vihara_repo.get(db, vh_id)
             if entity:
-                return True, entity.vh_vname
-        elif entity_type == EntityType.ARAMA:
-            entity = arama_repo.get_by_trn(db, entity_trn)
-            if entity:
-                return True, entity.ar_vname
-        elif entity_type == EntityType.DEVALA:
-            entity = devala_repo.get_by_trn(db, entity_trn)
-            if entity:
-                return True, entity.dv_vname
+                return True, "VIHARA"
+            raise HTTPException(status_code=404, detail=f"Vihara with ID {vh_id} not found")
         
-        return False, None
+        elif ar_id:
+            entity = arama_repo.get(db, ar_id)
+            if entity:
+                return True, "ARAMA"
+            raise HTTPException(status_code=404, detail=f"Arama with ID {ar_id} not found")
+        
+        elif dv_id:
+            entity = devala_repo.get(db, dv_id)
+            if entity:
+                return True, "DEVALA"
+            raise HTTPException(status_code=404, detail=f"Devala with ID {dv_id} not found")
+        
+        return False, ""
+
+    def lookup_entity_id_by_trn(
+        self, 
+        db: Session, 
+        trn: str
+    ) -> tuple[Optional[int], Optional[int], Optional[int], str]:
+        """
+        Look up entity ID from TRN
+        Returns: (vh_id, ar_id, dv_id, entity_type)
+        """
+        trn_upper = trn.upper().strip()
+        
+        if trn_upper.startswith("TRN"):
+            entity = vihara_repo.get_by_trn(db, trn)
+            if entity:
+                return entity.vh_id, None, None, "VIHARA"
+            raise HTTPException(status_code=404, detail=f"Vihara with TRN '{trn}' not found")
+        
+        elif trn_upper.startswith("ARN"):
+            entity = arama_repo.get_by_trn(db, trn)
+            if entity:
+                return None, entity.ar_id, None, "ARAMA"
+            raise HTTPException(status_code=404, detail=f"Arama with TRN '{trn}' not found")
+        
+        elif trn_upper.startswith("DVL"):
+            entity = devala_repo.get_by_trn(db, trn)
+            if entity:
+                return None, None, entity.dv_id, "DEVALA"
+            raise HTTPException(status_code=404, detail=f"Devala with TRN '{trn}' not found")
+        
+        else:
+            raise HTTPException(
+                status_code=400, 
+                detail=f"Invalid TRN format: '{trn}'. Must start with TRN, ARN, or DVL"
+            )
 
     def create_objection(
         self,
@@ -51,37 +93,61 @@ class ObjectionService:
         """
         Create a new objection
         
+        Accepts either:
+        - TRN (auto-detects entity and looks up ID)
+        - Direct entity ID (vh_id, ar_id, or dv_id)
+        
         Validates that:
-        1. The entity exists
-        2. No active objection already exists for this entity
+        1. The objection type exists and is active
+        2. The entity exists
+        3. No active objection already exists for this entity
         """
-        # Validate entity exists
-        exists, entity_name = self.validate_entity_exists(
-            db, data.obj_entity_type, data.obj_entity_trn
+        # If TRN provided, look up the entity ID
+        if data.trn:
+            vh_id, ar_id, dv_id, entity_type = self.lookup_entity_id_by_trn(db, data.trn)
+            # Update the data object with looked-up IDs
+            data.vh_id = vh_id
+            data.ar_id = ar_id
+            data.dv_id = dv_id
+        
+        # Validate objection type exists and is active
+        objection_type = objection_type_repo.get(db, data.obj_type_id)
+        if not objection_type:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Objection type with ID {data.obj_type_id} not found"
+            )
+        
+        if not objection_type.ot_is_active:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Objection type '{objection_type.ot_name_en}' is not active"
+            )
+        
+        # Validate entity exists by ID
+        exists, entity_type = self.validate_entity_by_id(
+            db, vh_id=data.vh_id, ar_id=data.ar_id, dv_id=data.dv_id
         )
         
         if not exists:
             raise HTTPException(
                 status_code=404,
-                detail=f"{data.obj_entity_type.value} with TRN '{data.obj_entity_trn}' not found"
+                detail=f"Entity not found"
             )
         
-        # Auto-populate entity name if not provided
-        if not data.obj_entity_name and entity_name:
-            data.obj_entity_name = entity_name
-        
         # Check for existing active objection
-        existing = self.repository.get_by_entity(
-            db,
-            entity_type=data.obj_entity_type,
-            entity_trn=data.obj_entity_trn,
-            status=ObjectionStatus.APPROVED
-        )
+        existing = None
+        if data.vh_id:
+            existing = self.repository.get_by_vh_id(db, data.vh_id, status=ObjectionStatus.APPROVED)
+        elif data.ar_id:
+            existing = self.repository.get_by_ar_id(db, data.ar_id, status=ObjectionStatus.APPROVED)
+        elif data.dv_id:
+            existing = self.repository.get_by_dv_id(db, data.dv_id, status=ObjectionStatus.APPROVED)
         
         if existing:
             raise HTTPException(
                 status_code=400,
-                detail=f"Active objection already exists for this {data.obj_entity_type.value}"
+                detail=f"Active objection already exists for this {entity_type}"
             )
         
         return self.repository.create(db, data=data, submitted_by=submitted_by)
@@ -106,8 +172,9 @@ class ObjectionService:
         *,
         skip: int = 0,
         limit: int = 10,
-        entity_type: Optional[EntityType] = None,
-        entity_trn: Optional[str] = None,
+        vh_id: Optional[int] = None,
+        ar_id: Optional[int] = None,
+        dv_id: Optional[int] = None,
         status: Optional[ObjectionStatus] = None
     ) -> tuple[List[Objection], int]:
         """List objections with filters"""
@@ -115,15 +182,17 @@ class ObjectionService:
             db,
             skip=skip,
             limit=limit,
-            entity_type=entity_type,
-            entity_trn=entity_trn,
+            vh_id=vh_id,
+            ar_id=ar_id,
+            dv_id=dv_id,
             status=status
         )
         
         total = self.repository.count(
             db,
-            entity_type=entity_type,
-            entity_trn=entity_trn,
+            vh_id=vh_id,
+            ar_id=ar_id,
+            dv_id=dv_id,
             status=status
         )
         
@@ -201,23 +270,49 @@ class ObjectionService:
             cancelled_by=cancelled_by
         )
 
-    def check_active_objection(
+    def check_active_objection_by_trn(
         self,
         db: Session,
         *,
-        entity_type: EntityType,
-        entity_trn: str
+        trn: str
     ) -> tuple[bool, Optional[Objection]]:
         """
-        Check if entity has an active objection
+        Check if entity has an active objection by TRN
         Returns: (has_active: bool, objection: Optional[Objection])
         """
-        objection = self.repository.get_by_entity(
-            db,
-            entity_type=entity_type,
-            entity_trn=entity_trn,
-            status=ObjectionStatus.APPROVED
-        )
+        # Look up entity ID from TRN
+        vh_id, ar_id, dv_id, entity_type = self.lookup_entity_id_by_trn(db, trn)
+        
+        # Check for active objection
+        objection = None
+        if vh_id:
+            objection = self.repository.get_by_vh_id(db, vh_id, status=ObjectionStatus.APPROVED)
+        elif ar_id:
+            objection = self.repository.get_by_ar_id(db, ar_id, status=ObjectionStatus.APPROVED)
+        elif dv_id:
+            objection = self.repository.get_by_dv_id(db, dv_id, status=ObjectionStatus.APPROVED)
+        
+        return objection is not None, objection
+
+    def check_active_objection_by_id(
+        self,
+        db: Session,
+        *,
+        vh_id: Optional[int] = None,
+        ar_id: Optional[int] = None,
+        dv_id: Optional[int] = None
+    ) -> tuple[bool, Optional[Objection]]:
+        """
+        Check if entity has an active objection by entity ID
+        Returns: (has_active: bool, objection: Optional[Objection])
+        """
+        objection = None
+        if vh_id:
+            objection = self.repository.get_by_vh_id(db, vh_id, status=ObjectionStatus.APPROVED)
+        elif ar_id:
+            objection = self.repository.get_by_ar_id(db, ar_id, status=ObjectionStatus.APPROVED)
+        elif dv_id:
+            objection = self.repository.get_by_dv_id(db, dv_id, status=ObjectionStatus.APPROVED)
         
         return objection is not None, objection
 

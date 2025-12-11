@@ -2,7 +2,7 @@ from typing import Optional, List
 from sqlalchemy.orm import Session
 from sqlalchemy import and_, or_
 
-from app.models.objection import Objection, ObjectionStatus, EntityType
+from app.models.objection import Objection, ObjectionStatus
 from app.schemas.objection import ObjectionCreate, ObjectionUpdate
 
 
@@ -17,17 +17,15 @@ class ObjectionRepository:
             .first()
         )
 
-    def get_by_entity(
+    def get_by_vh_id(
         self, 
         db: Session, 
-        entity_type: EntityType, 
-        entity_trn: str,
+        vh_id: int,
         status: Optional[ObjectionStatus] = None
     ) -> Optional[Objection]:
-        """Get objection for specific entity"""
+        """Get objection for vihara"""
         query = db.query(Objection).filter(
-            Objection.obj_entity_type == entity_type,
-            Objection.obj_entity_trn == entity_trn,
+            Objection.vh_id == vh_id,
             Objection.obj_is_deleted.is_(False)
         )
         
@@ -36,18 +34,70 @@ class ObjectionRepository:
         
         return query.order_by(Objection.obj_submitted_at.desc()).first()
 
-    def has_active_objection(
+    def get_by_ar_id(
         self, 
         db: Session, 
-        entity_type: EntityType, 
-        entity_trn: str
-    ) -> bool:
-        """Check if entity has an active (approved) objection"""
+        ar_id: int,
+        status: Optional[ObjectionStatus] = None
+    ) -> Optional[Objection]:
+        """Get objection for arama"""
+        query = db.query(Objection).filter(
+            Objection.ar_id == ar_id,
+            Objection.obj_is_deleted.is_(False)
+        )
+        
+        if status:
+            query = query.filter(Objection.obj_status == status)
+        
+        return query.order_by(Objection.obj_submitted_at.desc()).first()
+
+    def get_by_dv_id(
+        self, 
+        db: Session, 
+        dv_id: int,
+        status: Optional[ObjectionStatus] = None
+    ) -> Optional[Objection]:
+        """Get objection for devala"""
+        query = db.query(Objection).filter(
+            Objection.dv_id == dv_id,
+            Objection.obj_is_deleted.is_(False)
+        )
+        
+        if status:
+            query = query.filter(Objection.obj_status == status)
+        
+        return query.order_by(Objection.obj_submitted_at.desc()).first()
+
+    def has_active_objection_by_vh_id(self, db: Session, vh_id: int) -> bool:
+        """Check if vihara has an active (approved) objection"""
         return (
             db.query(Objection)
             .filter(
-                Objection.obj_entity_type == entity_type,
-                Objection.obj_entity_trn == entity_trn,
+                Objection.vh_id == vh_id,
+                Objection.obj_status == ObjectionStatus.APPROVED,
+                Objection.obj_is_deleted.is_(False)
+            )
+            .first()
+        ) is not None
+
+    def has_active_objection_by_ar_id(self, db: Session, ar_id: int) -> bool:
+        """Check if arama has an active (approved) objection"""
+        return (
+            db.query(Objection)
+            .filter(
+                Objection.ar_id == ar_id,
+                Objection.obj_status == ObjectionStatus.APPROVED,
+                Objection.obj_is_deleted.is_(False)
+            )
+            .first()
+        ) is not None
+
+    def has_active_objection_by_dv_id(self, db: Session, dv_id: int) -> bool:
+        """Check if devala has an active (approved) objection"""
+        return (
+            db.query(Objection)
+            .filter(
+                Objection.dv_id == dv_id,
                 Objection.obj_status == ObjectionStatus.APPROVED,
                 Objection.obj_is_deleted.is_(False)
             )
@@ -60,18 +110,22 @@ class ObjectionRepository:
         *,
         skip: int = 0,
         limit: int = 10,
-        entity_type: Optional[EntityType] = None,
-        entity_trn: Optional[str] = None,
+        vh_id: Optional[int] = None,
+        ar_id: Optional[int] = None,
+        dv_id: Optional[int] = None,
         status: Optional[ObjectionStatus] = None
     ) -> List[Objection]:
         """List objections with filters"""
         query = db.query(Objection).filter(Objection.obj_is_deleted.is_(False))
 
-        if entity_type:
-            query = query.filter(Objection.obj_entity_type == entity_type)
+        if vh_id:
+            query = query.filter(Objection.vh_id == vh_id)
         
-        if entity_trn:
-            query = query.filter(Objection.obj_entity_trn == entity_trn)
+        if ar_id:
+            query = query.filter(Objection.ar_id == ar_id)
+        
+        if dv_id:
+            query = query.filter(Objection.dv_id == dv_id)
         
         if status:
             query = query.filter(Objection.obj_status == status)
@@ -87,18 +141,22 @@ class ObjectionRepository:
         self,
         db: Session,
         *,
-        entity_type: Optional[EntityType] = None,
-        entity_trn: Optional[str] = None,
+        vh_id: Optional[int] = None,
+        ar_id: Optional[int] = None,
+        dv_id: Optional[int] = None,
         status: Optional[ObjectionStatus] = None
     ) -> int:
         """Count objections with filters"""
         query = db.query(Objection).filter(Objection.obj_is_deleted.is_(False))
 
-        if entity_type:
-            query = query.filter(Objection.obj_entity_type == entity_type)
+        if vh_id:
+            query = query.filter(Objection.vh_id == vh_id)
         
-        if entity_trn:
-            query = query.filter(Objection.obj_entity_trn == entity_trn)
+        if ar_id:
+            query = query.filter(Objection.ar_id == ar_id)
+        
+        if dv_id:
+            query = query.filter(Objection.dv_id == dv_id)
         
         if status:
             query = query.filter(Objection.obj_status == status)
@@ -114,9 +172,10 @@ class ObjectionRepository:
     ) -> Objection:
         """Create new objection"""
         objection = Objection(
-            obj_entity_type=data.obj_entity_type,
-            obj_entity_trn=data.obj_entity_trn,
-            obj_entity_name=data.obj_entity_name,
+            vh_id=data.vh_id,
+            ar_id=data.ar_id,
+            dv_id=data.dv_id,
+            obj_type_id=data.obj_type_id,
             obj_reason=data.obj_reason,
             obj_status=ObjectionStatus.PENDING,
             obj_submitted_by=submitted_by

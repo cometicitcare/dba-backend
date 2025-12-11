@@ -14,7 +14,6 @@ from app.schemas.objection import (
     ObjectionManagementResponse,
     ObjectionOut,
     ObjectionCheckResponse,
-    EntityType,
 )
 from app.services.objection_service import objection_service
 from app.utils.http_exceptions import validation_error
@@ -45,7 +44,7 @@ def manage_objections(
     """
     action = request.action
     payload = request.payload
-    user_id = current_user.u_username
+    user_id = current_user.ua_username
 
     # CREATE - Submit new objection
     if action == ObjectionAction.CREATE:
@@ -114,8 +113,9 @@ def manage_objections(
             db,
             skip=skip,
             limit=limit,
-            entity_type=payload.obj_entity_type,
-            entity_trn=payload.obj_entity_trn,
+            vh_id=payload.vh_id,
+            ar_id=payload.ar_id,
+            dv_id=payload.dv_id,
             status=payload.obj_status,
         )
 
@@ -208,33 +208,48 @@ def manage_objections(
 
 
 @router.get(
-    "/check/{entity_type}/{entity_trn}",
+    "/check/{trn}",
     response_model=ObjectionCheckResponse,
 )
-def check_objection(
-    entity_type: EntityType,
-    entity_trn: str,
+def check_objection_by_trn(
+    trn: str,
     db: Session = Depends(get_db),
     current_user: UserAccount = Depends(get_current_user),
 ):
     """
-    Check if a vihara, arama, or devala has an active objection.
+    Check if a vihara, arama, or devala has an active objection by TRN.
+    
+    Entity type is determined from TRN prefix:
+    - TRN* = Vihara
+    - ARN* = Arama
+    - DVL* = Devala
     
     Returns information about whether resident additions are restricted.
     """
-    has_active, objection = objection_service.check_active_objection(
-        db, entity_type=entity_type, entity_trn=entity_trn
+    has_active, objection = objection_service.check_active_objection_by_trn(
+        db, trn=trn
     )
+    
+    # Determine entity type from TRN prefix
+    trn_upper = trn.upper().strip()
+    if trn_upper.startswith("TRN"):
+        entity_type = "VIHARA"
+    elif trn_upper.startswith("ARN"):
+        entity_type = "ARAMA"
+    elif trn_upper.startswith("DVL"):
+        entity_type = "DEVALA"
+    else:
+        entity_type = "entity"
 
     if has_active and objection:
         return ObjectionCheckResponse(
             has_active_objection=True,
             objection=ObjectionOut.model_validate(objection),
-            message=f"Active objection exists. Cannot add resident bhikkus/silmathas to this {entity_type.value}.",
+            message=f"Active objection exists. Cannot add resident bhikkus/silmathas to this {entity_type}.",
         )
     else:
         return ObjectionCheckResponse(
             has_active_objection=False,
             objection=None,
-            message=f"No active objection. Can add resident bhikkus/silmathas to this {entity_type.value}.",
+            message=f"No active objection. Can add resident bhikkus/silmathas to this {entity_type}.",
         )
