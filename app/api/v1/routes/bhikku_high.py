@@ -30,7 +30,7 @@ def check_permission(db: Session, user_id: str, permission_name: str):
     if permission_name not in permissions:
         raise HTTPException(status_code=403, detail="Permission denied")
 
-@router.post("/manage", response_model=schemas.BhikkuHighManagementResponse, dependencies=[has_any_permission("bhikku:create", "bhikku:update", "bhikku:delete")])
+@router.post("/manage", response_model=schemas.BhikkuHighManagementResponse, dependencies=[has_any_permission("bhikku:create", "bhikku:read", "bhikku:update", "bhikku:delete")])
 def manage_bhikku_high_records(
     request: schemas.BhikkuHighManagementRequest,
     db: Session = Depends(get_db),
