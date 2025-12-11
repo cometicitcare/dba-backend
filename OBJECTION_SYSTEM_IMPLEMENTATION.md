@@ -1,44 +1,47 @@
 # Objection System Implementation
 
 ## Overview
+
 The objection system allows administrators to restrict the addition of resident bhikkus/silmathas to specific viharas, aramas, or devalas. Once an objection is approved, no new resident bhikkus can be added to that entity.
 
 ## Database Schema
 
 ### Table: `objections`
 
-| Column | Type | Description |
-|--------|------|-------------|
-| `obj_id` | Integer (PK) | Primary key |
-| `obj_entity_type` | Enum | Type of entity (VIHARA, ARAMA, DEVALA) |
-| `obj_entity_trn` | String(50) | TRN of the entity |
-| `obj_entity_name` | String(200) | Name of entity (auto-populated) |
-| `obj_reason` | String(1000) | Reason for restriction |
-| `obj_status` | Enum | PENDING, APPROVED, REJECTED, CANCELLED |
-| `obj_submitted_by` | String(25) | Username who submitted |
-| `obj_submitted_at` | Timestamp | Submission time |
-| `obj_approved_by` | String(25) | Username who approved |
-| `obj_approved_at` | Timestamp | Approval time |
-| `obj_rejected_by` | String(25) | Username who rejected |
-| `obj_rejected_at` | Timestamp | Rejection time |
-| `obj_rejection_reason` | String(500) | Reason for rejection |
-| `obj_cancelled_by` | String(25) | Username who cancelled |
-| `obj_cancelled_at` | Timestamp | Cancellation time |
-| `obj_cancellation_reason` | String(500) | Reason for cancellation |
-| `obj_is_deleted` | Boolean | Soft delete flag |
-| `obj_created_at` | Timestamp | Creation time |
-| `obj_updated_at` | Timestamp | Last update time |
-| `obj_updated_by` | String(25) | Last updater |
+| Column                    | Type         | Description                            |
+| ------------------------- | ------------ | -------------------------------------- |
+| `obj_id`                  | Integer (PK) | Primary key                            |
+| `obj_entity_type`         | Enum         | Type of entity (VIHARA, ARAMA, DEVALA) |
+| `obj_entity_trn`          | String(50)   | TRN of the entity                      |
+| `obj_entity_name`         | String(200)  | Name of entity (auto-populated)        |
+| `obj_reason`              | String(1000) | Reason for restriction                 |
+| `obj_status`              | Enum         | PENDING, APPROVED, REJECTED, CANCELLED |
+| `obj_submitted_by`        | String(25)   | Username who submitted                 |
+| `obj_submitted_at`        | Timestamp    | Submission time                        |
+| `obj_approved_by`         | String(25)   | Username who approved                  |
+| `obj_approved_at`         | Timestamp    | Approval time                          |
+| `obj_rejected_by`         | String(25)   | Username who rejected                  |
+| `obj_rejected_at`         | Timestamp    | Rejection time                         |
+| `obj_rejection_reason`    | String(500)  | Reason for rejection                   |
+| `obj_cancelled_by`        | String(25)   | Username who cancelled                 |
+| `obj_cancelled_at`        | Timestamp    | Cancellation time                      |
+| `obj_cancellation_reason` | String(500)  | Reason for cancellation                |
+| `obj_is_deleted`          | Boolean      | Soft delete flag                       |
+| `obj_created_at`          | Timestamp    | Creation time                          |
+| `obj_updated_at`          | Timestamp    | Last update time                       |
+| `obj_updated_by`          | String(25)   | Last updater                           |
 
 ## API Endpoints
 
 ### 1. Manage Objections
+
 **Endpoint:** `POST /api/v1/objections/manage`  
 **Permission:** `objection:create`, `objection:update`, or `objection:delete`
 
 #### Actions
 
 ##### CREATE - Submit New Objection
+
 ```json
 {
   "action": "CREATE",
@@ -54,6 +57,7 @@ The objection system allows administrators to restrict the addition of resident 
 ```
 
 **Response:**
+
 ```json
 {
   "status": "success",
@@ -69,6 +73,7 @@ The objection system allows administrators to restrict the addition of resident 
 ```
 
 ##### READ_ONE - Get Specific Objection
+
 ```json
 {
   "action": "READ_ONE",
@@ -79,6 +84,7 @@ The objection system allows administrators to restrict the addition of resident 
 ```
 
 ##### READ_ALL - List Objections
+
 ```json
 {
   "action": "READ_ALL",
@@ -92,6 +98,7 @@ The objection system allows administrators to restrict the addition of resident 
 ```
 
 **Response:**
+
 ```json
 {
   "status": "success",
@@ -104,6 +111,7 @@ The objection system allows administrators to restrict the addition of resident 
 ```
 
 ##### APPROVE - Approve Objection
+
 ```json
 {
   "action": "APPROVE",
@@ -114,6 +122,7 @@ The objection system allows administrators to restrict the addition of resident 
 ```
 
 **Response:**
+
 ```json
 {
   "status": "success",
@@ -123,6 +132,7 @@ The objection system allows administrators to restrict the addition of resident 
 ```
 
 ##### REJECT - Reject Objection
+
 ```json
 {
   "action": "REJECT",
@@ -134,6 +144,7 @@ The objection system allows administrators to restrict the addition of resident 
 ```
 
 ##### CANCEL - Cancel Objection
+
 ```json
 {
   "action": "CANCEL",
@@ -145,6 +156,7 @@ The objection system allows administrators to restrict the addition of resident 
 ```
 
 **Response:**
+
 ```json
 {
   "status": "success",
@@ -154,12 +166,14 @@ The objection system allows administrators to restrict the addition of resident 
 ```
 
 ### 2. Check Objection Status
+
 **Endpoint:** `GET /api/v1/objections/check/{entity_type}/{entity_trn}`  
 **Permission:** Authenticated user
 
 **Example:** `GET /api/v1/objections/check/VIHARA/TRN0000001`
 
 **Response (with active objection):**
+
 ```json
 {
   "has_active_objection": true,
@@ -176,6 +190,7 @@ The objection system allows administrators to restrict the addition of resident 
 ```
 
 **Response (no active objection):**
+
 ```json
 {
   "has_active_objection": false,
@@ -199,12 +214,12 @@ PENDING ──[CANCEL]──> CANCELLED (removes restriction)
 
 ### Status Transitions
 
-| From Status | Action | To Status | Effect |
-|------------|--------|-----------|--------|
-| PENDING | APPROVE | APPROVED | Resident additions blocked |
-| PENDING | REJECT | REJECTED | No restriction |
-| PENDING | CANCEL | CANCELLED | No restriction |
-| APPROVED | CANCEL | CANCELLED | Restriction removed |
+| From Status | Action  | To Status | Effect                     |
+| ----------- | ------- | --------- | -------------------------- |
+| PENDING     | APPROVE | APPROVED  | Resident additions blocked |
+| PENDING     | REJECT  | REJECTED  | No restriction             |
+| PENDING     | CANCEL  | CANCELLED | No restriction             |
+| APPROVED    | CANCEL  | CANCELLED | Restriction removed        |
 
 ## Validation Logic
 
@@ -217,13 +232,14 @@ Before allowing addition of resident bhikkus/silmathas, the system should:
 3. If not, allow the operation
 
 **Example validation (utility function):**
+
 ```python
 from app.utils.objection_validators import validate_no_active_objection
 from app.models.objection import EntityType
 
 # In vihara/arama/devala update service
 validate_no_active_objection(
-    db, 
+    db,
     entity_type=EntityType.VIHARA,
     entity_trn="TRN0000001",
     operation_description="add resident bhikkus"
@@ -233,30 +249,34 @@ validate_no_active_objection(
 ## Integration Points
 
 ### Vihara Data
+
 - When updating vihara to add resident bhikkhus
 - Before creating new resident_bhikkhu records
 
-### Arama Data  
+### Arama Data
+
 - When updating arama to add resident silmathas
 - Before creating new arama_resident_silmatha records
 
 ### Devala Data
+
 - When updating devala to add resident data
 - Before creating new resident records
 
 ## Permissions Required
 
-| Operation | Permission |
-|-----------|-----------|
-| Create objection | `objection:create` |
-| Approve/Reject objection | `objection:update` |
-| Cancel objection | `objection:delete` |
-| List/Read objections | `objection:read` |
-| Check objection status | Any authenticated user |
+| Operation                | Permission             |
+| ------------------------ | ---------------------- |
+| Create objection         | `objection:create`     |
+| Approve/Reject objection | `objection:update`     |
+| Cancel objection         | `objection:delete`     |
+| List/Read objections     | `objection:read`       |
+| Check objection status   | Any authenticated user |
 
 ## Error Responses
 
 ### 403 - Active Objection Exists
+
 ```json
 {
   "detail": "Cannot add resident bhikkus to this VIHARA. An active objection exists (ID: 1). Reason: Cannot add more residents due to capacity"
@@ -264,6 +284,7 @@ validate_no_active_objection(
 ```
 
 ### 404 - Entity Not Found
+
 ```json
 {
   "detail": "VIHARA with TRN 'TRN9999999' not found"
@@ -271,6 +292,7 @@ validate_no_active_objection(
 ```
 
 ### 400 - Invalid Status Transition
+
 ```json
 {
   "detail": "Cannot approve objection with status APPROVED. Only PENDING objections can be approved."
@@ -278,6 +300,7 @@ validate_no_active_objection(
 ```
 
 ### 400 - Active Objection Already Exists
+
 ```json
 {
   "detail": "Active objection already exists for this VIHARA"
@@ -311,6 +334,7 @@ psql -d your_database -c "\d objections"
 ### Manual Testing Steps
 
 1. **Create an objection:**
+
 ```bash
 curl -X POST http://localhost:8001/api/v1/objections/manage \
   -H "Authorization: Bearer YOUR_TOKEN" \
@@ -328,6 +352,7 @@ curl -X POST http://localhost:8001/api/v1/objections/manage \
 ```
 
 2. **Approve the objection:**
+
 ```bash
 curl -X POST http://localhost:8001/api/v1/objections/manage \
   -H "Authorization: Bearer YOUR_TOKEN" \
@@ -341,6 +366,7 @@ curl -X POST http://localhost:8001/api/v1/objections/manage \
 ```
 
 3. **Check objection status:**
+
 ```bash
 curl -X GET http://localhost:8001/api/v1/objections/check/VIHARA/TRN0000001 \
   -H "Authorization: Bearer YOUR_TOKEN"
@@ -349,6 +375,7 @@ curl -X GET http://localhost:8001/api/v1/objections/check/VIHARA/TRN0000001 \
 4. **Try to add resident bhikkus** (should fail with 403)
 
 5. **Cancel the objection:**
+
 ```bash
 curl -X POST http://localhost:8001/api/v1/objections/manage \
   -H "Authorization: Bearer YOUR_TOKEN" \

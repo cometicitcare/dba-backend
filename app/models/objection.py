@@ -26,35 +26,56 @@ class ObjectionStatus(str, enum.Enum):
 
 class Objection(Base):
     """
-    Objection table for restricting resident bhikkus/silmathas addition
-    to vihara, arama, or devala.
+    Objection table for managing restrictions on entities:
+    1. REPRINT_RESTRICTION - Blocks reprint requests
+    2. RESIDENCY_RESTRICTION - Blocks adding more residents
     
-    Only ONE of vh_id, ar_id, or dv_id should be set (enforced by check constraint).
-    Entity type is determined by which FK is populated:
-    - vh_id: Vihara (TRN starts with TRN)
-    - ar_id: Arama (TRN starts with ARN)
-    - dv_id: Devala (TRN starts with DVL)
+    Supports 6 entity types (only ONE should be set, enforced by check constraint):
+    - vh_trn: Vihara TRN (starts with TRN)
+    - ar_trn: Arama TRN (starts with ARN)
+    - dv_trn: Devala TRN (starts with DVL)
+    - bh_regn: Bhikku Registration Number (starts with BH)
+    - sil_regn: Silmatha Registration Number (starts with SIL)
+    - dbh_regn: High Bhikku Registration Number (starts with DBH/UPS)
     """
     __tablename__ = "objections"
 
     # Primary Key
     obj_id = Column(Integer, primary_key=True, index=True, autoincrement=True)
     
-    # Entity Foreign Keys (only ONE should be set)
-    vh_id = Column(Integer, ForeignKey("vihaddata.vh_id"), nullable=True, index=True, comment="Foreign key to vihara (if objection is for vihara)")
-    ar_id = Column(Integer, ForeignKey("aramadata.ar_id"), nullable=True, index=True, comment="Foreign key to arama (if objection is for arama)")
-    dv_id = Column(Integer, ForeignKey("devaladata.dv_id"), nullable=True, index=True, comment="Foreign key to devala (if objection is for devala)")
+    # Entity Identifiers (only ONE should be set) - with Foreign Keys
+    vh_trn = Column(String(20), ForeignKey("vihaddata.vh_trn", ondelete="CASCADE"), nullable=True, index=True, comment="Vihara TRN")
+    ar_trn = Column(String(20), ForeignKey("aramadata.ar_trn", ondelete="CASCADE"), nullable=True, index=True, comment="Arama TRN")
+    dv_trn = Column(String(20), ForeignKey("devaladata.dv_trn", ondelete="CASCADE"), nullable=True, index=True, comment="Devala TRN")
+    bh_regn = Column(String(20), ForeignKey("bhikku_regist.br_regn", ondelete="CASCADE"), nullable=True, index=True, comment="Bhikku registration number")
+    sil_regn = Column(String(20), ForeignKey("silmatha_regist.sil_regn", ondelete="CASCADE"), nullable=True, index=True, comment="Silmatha registration number")
+    dbh_regn = Column(String(20), ForeignKey("direct_bhikku_high.dbh_regn", ondelete="CASCADE"), nullable=True, index=True, comment="High Bhikku registration number")
     
-    # Objection Type (Foreign Key)
-    obj_type_id = Column(Integer, ForeignKey("objection_types.ot_id"), nullable=False, index=True, comment="Foreign key to objection_types table")
+    # Objection Type Code - with Foreign Key
+    ot_code = Column(String(50), ForeignKey("objection_types.ot_code", ondelete="RESTRICT"), nullable=False, index=True, comment="Objection type code (REPRINT_RESTRICTION, RESIDENCY_RESTRICTION)")
     
-    # Check constraint: exactly one entity FK must be set
+    # Form ID (if objection is related to a specific form)
+    form_id = Column(String(50), nullable=True, index=True, comment="Related form ID/number")
+    
+    # Requester Information
+    obj_requester_name = Column(String(200), nullable=True, comment="Name of the person making the request")
+    obj_requester_contact = Column(String(20), nullable=True, comment="Contact number of requester")
+    obj_requester_id_num = Column(String(20), nullable=True, comment="ID number of requester (NIC/Passport)")
+    
+    # Time Period
+    obj_valid_from = Column(DateTime(timezone=True), nullable=True, comment="Objection validity start date")
+    obj_valid_until = Column(DateTime(timezone=True), nullable=True, comment="Objection validity end date (null = indefinite)")
+    
+    # Check constraint: exactly one entity identifier must be set
     __table_args__ = (
         CheckConstraint(
-            '(vh_id IS NOT NULL AND ar_id IS NULL AND dv_id IS NULL) OR '
-            '(vh_id IS NULL AND ar_id IS NOT NULL AND dv_id IS NULL) OR '
-            '(vh_id IS NULL AND ar_id IS NULL AND dv_id IS NOT NULL)',
-            name='objection_one_entity_check'
+            '(vh_trn IS NOT NULL AND ar_trn IS NULL AND dv_trn IS NULL AND bh_regn IS NULL AND sil_regn IS NULL AND dbh_regn IS NULL) OR '
+            '(vh_trn IS NULL AND ar_trn IS NOT NULL AND dv_trn IS NULL AND bh_regn IS NULL AND sil_regn IS NULL AND dbh_regn IS NULL) OR '
+            '(vh_trn IS NULL AND ar_trn IS NULL AND dv_trn IS NOT NULL AND bh_regn IS NULL AND sil_regn IS NULL AND dbh_regn IS NULL) OR '
+            '(vh_trn IS NULL AND ar_trn IS NULL AND dv_trn IS NULL AND bh_regn IS NOT NULL AND sil_regn IS NULL AND dbh_regn IS NULL) OR '
+            '(vh_trn IS NULL AND ar_trn IS NULL AND dv_trn IS NULL AND bh_regn IS NULL AND sil_regn IS NOT NULL AND dbh_regn IS NULL) OR '
+            '(vh_trn IS NULL AND ar_trn IS NULL AND dv_trn IS NULL AND bh_regn IS NULL AND sil_regn IS NULL AND dbh_regn IS NOT NULL)',
+            name='objection_one_entity_identifier_check'
         ),
     )
     
@@ -89,8 +110,11 @@ class Objection(Base):
     obj_updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), comment="Last update timestamp")
     obj_updated_by = Column(String(25), comment="Username who last updated")
     
-    # Relationships
-    objection_type = relationship("ObjectionType", back_populates="objections")
-    vihara = relationship("ViharaData", foreign_keys=[vh_id])
-    arama = relationship("AramaData", foreign_keys=[ar_id])
-    devala = relationship("DevalaData", foreign_keys=[dv_id])
+    # Relationships (using ot_code as join)
+    objection_type = relationship(
+        "ObjectionType",
+        foreign_keys="Objection.ot_code",
+        primaryjoin="Objection.ot_code==ObjectionType.ot_code",
+        back_populates="objections",
+        viewonly=True
+    )

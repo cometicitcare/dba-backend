@@ -1,0 +1,800 @@
+================================================================================
+OBJECTION SYSTEM API - FRONTEND DEVELOPER GUIDE
+================================================================================
+
+Base URL: /api/v1/objections
+
+Authentication: Required (Cookie-based session)
+Permissions: 
+  - objection:create - Create new objections
+  - objection:read - View objection details
+  - objection:update - Approve/reject/cancel objections
+
+================================================================================
+1. CREATE OBJECTION
+================================================================================
+
+Endpoint: POST /api/v1/objections/manage
+Permission: objection:create
+
+Description:
+Create a new objection to restrict operations on an entity. Supports 6 entity 
+types and 2 objection types.
+
+Entity Types:
+  • Vihara (TRN prefix: TRN*)
+  • Arama (TRN prefix: ARN*)
+  • Devala (TRN prefix: DVL*)
+  • Bhikku (REGN prefix: BH*)
+  • Silmatha (REGN prefix: SIL*)
+  • High Bhikku (REGN prefix: DBH* or UPS*)
+
+Objection Types:
+  • REPRINT_RESTRICTION - Block ID card reprint requests
+  • RESIDENCY_RESTRICTION - Block adding more resident bhikkhus/silmathas
+
+--------------------------------------------------------------------------------
+REQUEST PAYLOAD:
+--------------------------------------------------------------------------------
+
+Option 1: Using "id" field (Auto-detects entity type from prefix)
+{
+  "action": "CREATE",
+  "payload": {
+    "data": {
+      "id": "TRN0001234",                           // REQUIRED: Entity ID (TRN/REGN)
+      "ot_code": "RESIDENCY_RESTRICTION",           // REQUIRED: Objection type code
+      "obj_reason": "Capacity full - cannot add more residents",  // REQUIRED: Reason (1-1000 chars)
+      
+      // OPTIONAL FIELDS:
+      "form_id": "FORM-2025-001",                   // Related form ID/number
+      "obj_requester_name": "Temple Admin",         // Requester name (max 200 chars)
+      "obj_requester_contact": "0771234567",        // Contact number (max 20 chars)
+      "obj_requester_id_num": "199012345678",       // NIC/Passport (max 20 chars)
+      "obj_valid_from": "2025-12-01T00:00:00",      // Start date (ISO 8601)
+      "obj_valid_until": "2026-12-01T00:00:00"      // End date (null = indefinite)
+    }
+  }
+}
+
+Option 2: Using Direct Entity Identifiers
+{
+  "action": "CREATE",
+  "payload": {
+    "data": {
+      "vh_trn": "TRN0001234",                       // Vihara TRN
+      // OR "ar_trn": "ARN0005678",                 // Arama TRN
+      // OR "dv_trn": "DVL0009012",                 // Devala TRN
+      // OR "bh_regn": "BH2025000154",              // Bhikku REGN
+      // OR "sil_regn": "SIL2025123",               // Silmatha REGN
+      // OR "dbh_regn": "DBH2025006",               // High Bhikku REGN
+      
+      "ot_code": "RESIDENCY_RESTRICTION",
+      "obj_reason": "Temple capacity issue",
+      "form_id": "FORM-2025-001",
+      "obj_requester_name": "Admin User",
+      "obj_requester_contact": "0771234567"
+    }
+  }
+}
+
+--------------------------------------------------------------------------------
+RESPONSE (200 OK):
+--------------------------------------------------------------------------------
+
+{
+  "status": "success",
+  "message": "Objection created successfully. Status: PENDING (awaiting approval)",
+  "data": {
+    "obj_id": 1,                                    // Objection ID
+    "vh_trn": "TRN0001234",                         // Entity identifier (only one set)
+    "ar_trn": null,
+    "dv_trn": null,
+    "bh_regn": null,
+    "sil_regn": null,
+    "dbh_regn": null,
+    "ot_code": "RESIDENCY_RESTRICTION",             // Objection type code
+    "obj_reason": "Capacity full - cannot add more residents",
+    "obj_status": "PENDING",                        // Initial status
+    "obj_submitted_by": "superadmin",               // Who created it
+    "obj_submitted_at": "2025-12-11T10:30:00+05:30",
+    "form_id": "FORM-2025-001",
+    "obj_requester_name": "Temple Admin",
+    "obj_requester_contact": "0771234567",
+    "obj_requester_id_num": "199012345678",
+    "obj_valid_from": "2025-12-01T00:00:00+05:30",
+    "obj_valid_until": "2026-12-01T00:00:00+05:30",
+    
+    // Approval fields (null initially)
+    "obj_approved_by": null,
+    "obj_approved_at": null,
+    
+    // Rejection fields (null initially)
+    "obj_rejected_by": null,
+    "obj_rejected_at": null,
+    "obj_rejection_reason": null,
+    
+    // Cancellation fields (null initially)
+    "obj_cancelled_by": null,
+    "obj_cancelled_at": null,
+    "obj_cancellation_reason": null,
+    
+    // Audit fields
+    "obj_is_deleted": false,
+    "obj_created_at": "2025-12-11T10:30:00+05:30",
+    "obj_updated_at": "2025-12-11T10:30:00+05:30",
+    "obj_updated_by": null
+  }
+}
+
+--------------------------------------------------------------------------------
+ERROR RESPONSES:
+--------------------------------------------------------------------------------
+
+400 Bad Request - Validation failed
+{
+  "success": false,
+  "message": "Validation failed",
+  "errors": [
+    {
+      "field": "ot_code",
+      "message": "Objection type with code 'INVALID_CODE' not found"
+    }
+  ]
+}
+
+400 Bad Request - Duplicate objection
+{
+  "success": false,
+  "message": "Active Residency Restriction objection already exists for this VIHARA",
+  "errors": [...]
+}
+
+404 Not Found - Entity not found
+{
+  "success": false,
+  "message": "Entity not found",
+  "errors": [
+    {
+      "field": null,
+      "message": "Vihara with ID 'TRN0001234' not found"
+    }
+  ]
+}
+
+401 Unauthorized
+{
+  "success": false,
+  "message": "Not authenticated. Please login to access this resource.",
+  "errors": [...]
+}
+
+403 Forbidden
+{
+  "success": false,
+  "message": "Access denied. You do not have permission: objection:create",
+  "errors": [...]
+}
+
+--------------------------------------------------------------------------------
+EXAMPLES:
+--------------------------------------------------------------------------------
+
+Example 1: Vihara RESIDENCY_RESTRICTION
+{
+  "action": "CREATE",
+  "payload": {
+    "data": {
+      "id": "TRN0001234",
+      "ot_code": "RESIDENCY_RESTRICTION",
+      "obj_reason": "Temple capacity full - cannot accommodate more resident bhikkhus"
+    }
+  }
+}
+
+Example 2: Bhikku REPRINT_RESTRICTION with Form ID
+{
+  "action": "CREATE",
+  "payload": {
+    "data": {
+      "id": "BH2025000154",
+      "ot_code": "REPRINT_RESTRICTION",
+      "obj_reason": "ID card lost - prevent unauthorized reprints",
+      "form_id": "REPRINT-2025-154",
+      "obj_requester_name": "District Officer",
+      "obj_requester_contact": "0771234567"
+    }
+  }
+}
+
+Example 3: Silmatha REPRINT_RESTRICTION
+{
+  "action": "CREATE",
+  "payload": {
+    "data": {
+      "id": "SIL2025123",
+      "ot_code": "REPRINT_RESTRICTION",
+      "obj_reason": "Registration under review - temporary restriction",
+      "obj_requester_name": "Registration Officer",
+      "obj_requester_id_num": "198512345678"
+    }
+  }
+}
+
+
+================================================================================
+2. APPROVE OBJECTION
+================================================================================
+
+Endpoint: POST /api/v1/objections/manage
+Permission: objection:update
+
+Description:
+Approve a PENDING objection. This activates the restriction and BLOCKS the 
+relevant operations (reprint requests or adding residents).
+
+Status Transition: PENDING → APPROVED
+Effect: Restriction becomes ACTIVE (operations blocked)
+
+--------------------------------------------------------------------------------
+REQUEST PAYLOAD:
+--------------------------------------------------------------------------------
+
+{
+  "action": "APPROVE",
+  "payload": {
+    "obj_id": 1                                     // REQUIRED: Objection ID to approve
+  }
+}
+
+--------------------------------------------------------------------------------
+RESPONSE (200 OK):
+--------------------------------------------------------------------------------
+
+{
+  "status": "success",
+  "message": "Objection approved. Resident additions are now restricted for this entity.",
+  "data": {
+    "obj_id": 1,
+    "vh_trn": "TRN0001234",
+    "ar_trn": null,
+    "dv_trn": null,
+    "bh_regn": null,
+    "sil_regn": null,
+    "dbh_regn": null,
+    "ot_code": "RESIDENCY_RESTRICTION",
+    "obj_reason": "Capacity full - cannot add more residents",
+    "obj_status": "APPROVED",                       // Status changed
+    "obj_submitted_by": "superadmin",
+    "obj_submitted_at": "2025-12-11T10:30:00+05:30",
+    
+    // Approval fields now populated
+    "obj_approved_by": "admin",                     // Who approved it
+    "obj_approved_at": "2025-12-11T11:00:00+05:30", // When approved
+    
+    "obj_rejected_by": null,
+    "obj_rejected_at": null,
+    "obj_rejection_reason": null,
+    "obj_cancelled_by": null,
+    "obj_cancelled_at": null,
+    "obj_cancellation_reason": null,
+    "form_id": "FORM-2025-001",
+    "obj_requester_name": "Temple Admin",
+    "obj_requester_contact": "0771234567",
+    "obj_requester_id_num": "199012345678",
+    "obj_valid_from": "2025-12-01T00:00:00+05:30",
+    "obj_valid_until": "2026-12-01T00:00:00+05:30",
+    "obj_is_deleted": false,
+    "obj_created_at": "2025-12-11T10:30:00+05:30",
+    "obj_updated_at": "2025-12-11T11:00:00+05:30",
+    "obj_updated_by": "admin"
+  }
+}
+
+--------------------------------------------------------------------------------
+ERROR RESPONSES:
+--------------------------------------------------------------------------------
+
+404 Not Found - Objection doesn't exist
+{
+  "success": false,
+  "message": "Objection with ID 999 not found",
+  "errors": [...]
+}
+
+400 Bad Request - Already approved
+{
+  "success": false,
+  "message": "Objection with ID 1 has already been APPROVED",
+  "errors": [...]
+}
+
+400 Bad Request - Wrong status
+{
+  "success": false,
+  "message": "Objection with ID 1 is REJECTED and cannot be approved",
+  "errors": [...]
+}
+
+403 Forbidden
+{
+  "success": false,
+  "message": "Access denied. You do not have permission: objection:update",
+  "errors": [...]
+}
+
+--------------------------------------------------------------------------------
+FRONTEND INTEGRATION:
+--------------------------------------------------------------------------------
+
+After approving an objection:
+1. Display success message
+2. Update objection list/status
+3. Show "APPROVED" badge (red color)
+4. Display restriction warning on entity detail page
+5. Disable relevant action buttons (Add Resident, Request Reprint, etc.)
+6. Show objection details with approver info
+
+
+================================================================================
+3. REJECT OBJECTION
+================================================================================
+
+Endpoint: POST /api/v1/objections/manage
+Permission: objection:update
+
+Description:
+Reject a PENDING objection. The restriction will NOT be applied and operations
+remain allowed.
+
+Status Transition: PENDING → REJECTED
+Effect: No restriction (operations allowed)
+
+--------------------------------------------------------------------------------
+REQUEST PAYLOAD:
+--------------------------------------------------------------------------------
+
+{
+  "action": "REJECT",
+  "payload": {
+    "obj_id": 1,                                    // REQUIRED: Objection ID
+    "rejection_reason": "Inspection completed - capacity adequate"  // REQUIRED: Reason (1-500 chars)
+  }
+}
+
+--------------------------------------------------------------------------------
+RESPONSE (200 OK):
+--------------------------------------------------------------------------------
+
+{
+  "status": "success",
+  "message": "Objection rejected.",
+  "data": {
+    "obj_id": 1,
+    "vh_trn": "TRN0001234",
+    "ar_trn": null,
+    "dv_trn": null,
+    "bh_regn": null,
+    "sil_regn": null,
+    "dbh_regn": null,
+    "ot_code": "RESIDENCY_RESTRICTION",
+    "obj_reason": "Capacity full - cannot add more residents",
+    "obj_status": "REJECTED",                       // Status changed
+    "obj_submitted_by": "superadmin",
+    "obj_submitted_at": "2025-12-11T10:30:00+05:30",
+    "obj_approved_by": null,
+    "obj_approved_at": null,
+    
+    // Rejection fields now populated
+    "obj_rejected_by": "admin",                     // Who rejected it
+    "obj_rejected_at": "2025-12-11T11:30:00+05:30", // When rejected
+    "obj_rejection_reason": "Inspection completed - capacity adequate",
+    
+    "obj_cancelled_by": null,
+    "obj_cancelled_at": null,
+    "obj_cancellation_reason": null,
+    "form_id": "FORM-2025-001",
+    "obj_requester_name": "Temple Admin",
+    "obj_requester_contact": "0771234567",
+    "obj_requester_id_num": "199012345678",
+    "obj_valid_from": "2025-12-01T00:00:00+05:30",
+    "obj_valid_until": "2026-12-01T00:00:00+05:30",
+    "obj_is_deleted": false,
+    "obj_created_at": "2025-12-11T10:30:00+05:30",
+    "obj_updated_at": "2025-12-11T11:30:00+05:30",
+    "obj_updated_by": "admin"
+  }
+}
+
+--------------------------------------------------------------------------------
+ERROR RESPONSES:
+--------------------------------------------------------------------------------
+
+400 Bad Request - Missing rejection reason
+{
+  "success": false,
+  "message": "Rejection reason is required when rejecting an objection",
+  "errors": [...]
+}
+
+
+================================================================================
+4. CANCEL OBJECTION
+================================================================================
+
+Endpoint: POST /api/v1/objections/manage
+Permission: objection:update
+
+Description:
+Cancel a PENDING or APPROVED objection. If the objection was APPROVED, this
+removes the restriction and allows operations again.
+
+Status Transition: PENDING → CANCELLED or APPROVED → CANCELLED
+Effect: Restriction removed (operations allowed)
+
+--------------------------------------------------------------------------------
+REQUEST PAYLOAD:
+--------------------------------------------------------------------------------
+
+{
+  "action": "CANCEL",
+  "payload": {
+    "obj_id": 1,                                    // REQUIRED: Objection ID
+    "cancellation_reason": "Issue resolved - capacity expanded"  // OPTIONAL: Reason (max 500 chars)
+  }
+}
+
+--------------------------------------------------------------------------------
+RESPONSE (200 OK):
+--------------------------------------------------------------------------------
+
+{
+  "status": "success",
+  "message": "Objection cancelled. Resident additions are now allowed for this entity.",
+  "data": {
+    "obj_id": 1,
+    "vh_trn": "TRN0001234",
+    "ar_trn": null,
+    "dv_trn": null,
+    "bh_regn": null,
+    "sil_regn": null,
+    "dbh_regn": null,
+    "ot_code": "RESIDENCY_RESTRICTION",
+    "obj_reason": "Capacity full - cannot add more residents",
+    "obj_status": "CANCELLED",                      // Status changed
+    "obj_submitted_by": "superadmin",
+    "obj_submitted_at": "2025-12-11T10:30:00+05:30",
+    "obj_approved_by": "admin",
+    "obj_approved_at": "2025-12-11T11:00:00+05:30",
+    "obj_rejected_by": null,
+    "obj_rejected_at": null,
+    "obj_rejection_reason": null,
+    
+    // Cancellation fields now populated
+    "obj_cancelled_by": "superadmin",               // Who cancelled it
+    "obj_cancelled_at": "2025-12-11T12:00:00+05:30",// When cancelled
+    "obj_cancellation_reason": "Issue resolved - capacity expanded",
+    
+    "form_id": "FORM-2025-001",
+    "obj_requester_name": "Temple Admin",
+    "obj_requester_contact": "0771234567",
+    "obj_requester_id_num": "199012345678",
+    "obj_valid_from": "2025-12-01T00:00:00+05:30",
+    "obj_valid_until": "2026-12-01T00:00:00+05:30",
+    "obj_is_deleted": false,
+    "obj_created_at": "2025-12-11T10:30:00+05:30",
+    "obj_updated_at": "2025-12-11T12:00:00+05:30",
+    "obj_updated_by": "superadmin"
+  }
+}
+
+--------------------------------------------------------------------------------
+ERROR RESPONSES:
+--------------------------------------------------------------------------------
+
+400 Bad Request - Wrong status
+{
+  "success": false,
+  "message": "Objection with ID 1 is REJECTED and cannot be cancelled",
+  "errors": [...]
+}
+
+--------------------------------------------------------------------------------
+FRONTEND INTEGRATION:
+--------------------------------------------------------------------------------
+
+After cancelling an objection:
+1. Display success message
+2. Update objection list/status
+3. Show "CANCELLED" badge (blue color)
+4. Remove restriction warning from entity detail page
+5. Re-enable action buttons (Add Resident, Request Reprint, etc.)
+6. Show cancellation reason if provided
+
+
+================================================================================
+5. CHECK OBJECTION STATUS
+================================================================================
+
+Endpoint: GET /api/v1/objections/check/{id}
+Permission: Any authenticated user
+
+Description:
+Check if an entity has an ACTIVE (APPROVED) objection. Use this before showing
+"Add Resident" or "Request Reprint" buttons to determine if they should be
+disabled.
+
+Entity Type Auto-Detection:
+  TRN* → Vihara
+  ARN* → Arama
+  DVL* → Devala
+  BH* → Bhikku
+  SIL* → Silmatha
+  DBH*/UPS* → High Bhikku
+
+--------------------------------------------------------------------------------
+REQUEST:
+--------------------------------------------------------------------------------
+
+GET /api/v1/objections/check/TRN0001234
+GET /api/v1/objections/check/BH2025000154
+GET /api/v1/objections/check/SIL2025123
+
+No request body needed.
+
+--------------------------------------------------------------------------------
+RESPONSE (200 OK) - With Active Objection:
+--------------------------------------------------------------------------------
+
+{
+  "has_active_objection": true,
+  "objection": {
+    "obj_id": 1,
+    "vh_trn": "TRN0001234",
+    "ar_trn": null,
+    "dv_trn": null,
+    "bh_regn": null,
+    "sil_regn": null,
+    "dbh_regn": null,
+    "ot_code": "RESIDENCY_RESTRICTION",
+    "obj_reason": "Capacity full - cannot add more residents",
+    "obj_status": "APPROVED",
+    "obj_submitted_by": "superadmin",
+    "obj_submitted_at": "2025-12-11T10:30:00+05:30",
+    "obj_approved_by": "admin",
+    "obj_approved_at": "2025-12-11T11:00:00+05:30",
+    "form_id": "FORM-2025-001",
+    "obj_requester_name": "Temple Admin",
+    "obj_requester_contact": "0771234567",
+    ... (all other fields)
+  },
+  "message": "Active objection exists. Cannot add resident bhikkus/silmathas to this VIHARA."
+}
+
+--------------------------------------------------------------------------------
+RESPONSE (200 OK) - No Active Objection:
+--------------------------------------------------------------------------------
+
+{
+  "has_active_objection": false,
+  "objection": null,
+  "message": "No active objection. Can add resident bhikkus/silmathas to this VIHARA."
+}
+
+--------------------------------------------------------------------------------
+FRONTEND INTEGRATION:
+--------------------------------------------------------------------------------
+
+JavaScript Example:
+
+async function checkObjectionBeforeAction(entityId) {
+  try {
+    const response = await fetch(`/api/v1/objections/check/${entityId}`);
+    const data = await response.json();
+    
+    if (data.has_active_objection) {
+      // DISABLE action buttons
+      document.getElementById('addResidentBtn').disabled = true;
+      document.getElementById('requestReprintBtn').disabled = true;
+      
+      // SHOW warning message
+      const objection = data.objection;
+      const warningHtml = `
+        <div class="alert alert-danger">
+          <strong>⚠️ Operation Restricted</strong><br>
+          <strong>Type:</strong> ${objection.ot_code}<br>
+          <strong>Reason:</strong> ${objection.obj_reason}<br>
+          <strong>Approved by:</strong> ${objection.obj_approved_by}<br>
+          <strong>Approved at:</strong> ${new Date(objection.obj_approved_at).toLocaleString()}
+        </div>
+      `;
+      document.getElementById('objectionWarning').innerHTML = warningHtml;
+    } else {
+      // ENABLE action buttons
+      document.getElementById('addResidentBtn').disabled = false;
+      document.getElementById('requestReprintBtn').disabled = false;
+      
+      // HIDE warning
+      document.getElementById('objectionWarning').innerHTML = '';
+    }
+  } catch (error) {
+    console.error('Error checking objection:', error);
+  }
+}
+
+// Call before loading entity details page
+checkObjectionBeforeAction('TRN0001234');
+
+
+================================================================================
+6. STATUS WORKFLOW
+================================================================================
+
+Status Flow Diagram:
+
+PENDING → APPROVE → APPROVED → CANCEL → CANCELLED
+   ↓                              ↓
+REJECT                          CANCEL
+   ↓                              ↓
+REJECTED                      CANCELLED
+
+Status Descriptions:
+
+• PENDING (⏳ Yellow)
+  - Initial status when objection is created
+  - Awaiting admin approval/rejection
+  - Does NOT block operations yet
+  - Can be: APPROVED, REJECTED, or CANCELLED
+
+• APPROVED (❌ Red)
+  - Objection is active and blocking operations
+  - BLOCKS: Add Resident or Request Reprint (depending on type)
+  - Can be: CANCELLED (to remove restriction)
+
+• REJECTED (✅ Green)
+  - Objection was reviewed and denied
+  - Does NOT block operations
+  - Cannot be changed (final status)
+
+• CANCELLED (🔵 Blue)
+  - Objection was cancelled (from PENDING or APPROVED)
+  - If was APPROVED, restriction is now removed
+  - Does NOT block operations
+  - Cannot be changed (final status)
+
+
+================================================================================
+7. UI/UX RECOMMENDATIONS
+================================================================================
+
+Entity Detail Page:
+-------------------
+1. Always call /objections/check/{id} on page load
+2. If active objection exists:
+   • Show prominent warning banner at top
+   • Display objection details (type, reason, dates)
+   • Disable relevant action buttons
+   • Show "View Objection" link to objection details page
+3. If no active objection:
+   • Show action buttons normally enabled
+
+Objection Management Page:
+--------------------------
+1. List View:
+   • Show status badges with colors
+   • Filter by status (PENDING, APPROVED, REJECTED, CANCELLED)
+   • Filter by entity type (Vihara, Arama, etc.)
+   • Filter by objection type (REPRINT_RESTRICTION, RESIDENCY_RESTRICTION)
+   • Show entity name/ID
+   • Show dates (submitted, approved, rejected, cancelled)
+
+2. Detail View:
+   • Full objection information
+   • Timeline of actions (submitted → approved → cancelled)
+   • Entity details with link
+   • Requester information
+   • Form ID if applicable
+   • Action buttons based on status:
+     - PENDING: [Approve] [Reject] [Cancel]
+     - APPROVED: [Cancel]
+     - REJECTED/CANCELLED: No actions
+
+3. Create Form:
+   • Entity selection (dropdown or search)
+   • Objection type selection (radio buttons)
+   • Reason (textarea, required)
+   • Optional fields (form ID, requester info, dates)
+   • Validation: Prevent duplicate active objections
+
+Status Badge Colors:
+-------------------
+PENDING    → Yellow (#FFC107)
+APPROVED   → Red (#DC3545)
+REJECTED   → Green (#28A745)
+CANCELLED  → Blue (#007BFF)
+
+
+================================================================================
+8. TESTING WITH CURL
+================================================================================
+
+1. Login:
+curl -c cookies.txt -X POST http://localhost:8000/api/v1/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"ua_username":"admin","ua_password":"Admin@123"}'
+
+2. Create Objection:
+curl -b cookies.txt -X POST http://localhost:8000/api/v1/objections/manage \
+  -H "Content-Type: application/json" \
+  -d '{
+    "action": "CREATE",
+    "payload": {
+      "data": {
+        "id": "TRN0001234",
+        "ot_code": "RESIDENCY_RESTRICTION",
+        "obj_reason": "Testing objection system"
+      }
+    }
+  }'
+
+3. Check Status:
+curl -b cookies.txt http://localhost:8000/api/v1/objections/check/TRN0001234
+
+4. Approve:
+curl -b cookies.txt -X POST http://localhost:8000/api/v1/objections/manage \
+  -H "Content-Type: application/json" \
+  -d '{"action":"APPROVE","payload":{"obj_id":1}}'
+
+5. Cancel:
+curl -b cookies.txt -X POST http://localhost:8000/api/v1/objections/manage \
+  -H "Content-Type: application/json" \
+  -d '{
+    "action":"CANCEL",
+    "payload":{
+      "obj_id":1,
+      "cancellation_reason":"Test completed"
+    }
+  }'
+
+
+================================================================================
+9. QUICK REFERENCE
+================================================================================
+
+Endpoints:
+  POST /objections/manage    - All CRUD and workflow operations
+  GET  /objections/check/{id} - Check if entity has active objection
+
+Actions (POST /objections/manage):
+  CREATE  - Submit new objection (status: PENDING)
+  APPROVE - Approve objection (PENDING → APPROVED, blocks operations)
+  REJECT  - Reject objection (PENDING → REJECTED, no restriction)
+  CANCEL  - Cancel objection (removes restriction if was APPROVED)
+
+Permissions:
+  objection:create - Create new objections
+  objection:read   - Read objection details
+  objection:update - Approve/reject/cancel objections
+
+Entity ID Prefixes:
+  TRN* = Vihara
+  ARN* = Arama
+  DVL* = Devala
+  BH* = Bhikku
+  SIL* = Silmatha
+  DBH*/UPS* = High Bhikku
+
+Objection Types:
+  REPRINT_RESTRICTION - Blocks ID card reprint requests
+  RESIDENCY_RESTRICTION - Blocks adding resident bhikkhus/silmathas
+
+Important Notes:
+  • Only APPROVED objections block operations
+  • PENDING objections don't block (awaiting approval)
+  • REJECTED objections don't block (denied)
+  • CANCELLED objections don't block (restriction removed)
+  • Cannot create duplicate APPROVED objections for same entity + type
+
+================================================================================
+END OF DOCUMENT
+================================================================================

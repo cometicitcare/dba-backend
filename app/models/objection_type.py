@@ -23,7 +23,7 @@ class ObjectionType(Base):
     ot_id = Column(Integer, primary_key=True, index=True, autoincrement=True)
     
     # Type Information
-    ot_code = Column(String(20), nullable=False, unique=True, index=True, comment="Unique type code (e.g., CAPACITY, CONSTRUCTION, ADMIN)")
+    ot_code = Column(String(50), nullable=False, unique=True, index=True, comment="Unique type code (e.g., REPRINT_RESTRICTION, RESIDENCY_RESTRICTION)")
     ot_name_en = Column(String(200), nullable=False, comment="Type name in English")
     ot_name_si = Column(String(200), comment="Type name in Sinhala")
     ot_name_ta = Column(String(200), comment="Type name in Tamil")
@@ -39,5 +39,11 @@ class ObjectionType(Base):
     ot_created_by = Column(String(25), comment="Username who created")
     ot_updated_by = Column(String(25), comment="Username who last updated")
     
-    # Relationship
-    objections = relationship("Objection", back_populates="objection_type")
+    # Relationship (using ot_code as join)
+    objections = relationship(
+        "Objection",
+        foreign_keys="Objection.ot_code",
+        primaryjoin="ObjectionType.ot_code==foreign(Objection.ot_code)",
+        back_populates="objection_type",
+        viewonly=True
+    )

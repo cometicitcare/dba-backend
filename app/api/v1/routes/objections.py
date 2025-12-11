@@ -113,9 +113,12 @@ def manage_objections(
             db,
             skip=skip,
             limit=limit,
-            vh_id=payload.vh_id,
-            ar_id=payload.ar_id,
-            dv_id=payload.dv_id,
+            vh_trn=payload.vh_trn,
+            ar_trn=payload.ar_trn,
+            dv_trn=payload.dv_trn,
+            bh_regn=payload.bh_regn,
+            sil_regn=payload.sil_regn,
+            dbh_regn=payload.dbh_regn,
             status=payload.obj_status,
         )
 

@@ -27,6 +27,8 @@ class ViharaService:
                 "vh_mobile": payload.telephone_number,
                 "vh_whtapp": payload.whatsapp_number,
                 "vh_email": payload.email_address,
+                "vh_typ": payload.temple_type,
+                "vh_ownercd": payload.owner_code,
                 "vh_province": payload.province,
                 "vh_district": payload.district,
                 "vh_divisional_secretariat": payload.divisional_secretariat,

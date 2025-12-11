@@ -25,37 +25,49 @@ class ObjectionAction(str, Enum):
 class ObjectionBase(BaseModel):
     """
     Base schema for objection.
-    Provide EITHER trn OR one of (vh_id, ar_id, dv_id).
+    Provide EITHER id OR one of (vh_trn, ar_trn, dv_trn, bh_regn, sil_regn, dbh_regn).
     
-    If trn is provided, entity type is auto-detected:
-    - TRN* → Vihara (populates vh_id)
-    - ARN* → Arama (populates ar_id)
-    - DVL* → Devala (populates dv_id)
+    If id is provided, entity type is auto-detected from prefix:
+    - TRN* → Vihara (populates vh_trn)
+    - ARN* → Arama (populates ar_trn)
+    - DVL* → Devala (populates dv_trn)
+    - BH* → Bhikku (populates bh_regn)
+    - SIL* → Silmatha (populates sil_regn)
+    - DBH*/UPS* → High Bhikku (populates dbh_regn)
     """
-    trn: Optional[str] = Field(None, min_length=1, max_length=50, description="Entity TRN (auto-detects type from prefix)")
-    vh_id: Optional[int] = Field(None, ge=1, description="Vihara ID (if objection is for vihara)")
-    ar_id: Optional[int] = Field(None, ge=1, description="Arama ID (if objection is for arama)")
-    dv_id: Optional[int] = Field(None, ge=1, description="Devala ID (if objection is for devala)")
-    obj_type_id: Annotated[int, Field(ge=1, description="Objection type ID")]
+    id: Optional[str] = Field(None, min_length=1, max_length=50, description="Entity ID (auto-detects type from prefix)")
+    vh_trn: Optional[str] = Field(None, max_length=20, description="Vihara TRN")
+    ar_trn: Optional[str] = Field(None, max_length=20, description="Arama TRN")
+    dv_trn: Optional[str] = Field(None, max_length=20, description="Devala TRN")
+    bh_regn: Optional[str] = Field(None, max_length=20, description="Bhikku registration number")
+    sil_regn: Optional[str] = Field(None, max_length=20, description="Silmatha registration number")
+    dbh_regn: Optional[str] = Field(None, max_length=20, description="High Bhikku registration number")
+    ot_code: Annotated[str, Field(min_length=1, max_length=50, description="Objection type code (REPRINT_RESTRICTION or RESIDENCY_RESTRICTION)")]
     obj_reason: Annotated[str, Field(min_length=1, max_length=1000, description="Reason for objection")]
+    form_id: Optional[str] = Field(None, max_length=50, description="Related form ID/number")
+    obj_requester_name: Optional[str] = Field(None, max_length=200, description="Name of the person making the request")
+    obj_requester_contact: Optional[str] = Field(None, max_length=20, description="Contact number of requester")
+    obj_requester_id_num: Optional[str] = Field(None, max_length=20, description="ID number of requester (NIC/Passport)")
+    obj_valid_from: Optional[datetime] = Field(None, description="Objection validity start date")
+    obj_valid_until: Optional[datetime] = Field(None, description="Objection validity end date (null = indefinite)")
     
     @model_validator(mode='after')
     def validate_entity_provided(self):
-        """Ensure either trn or exactly one entity FK is provided"""
-        has_trn = self.trn is not None
-        entity_ids = [self.vh_id, self.ar_id, self.dv_id]
+        """Ensure either id or exactly one entity identifier is provided"""
+        has_id = self.id is not None
+        entity_ids = [self.vh_trn, self.ar_trn, self.dv_trn, self.bh_regn, self.sil_regn, self.dbh_regn]
         non_null_count = sum(1 for eid in entity_ids if eid is not None)
         
-        # If TRN provided, no entity IDs should be provided
-        if has_trn and non_null_count > 0:
-            raise ValueError("Provide either 'trn' OR one of (vh_id, ar_id, dv_id), not both")
+        # If ID provided, no entity identifiers should be provided
+        if has_id and non_null_count > 0:
+            raise ValueError("Provide either 'id' OR one of (vh_trn, ar_trn, dv_trn, bh_regn, sil_regn, dbh_regn), not both")
         
-        # If TRN not provided, exactly one entity ID required
-        if not has_trn:
+        # If ID not provided, exactly one entity identifier required
+        if not has_id:
             if non_null_count == 0:
-                raise ValueError("Either 'trn' or exactly one of (vh_id, ar_id, dv_id) must be provided")
+                raise ValueError("Either 'id' or exactly one of (vh_trn, ar_trn, dv_trn, bh_regn, sil_regn, dbh_regn) must be provided")
             if non_null_count > 1:
-                raise ValueError("Only one of vh_id, ar_id, or dv_id can be provided")
+                raise ValueError("Only one of vh_trn, ar_trn, dv_trn, bh_regn, sil_regn, or dbh_regn can be provided")
         
         return self
 
@@ -71,11 +83,25 @@ class ObjectionUpdate(BaseModel):
     obj_cancellation_reason: Optional[str] = Field(None, max_length=500)
 
 
-class ObjectionOut(ObjectionBase):
+class ObjectionOut(BaseModel):
     """Schema for objection output"""
-    model_config = ConfigDict(from_attributes=True, exclude={'objection_type', 'vihara', 'arama', 'devala'})
+    model_config = ConfigDict(from_attributes=True, exclude={'objection_type'})
     
     obj_id: int
+    vh_trn: Optional[str] = None
+    ar_trn: Optional[str] = None
+    dv_trn: Optional[str] = None
+    bh_regn: Optional[str] = None
+    sil_regn: Optional[str] = None
+    dbh_regn: Optional[str] = None
+    ot_code: str
+    obj_reason: str
+    form_id: Optional[str] = None
+    obj_requester_name: Optional[str] = None
+    obj_requester_contact: Optional[str] = None
+    obj_requester_id_num: Optional[str] = None
+    obj_valid_from: Optional[datetime] = None
+    obj_valid_until: Optional[datetime] = None
     obj_status: ObjectionStatus
     obj_submitted_by: Optional[str] = None
     obj_submitted_at: datetime
@@ -96,9 +122,12 @@ class ObjectionOut(ObjectionBase):
 class ObjectionRequestPayload(BaseModel):
     """Payload for objection requests"""
     obj_id: Optional[int] = Field(None, ge=1)
-    vh_id: Optional[int] = Field(None, ge=1, description="Filter by vihara ID")
-    ar_id: Optional[int] = Field(None, ge=1, description="Filter by arama ID")
-    dv_id: Optional[int] = Field(None, ge=1, description="Filter by devala ID")
+    vh_trn: Optional[str] = Field(None, max_length=20, description="Filter by vihara TRN")
+    ar_trn: Optional[str] = Field(None, max_length=20, description="Filter by arama TRN")
+    dv_trn: Optional[str] = Field(None, max_length=20, description="Filter by devala TRN")
+    bh_regn: Optional[str] = Field(None, max_length=20, description="Filter by bhikku registration")
+    sil_regn: Optional[str] = Field(None, max_length=20, description="Filter by silmatha registration")
+    dbh_regn: Optional[str] = Field(None, max_length=20, description="Filter by high bhikku registration")
     obj_status: Optional[ObjectionStatus] = None
     
     # Pagination
@@ -136,20 +165,29 @@ class ObjectionCheckResponse(BaseModel):
     message: str
 
 
-# Helper function to determine entity type from TRN
-def get_entity_type_from_trn(trn: str) -> str:
+# Helper function to determine entity type from ID
+def get_entity_type_from_id(entity_id: str) -> str:
     """
-    Determine entity type from TRN prefix:
+    Determine entity type from ID prefix:
     - TRN* -> VIHARA
     - ARN* -> ARAMA  
     - DVL* -> DEVALA
+    - BH* -> BHIKKU
+    - SIL* -> SILMATHA
+    - DBH* or UPS* -> HIGH_BHIKKU
     """
-    trn_upper = trn.upper().strip()
-    if trn_upper.startswith("TRN"):
+    id_upper = entity_id.upper().strip()
+    if id_upper.startswith("TRN"):
         return "VIHARA"
-    elif trn_upper.startswith("ARN"):
+    elif id_upper.startswith("ARN"):
         return "ARAMA"
-    elif trn_upper.startswith("DVL"):
+    elif id_upper.startswith("DVL"):
         return "DEVALA"
+    elif id_upper.startswith("BH"):
+        return "BHIKKU"
+    elif id_upper.startswith("SIL"):
+        return "SILMATHA"
+    elif id_upper.startswith("DBH") or id_upper.startswith("UPS"):
+        return "HIGH_BHIKKU"
     else:
-        raise ValueError(f"Invalid TRN format: {trn}. Must start with TRN, ARN, or DVL")
+        raise ValueError(f"Invalid ID format: {entity_id}. Must start with TRN, ARN, DVL, BH, SIL, DBH, or UPS")

@@ -1,11 +1,13 @@
 # Objection System - Quick Reference
 
 ## Overview
+
 Restrict resident bhikku/silmatha additions to vihara/arama/devala entities.
 
 ## Quick Start
 
 ### 1. Submit Objection
+
 ```bash
 POST /api/v1/objections/manage
 {
@@ -21,6 +23,7 @@ POST /api/v1/objections/manage
 ```
 
 ### 2. Approve Objection (Activates Restriction)
+
 ```bash
 POST /api/v1/objections/manage
 {
@@ -32,11 +35,13 @@ POST /api/v1/objections/manage
 ```
 
 ### 3. Check Status
+
 ```bash
 GET /api/v1/objections/check/VIHARA/TRN0000001
 ```
 
 ### 4. Cancel Objection (Removes Restriction)
+
 ```bash
 POST /api/v1/objections/manage
 {
@@ -50,14 +55,14 @@ POST /api/v1/objections/manage
 
 ## All Actions
 
-| Action | Description | Status Flow |
-|--------|-------------|-------------|
-| `CREATE` | Submit new objection | → PENDING |
-| `READ_ONE` | Get specific objection | - |
-| `READ_ALL` | List objections with filters | - |
-| `APPROVE` | Approve objection | PENDING → APPROVED |
-| `REJECT` | Reject objection (with reason) | PENDING → REJECTED |
-| `CANCEL` | Cancel objection (with reason) | PENDING/APPROVED → CANCELLED |
+| Action     | Description                    | Status Flow                  |
+| ---------- | ------------------------------ | ---------------------------- |
+| `CREATE`   | Submit new objection           | → PENDING                    |
+| `READ_ONE` | Get specific objection         | -                            |
+| `READ_ALL` | List objections with filters   | -                            |
+| `APPROVE`  | Approve objection              | PENDING → APPROVED           |
+| `REJECT`   | Reject objection (with reason) | PENDING → REJECTED           |
+| `CANCEL`   | Cancel objection (with reason) | PENDING/APPROVED → CANCELLED |
 
 ## Status Meanings
 
@@ -69,12 +74,13 @@ POST /api/v1/objections/manage
 ## Entity Types
 
 - `VIHARA` - For vihara/temple entities
-- `ARAMA` - For arama entities  
+- `ARAMA` - For arama entities
 - `DEVALA` - For devala entities
 
 ## Example Workflows
 
 ### Full Workflow (Create → Approve → Cancel)
+
 ```bash
 # 1. Create objection
 curl -X POST /api/v1/objections/manage \
@@ -93,6 +99,7 @@ curl -X POST /api/v1/objections/manage \
 ```
 
 ### Rejection Workflow (Create → Reject)
+
 ```bash
 # 1. Create objection
 curl -X POST /api/v1/objections/manage \
@@ -148,36 +155,42 @@ validate_no_active_objection(
 ## Common Errors
 
 ### 403 - Active Objection Exists
+
 ```
-Cannot add resident bhikkus to this VIHARA. 
-An active objection exists (ID: 1). 
+Cannot add resident bhikkus to this VIHARA.
+An active objection exists (ID: 1).
 Reason: Cannot add more residents due to capacity
 ```
+
 **Solution:** Cancel the objection or wait for approval decision.
 
 ### 404 - Entity Not Found
+
 ```
 VIHARA with TRN 'TRN9999999' not found
 ```
+
 **Solution:** Verify the entity TRN exists.
 
 ### 400 - Invalid Status Transition
+
 ```
-Cannot approve objection with status APPROVED. 
+Cannot approve objection with status APPROVED.
 Only PENDING objections can be approved.
 ```
+
 **Solution:** Check current status before attempting transition.
 
 ## Database Table
 
 ```sql
 -- Check objections
-SELECT obj_id, obj_entity_type, obj_entity_trn, obj_status, obj_reason 
-FROM objections 
+SELECT obj_id, obj_entity_type, obj_entity_trn, obj_status, obj_reason
+FROM objections
 WHERE obj_is_deleted = FALSE;
 
 -- Check active objections
-SELECT * FROM objections 
+SELECT * FROM objections
 WHERE obj_status = 'APPROVED' AND obj_is_deleted = FALSE;
 ```
 
