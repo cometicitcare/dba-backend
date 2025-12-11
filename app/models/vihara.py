@@ -3,6 +3,7 @@ from sqlalchemy import (
     Column,
     Date,
     DateTime,
+    ForeignKey,
     Integer,
     String,
     func,
@@ -25,7 +26,7 @@ class ViharaData(Base):
     vh_whtapp = Column(String(10), nullable=False)
     vh_email = Column(String(200), nullable=False, index=True, unique=True)
     vh_typ = Column(String(10), nullable=False)
-    vh_gndiv = Column(String(10), nullable=False)
+    vh_gndiv = Column(String(10), ForeignKey('cmm_gndata.gn_gnc', ondelete='RESTRICT'), nullable=False)
     vh_fmlycnt = Column(Integer)
     vh_bgndate = Column(Date)
     vh_ownercd = Column(String(12), nullable=False)
@@ -43,11 +44,11 @@ class ViharaData(Base):
     vh_ssbmsigdate = Column(Date)
     
     # Extended Fields
-    vh_province = Column(String(100))
-    vh_district = Column(String(100))
-    vh_divisional_secretariat = Column(String(100))
-    vh_pradeshya_sabha = Column(String(100))
-    vh_nikaya = Column(String(50))
+    vh_province = Column(String(100), ForeignKey('cmm_province.cp_code', ondelete='SET NULL'))
+    vh_district = Column(String(100), ForeignKey('cmm_districtdata.dd_dcode', ondelete='SET NULL'))
+    vh_divisional_secretariat = Column(String(100), ForeignKey('cmm_dvsec.dv_dvcode', ondelete='SET NULL'))
+    vh_pradeshya_sabha = Column(String(100))  # No reference table available
+    vh_nikaya = Column(String(50), ForeignKey('cmm_nikayadata.nk_nkn', ondelete='SET NULL'))
     vh_viharadhipathi_name = Column(String(200))
     vh_period_established = Column(String(100))
     vh_buildings_description = Column(String(1000))
