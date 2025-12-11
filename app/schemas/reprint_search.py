@@ -35,6 +35,18 @@ class ReprintSearchRequest(BaseModel):
         }
 
 
+class ReprintDetailRequest(BaseModel):
+    """Request schema for getting record details by ID"""
+    id: str  # Registration number (e.g., "BH2025000175", "UPS2025025", "TRN0000082")
+    
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "id": "UPS2025025"
+            }
+        }
+
+
 # ============================================================================
 # RESPONSE SCHEMAS
 # ============================================================================
