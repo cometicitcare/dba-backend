@@ -3,7 +3,7 @@ from typing import Any, Optional
 
 from sqlalchemy import func, or_, select, text
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 
 from app.models.vihara import ViharaData
 from app.models.temple_land import TempleLand
@@ -25,6 +25,7 @@ class ViharaRepository:
     def get(self, db: Session, vh_id: int) -> Optional[ViharaData]:
         return (
             db.query(ViharaData)
+            .options(joinedload(ViharaData.temple_lands), joinedload(ViharaData.resident_bhikkhus))
             .filter(ViharaData.vh_id == vh_id, ViharaData.vh_is_deleted.is_(False))
             .first()
         )
@@ -32,6 +33,7 @@ class ViharaRepository:
     def get_by_trn(self, db: Session, vh_trn: str) -> Optional[ViharaData]:
         return (
             db.query(ViharaData)
+            .options(joinedload(ViharaData.temple_lands), joinedload(ViharaData.resident_bhikkhus))
             .filter(ViharaData.vh_trn == vh_trn, ViharaData.vh_is_deleted.is_(False))
             .first()
         )
