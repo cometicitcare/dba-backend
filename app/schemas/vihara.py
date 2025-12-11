@@ -171,6 +171,7 @@ class ViharaCreatePayload(BaseModel):
     telephone_number: str = Field(min_length=10, max_length=10)
     whatsapp_number: str = Field(min_length=10, max_length=10)
     email_address: EmailStr
+    temple_type: str = Field(min_length=1, max_length=10)  # Required: VIHARA, ARAMA, etc.
     province: Optional[str] = Field(default=None, max_length=100)
     district: Optional[str] = Field(default=None, max_length=100)
     divisional_secretariat: Optional[str] = Field(default=None, max_length=100)
@@ -178,6 +179,7 @@ class ViharaCreatePayload(BaseModel):
     grama_niladhari_division: str = Field(min_length=1, max_length=10)
     nikaya: Optional[str] = Field(default=None, max_length=50)
     parshawaya: str = Field(min_length=1, max_length=10)
+    owner_code: str = Field(min_length=1, max_length=12)  # Required: Bhikku registration number
     viharadhipathi_name: Optional[str] = Field(default=None, max_length=200)
     period_established: Optional[str] = Field(default=None, max_length=100)
     buildings_description: Optional[str] = Field(default=None, max_length=1000)
@@ -391,8 +393,8 @@ class ViharaRequestPayload(BaseModel):
     # Workflow action fields
     rejection_reason: Annotated[Optional[str], Field(default=None, max_length=500)] = None
     
-    # Data payload for CREATE/UPDATE
-    data: Optional[Union[ViharaCreate, ViharaUpdate]] = None
+    # Data payload for CREATE/UPDATE (supports both snake_case and camelCase)
+    data: Optional[Union[ViharaCreate, ViharaCreatePayload, ViharaUpdate, dict]] = None
 
 
 class ViharaManagementRequest(BaseModel):

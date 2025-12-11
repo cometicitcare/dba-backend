@@ -9,6 +9,7 @@ from app.models.user import UserAccount
 from app.schemas.vihara import (
     CRUDAction,
     ViharaCreate,
+    ViharaCreatePayload,
     ViharaManagementRequest,
     ViharaManagementResponse,
     ViharaOut,
@@ -31,11 +32,36 @@ def manage_vihara_records(
     user_id = current_user.ua_user_id
 
     if action == CRUDAction.CREATE:
-        create_payload = _coerce_payload(
-            payload.data,
-            target=ViharaCreate,
-            prefix="payload.data",
-        )
+        # Try camelCase first, then fall back to snake_case
+        create_payload = None
+        
+        # Convert to dict if it's a BaseModel
+        raw_data = payload.data
+        if isinstance(raw_data, BaseModel):
+            raw_data = raw_data.model_dump(exclude_unset=True)
+        
+        # Check if payload has camelCase keys
+        if isinstance(raw_data, dict):
+            has_camelcase = any(key in raw_data for key in ["temple_name", "telephone_number", "whatsapp_number", "email_address", "temple_type", "owner_code"])
+            
+            if has_camelcase:
+                try:
+                    create_payload = _coerce_payload(
+                        raw_data,
+                        target=ViharaCreatePayload,
+                        prefix="payload.data",
+                    )
+                except Exception:
+                    # If camelCase validation fails, raise the error
+                    raise
+        
+        if create_payload is None:
+            create_payload = _coerce_payload(
+                payload.data,
+                target=ViharaCreate,
+                prefix="payload.data",
+            )
+        
         try:
             created = vihara_service.create_vihara(
                 db, payload=create_payload, actor_id=user_id

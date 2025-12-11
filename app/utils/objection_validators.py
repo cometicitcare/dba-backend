@@ -10,22 +10,28 @@ from app.services.objection_service import objection_service
 
 def validate_no_active_objection(
     db: Session,
-    vh_id: Optional[int] = None,
-    ar_id: Optional[int] = None,
-    dv_id: Optional[int] = None,
+    vh_trn: Optional[str] = None,
+    ar_trn: Optional[str] = None,
+    dv_trn: Optional[str] = None,
+    bh_regn: Optional[str] = None,
+    sil_regn: Optional[str] = None,
+    dbh_regn: Optional[str] = None,
     operation_description: str = "add resident bhikkus/silmathas"
 ) -> None:
     """
     Validate that there is no active objection for the entity.
     Raises HTTPException if an active objection exists.
     
-    Provide exactly ONE of vh_id, ar_id, or dv_id.
+    Provide exactly ONE of the entity identifiers.
     
     Args:
         db: Database session
-        vh_id: Vihara ID (optional)
-        ar_id: Arama ID (optional)
-        dv_id: Devala ID (optional)
+        vh_trn: Vihara TRN (optional)
+        ar_trn: Arama TRN (optional)
+        dv_trn: Devala TRN (optional)
+        bh_regn: Bhikku REGN (optional)
+        sil_regn: Silmatha REGN (optional)
+        dbh_regn: High Bhikku REGN (optional)
         operation_description: Description of the operation being prevented
     
     Raises:
@@ -33,23 +39,30 @@ def validate_no_active_objection(
     
     Example:
         # Before adding resident bhikkhus to vihara
-        validate_no_active_objection(db, vh_id=123)
+        validate_no_active_objection(db, vh_trn="TRN0001234")
         
         # Before adding resident silmathas to arama
-        validate_no_active_objection(db, ar_id=456)
+        validate_no_active_objection(db, ar_trn="ARN0005678")
     """
     has_active, objection = objection_service.check_active_objection_by_id(
-        db, vh_id=vh_id, ar_id=ar_id, dv_id=dv_id
+        db, vh_trn=vh_trn, ar_trn=ar_trn, dv_trn=dv_trn, 
+        bh_regn=bh_regn, sil_regn=sil_regn, dbh_regn=dbh_regn
     )
     
     if has_active and objection:
         entity_type = "entity"
-        if vh_id:
+        if vh_trn:
             entity_type = "VIHARA"
-        elif ar_id:
+        elif ar_trn:
             entity_type = "ARAMA"
-        elif dv_id:
+        elif dv_trn:
             entity_type = "DEVALA"
+        elif bh_regn:
+            entity_type = "BHIKKU"
+        elif sil_regn:
+            entity_type = "SILMATHA"
+        elif dbh_regn:
+            entity_type = "HIGH_BHIKKU"
         
         raise HTTPException(
             status_code=403,
