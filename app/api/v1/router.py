@@ -35,6 +35,7 @@ from app.api.v1.routes import (
     payment_methods,
     province,
     reprint,
+    reprint_search,
     rbac_admin,
     religion,
     roles,
@@ -62,6 +63,14 @@ api_router.include_router(
 api_router.include_router(
     qr_search.router,
     tags=["🔍 QR Search"]
+)
+
+# ============================================================================
+# REPRINT SEARCH
+# ============================================================================
+api_router.include_router(
+    reprint_search.router,
+    tags=["🔄 Reprint Search"]
 )
 
 # ============================================================================

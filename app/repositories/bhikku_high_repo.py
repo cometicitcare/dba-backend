@@ -22,7 +22,7 @@ class BhikkuHighRepository:
         prefix = f"UPS{current_year}"
 
         latest = (
-            db.query(BhikkuHighRegist)
+            db.query(BhikkuHighRegist.bhr_regn)
             .filter(BhikkuHighRegist.bhr_regn.like(f"{prefix}%"))
             .order_by(BhikkuHighRegist.bhr_regn.desc())
             .first()
@@ -30,7 +30,8 @@ class BhikkuHighRepository:
 
         if latest:
             try:
-                sequence_part = latest.bhr_regn[len(prefix) :]
+                latest_regn = latest[0] if isinstance(latest, tuple) else latest
+                sequence_part = latest_regn[len(prefix) :]
                 last_sequence = int(sequence_part)
                 next_sequence = last_sequence + 1
             except (ValueError, IndexError):
