@@ -66,19 +66,19 @@ class BhikkuHighRegist(Base):
         "Bhikku",
         primaryjoin="foreign(BhikkuHighRegist.bhr_candidate_regn) == remote(Bhikku.br_regn)",
         viewonly=True,
-        lazy="joined"
+        lazy="select",
     )
     tutors_tutor_rel = relationship(
         "Bhikku",
         primaryjoin="foreign(BhikkuHighRegist.bhr_tutors_tutor_regn) == remote(Bhikku.br_regn)",
         viewonly=True,
-        lazy="joined"
+        lazy="select",
     )
     presiding_bhikshu_rel = relationship(
         "Bhikku",
         primaryjoin="foreign(BhikkuHighRegist.bhr_presiding_bhikshu_regn) == remote(Bhikku.br_regn)",
         viewonly=True,
-        lazy="joined"
+        lazy="select",
     )
     
     # Status relationship
@@ -86,7 +86,7 @@ class BhikkuHighRegist(Base):
         "StatusData",
         primaryjoin="foreign(BhikkuHighRegist.bhr_currstat) == StatusData.st_statcd",
         viewonly=True,
-        lazy="joined"
+        lazy="select",
     )
     
     # Parshawaya relationship
@@ -94,7 +94,7 @@ class BhikkuHighRegist(Base):
         "ParshawaData",
         primaryjoin="foreign(BhikkuHighRegist.bhr_parshawaya) == ParshawaData.pr_prn",
         viewonly=True,
-        lazy="joined"
+        lazy="select",
     )
     
     # Vihara/Temple relationships
@@ -102,18 +102,18 @@ class BhikkuHighRegist(Base):
         "ViharaData",
         primaryjoin="foreign(BhikkuHighRegist.bhr_livtemple) == ViharaData.vh_trn",
         viewonly=True,
-        lazy="joined"
+        lazy="select",
     )
     residence_higher_ordination_rel = relationship(
         "ViharaData",
         primaryjoin="foreign(BhikkuHighRegist.bhr_residence_higher_ordination_trn) == ViharaData.vh_trn",
         viewonly=True,
-        lazy="joined"
+        lazy="select",
     )
     residence_permanent_rel = relationship(
         "ViharaData",
         primaryjoin="foreign(BhikkuHighRegist.bhr_residence_permanent_trn) == ViharaData.vh_trn",
         viewonly=True,
-        lazy="joined"
+        lazy="select",
     )
 

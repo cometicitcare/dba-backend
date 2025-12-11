@@ -8,7 +8,7 @@ from typing import Any, Dict, Optional, Tuple
 from fastapi import UploadFile
 from sqlalchemy import MetaData, Table, select, text
 from sqlalchemy.exc import NoSuchTableError, SQLAlchemyError
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, noload
 
 from app.models.bhikku import Bhikku
 from app.models.bhikku_high import BhikkuHighRegist
@@ -1488,7 +1488,7 @@ class BhikkuService:
                 return self._format_silmatha_qr_response(db, entity)
                 
         elif record_type == "bhikku_high":
-            entity = db.query(BhikkuHighRegist).filter(BhikkuHighRegist.bhr_regn == record_id).first()
+            entity = db.query(BhikkuHighRegist).options(noload('*')).filter(BhikkuHighRegist.bhr_regn == record_id).first()
             if entity:
                 return self._format_bhikku_high_qr_response(db, entity)
         
@@ -1505,7 +1505,7 @@ class BhikkuService:
                 return self._format_silmatha_qr_response(db, entity)
             
             # Try Bhikku High
-            entity = db.query(BhikkuHighRegist).filter(BhikkuHighRegist.bhr_regn == record_id).first()
+            entity = db.query(BhikkuHighRegist).options(noload('*')).filter(BhikkuHighRegist.bhr_regn == record_id).first()
             if entity:
                 return self._format_bhikku_high_qr_response(db, entity)
         

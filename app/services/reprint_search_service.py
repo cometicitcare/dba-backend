@@ -5,7 +5,7 @@ Searches: Bhikku, Silmatha, High Bhikku, Direct High Bhikku, Vihara, Arama, Deva
 """
 from typing import Optional, List, Tuple
 from datetime import date
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, noload
 from sqlalchemy import or_, and_, func
 
 from app.models.bhikku import Bhikku
@@ -229,9 +229,8 @@ class ReprintSearchService:
         limit: int
     ) -> Tuple[List[ReprintSearchResultItem], int]:
         """Search High Bhikku records"""
-        from sqlalchemy.orm import lazyload
         
-        query = db.query(BhikkuHighRegist).options(lazyload('*')).filter(BhikkuHighRegist.bhr_is_deleted == False)
+        query = db.query(BhikkuHighRegist).options(noload('*')).filter(BhikkuHighRegist.bhr_is_deleted == False)
         
         if registration_number:
             query = query.filter(BhikkuHighRegist.bhr_regn.ilike(f"%{registration_number}%"))
@@ -644,7 +643,7 @@ class ReprintSearchService:
     
     def _get_high_bhikku_detail(self, db: Session, regn: str) -> Optional[List[QRStyleDetailItem]]:
         """Get detailed High Bhikku information"""
-        entity = db.query(BhikkuHighRegist).filter(BhikkuHighRegist.bhr_regn == regn, BhikkuHighRegist.bhr_is_deleted == False).first()
+        entity = db.query(BhikkuHighRegist).options(noload('*')).filter(BhikkuHighRegist.bhr_regn == regn, BhikkuHighRegist.bhr_is_deleted == False).first()
         if not entity:
             return None
         
