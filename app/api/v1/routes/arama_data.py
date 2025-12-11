@@ -30,11 +30,36 @@ def manage_arama_records(
     db: Session = Depends(get_db),
     current_user: UserAccount = Depends(get_current_user),
 ):
+    """
+    Manage Arama records with role-based access control.
+    
+    Permission Requirements:
+    - CREATE: arama:create
+    - READ_ONE, READ_ALL: arama:read
+    - UPDATE: arama:update
+    - DELETE: arama:delete
+    - APPROVE, REJECT, MARK_PRINTED, MARK_SCANNED: arama:update
+    """
+    from app.api.auth_dependencies import get_user_permissions, is_super_admin
+    
     action = request.action
     payload = request.payload
     user_id = current_user.ua_user_id
+    
+    # Get user permissions
+    user_perms = get_user_permissions(db, current_user)
+    is_admin = is_super_admin(db, current_user)
+    
+    # Helper function to check permission
+    def check_permission(required_perm: str):
+        if not is_admin and required_perm not in user_perms:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"Access denied. Required permission: '{required_perm}'. Please contact your administrator if you need access to this resource."
+            )
 
     if action == CRUDAction.CREATE:
+        check_permission("arama:create")
         create_payload = _coerce_payload(
             payload.data,
             target=AramaCreate,
@@ -53,6 +78,7 @@ def manage_arama_records(
             raise validation_error([(None, str(exc))]) from exc
 
     if action == CRUDAction.READ_ONE:
+        check_permission("arama:read")
         identifier_id = payload.ar_id
         identifier_trn = payload.ar_trn
         if identifier_id is None and not identifier_trn:
@@ -78,6 +104,7 @@ def manage_arama_records(
         )
 
     if action == CRUDAction.READ_ALL:
+        check_permission("arama:read")
         page = payload.page or 1
         limit = payload.limit
         search = payload.search_key.strip() if payload.search_key else None
@@ -119,6 +146,7 @@ def manage_arama_records(
         )
 
     if action == CRUDAction.UPDATE:
+        check_permission("arama:update")
         if payload.ar_id is None:
             raise validation_error(
                 [("payload.ar_id", "ar_id is required for UPDATE action")]
@@ -149,6 +177,7 @@ def manage_arama_records(
             raise validation_error([(None, str(exc))]) from exc
 
     if action == CRUDAction.DELETE:
+        check_permission("arama:delete")
         if payload.ar_id is None:
             raise validation_error(
                 [("payload.ar_id", "ar_id is required for DELETE action")]
@@ -170,6 +199,7 @@ def manage_arama_records(
             ) from exc
 
     if action == CRUDAction.APPROVE:
+        check_permission("arama:update")
         if payload.ar_id is None:
             raise validation_error(
                 [("payload.ar_id", "ar_id is required for APPROVE action")]
@@ -193,6 +223,7 @@ def manage_arama_records(
             raise validation_error([(None, message)]) from exc
 
     if action == CRUDAction.REJECT:
+        check_permission("arama:update")
         if payload.ar_id is None:
             raise validation_error(
                 [("payload.ar_id", "ar_id is required for REJECT action")]
@@ -223,6 +254,7 @@ def manage_arama_records(
             raise validation_error([(None, message)]) from exc
 
     if action == CRUDAction.MARK_PRINTED:
+        check_permission("arama:update")
         if payload.ar_id is None:
             raise validation_error(
                 [("payload.ar_id", "ar_id is required for MARK_PRINTED action")]
@@ -246,6 +278,7 @@ def manage_arama_records(
             raise validation_error([(None, message)]) from exc
 
     if action == CRUDAction.MARK_SCANNED:
+        check_permission("arama:update")
         if payload.ar_id is None:
             raise validation_error(
                 [("payload.ar_id", "ar_id is required for MARK_SCANNED action")]
