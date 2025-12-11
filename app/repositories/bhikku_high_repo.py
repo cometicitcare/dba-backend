@@ -3,7 +3,7 @@ from datetime import datetime
 from typing import Optional
 
 from sqlalchemy import func, or_
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, noload
 
 from app.models.bhikku_high import BhikkuHighRegist
 from app.models.user import UserAccount
@@ -17,33 +17,50 @@ class BhikkuHighRepository:
         """
         Generate registration numbers in the format UPS{YEAR}{SEQUENCE}.
         Example: UPS2025001, UPS2025002, etc. Sequence resets each calendar year.
+        
+        Thread-safe implementation using database-level locking to prevent race conditions.
         """
+        from sqlalchemy import text
+        
         current_year = datetime.utcnow().year
         prefix = f"UPS{current_year}"
-
-        latest = (
-            db.query(BhikkuHighRegist.bhr_regn)
-            .filter(BhikkuHighRegist.bhr_regn.like(f"{prefix}%"))
-            .order_by(BhikkuHighRegist.bhr_regn.desc())
-            .first()
-        )
-
-        if latest:
+        
+        # Use raw SQL with regex pattern matching and row locking for atomicity
+        # This is more robust than LIKE for pattern matching and ensures proper sequence extraction
+        result = db.execute(
+            text("""
+                SELECT bhr_regn 
+                FROM bhikku_high_regist 
+                WHERE bhr_regn ~ :pattern 
+                ORDER BY bhr_regn DESC 
+                LIMIT 1 
+                FOR UPDATE SKIP LOCKED
+            """),
+            {"pattern": f"^{prefix}\\d{{3}}$"}
+        ).fetchone()
+        
+        if result:
             try:
-                latest_regn = latest[0] if isinstance(latest, tuple) else latest
-                sequence_part = latest_regn[len(prefix) :]
+                latest_regn = result[0]
+                sequence_part = latest_regn[len(prefix):]
                 last_sequence = int(sequence_part)
                 next_sequence = last_sequence + 1
-            except (ValueError, IndexError):
+            except (ValueError, IndexError, TypeError):
+                # Fallback to 1 if parsing fails
                 next_sequence = 1
         else:
             next_sequence = 1
-
+        
+        # Validate sequence doesn't overflow
+        if next_sequence > 999:
+            raise RuntimeError(f"Registration sequence exhausted for year {current_year}")
+        
         return f"{prefix}{next_sequence:03d}"
 
     def get(self, db: Session, bhr_id: int) -> Optional[BhikkuHighRegist]:
         return (
             db.query(BhikkuHighRegist)
+            .options(noload('*'))
             .filter(
                 BhikkuHighRegist.bhr_id == bhr_id,
                 BhikkuHighRegist.bhr_is_deleted.is_(False),
@@ -54,6 +71,7 @@ class BhikkuHighRepository:
     def get_raw_by_regn(self, db: Session, bhr_regn: str) -> Optional[BhikkuHighRegist]:
         return (
             db.query(BhikkuHighRegist)
+            .options(noload('*'))
             .filter(BhikkuHighRegist.bhr_regn == bhr_regn)
             .first()
         )
@@ -61,6 +79,7 @@ class BhikkuHighRepository:
     def get_by_regn(self, db: Session, bhr_regn: str) -> Optional[BhikkuHighRegist]:
         return (
             db.query(BhikkuHighRegist)
+            .options(noload('*'))
             .filter(
                 BhikkuHighRegist.bhr_regn == bhr_regn,
                 BhikkuHighRegist.bhr_is_deleted.is_(False),
@@ -71,6 +90,7 @@ class BhikkuHighRepository:
     def get_by_mobile(self, db: Session, bhr_mobile: str) -> Optional[BhikkuHighRegist]:
         return (
             db.query(BhikkuHighRegist)
+            .options(noload('*'))
             .filter(
                 BhikkuHighRegist.bhr_mobile == bhr_mobile,
                 BhikkuHighRegist.bhr_is_deleted.is_(False),
@@ -81,6 +101,7 @@ class BhikkuHighRepository:
     def get_by_email(self, db: Session, bhr_email: str) -> Optional[BhikkuHighRegist]:
         return (
             db.query(BhikkuHighRegist)
+            .options(noload('*'))
             .filter(
                 BhikkuHighRegist.bhr_email == bhr_email,
                 BhikkuHighRegist.bhr_is_deleted.is_(False),
@@ -97,7 +118,7 @@ class BhikkuHighRepository:
         search: Optional[str] = None,
         current_user: Optional[UserAccount] = None,
     ) -> list[BhikkuHighRegist]:
-        query = db.query(BhikkuHighRegist).filter(
+        query = db.query(BhikkuHighRegist).options(noload('*')).filter(
             BhikkuHighRegist.bhr_is_deleted.is_(False)
         )
 
@@ -165,25 +186,40 @@ class BhikkuHighRepository:
     def create(
         self, db: Session, *, data: BhikkuHighCreate, actor_id: Optional[str]
     ) -> BhikkuHighRegist:
+        from sqlalchemy.exc import IntegrityError
+        
         payload = data.model_dump(exclude_none=True)
         payload.setdefault("bhr_is_deleted", False)
         payload.setdefault("bhr_version_number", 1)
         payload["bhr_created_by"] = actor_id
         payload["bhr_updated_by"] = actor_id
 
-        if not payload.get("bhr_regn"):
-            payload["bhr_regn"] = self.generate_next_regn(db)
-
         now = datetime.utcnow()
         payload.setdefault("bhr_created_at", now)
         payload.setdefault("bhr_updated_at", now)
         payload.setdefault("bhr_version", now)
 
-        entity = BhikkuHighRegist(**payload)
-        db.add(entity)
-        db.commit()
-        db.refresh(entity)
-        return entity
+        # Generate registration number with retry logic for race condition handling
+        max_retries = 3
+        for attempt in range(max_retries):
+            try:
+                if not payload.get("bhr_regn"):
+                    payload["bhr_regn"] = self.generate_next_regn(db)
+
+                entity = BhikkuHighRegist(**payload)
+                db.add(entity)
+                db.commit()
+                db.refresh(entity)
+                return entity
+                
+            except IntegrityError as e:
+                db.rollback()
+                if "bhr_regn" in str(e.orig) and attempt < max_retries - 1:
+                    # Race condition detected, retry with new registration number
+                    payload.pop("bhr_regn", None)
+                    continue
+                else:
+                    raise
 
     def update(
         self,

@@ -3,7 +3,7 @@ from datetime import datetime
 from typing import List, Optional
 
 from sqlalchemy import or_
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, noload
 
 from app.models.bhikku import Bhikku
 from app.models.bhikku_high import BhikkuHighRegist
@@ -37,12 +37,12 @@ class ReprintService:
                 raise ValueError(f"Bhikku record not found for regn: {regn}")
             entity.bhikku_regn = regn
         elif request_type == ReprintType.HIGH_BHIKKU:
-            exists = db.query(BhikkuHighRegist).filter(BhikkuHighRegist.bhr_regn == regn, BhikkuHighRegist.bhr_is_deleted.is_(False)).first()
+            exists = db.query(BhikkuHighRegist).options(noload('*')).filter(BhikkuHighRegist.bhr_regn == regn, BhikkuHighRegist.bhr_is_deleted.is_(False)).first()
             if not exists:
                 raise ValueError(f"High Bhikku record not found for regn: {regn}")
             entity.bhikku_high_regn = regn
         elif request_type == ReprintType.UPASAMPADA:
-            exists = db.query(BhikkuHighRegist).filter(BhikkuHighRegist.bhr_regn == regn, BhikkuHighRegist.bhr_is_deleted.is_(False)).first()
+            exists = db.query(BhikkuHighRegist).options(noload('*')).filter(BhikkuHighRegist.bhr_regn == regn, BhikkuHighRegist.bhr_is_deleted.is_(False)).first()
             if not exists:
                 raise ValueError(f"Upasampada record not found for regn: {regn}")
             entity.upasampada_regn = regn
@@ -304,6 +304,7 @@ class ReprintService:
         if high_regns:
             high_rows = (
                 db.query(BhikkuHighRegist)
+                .options(noload('*'))
                 .filter(BhikkuHighRegist.bhr_regn.in_(high_regns), BhikkuHighRegist.bhr_is_deleted.is_(False))
                 .all()
             )
@@ -480,6 +481,7 @@ class ReprintService:
         elif req_type in (ReprintType.HIGH_BHIKKU, ReprintType.UPASAMPADA):
             entity = (
                 db.query(BhikkuHighRegist)
+                .options(noload('*'))
                 .filter(
                     BhikkuHighRegist.bhr_regn == regn_clean,
                     BhikkuHighRegist.bhr_is_deleted.is_(False),

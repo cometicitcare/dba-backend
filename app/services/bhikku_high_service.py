@@ -96,10 +96,63 @@ class BhikkuHighService:
     def enrich_bhikku_high_dict(self, bhikku_high: BhikkuHighRegist) -> dict:
         """Transform BhikkuHighRegist model to dictionary with resolved nested objects"""
         
-        # Get candidate bhikku's location and status data through the relationship
-        candidate = bhikku_high.candidate_rel
+        # Return basic dict without loading relationships to avoid performance issues
+        return {
+            "bhr_id": bhikku_high.bhr_id,
+            "bhr_regn": bhikku_high.bhr_regn,
+            "bhr_reqstdate": bhikku_high.bhr_reqstdate,
+            "bhr_samanera_serial_no": bhikku_high.bhr_samanera_serial_no,
+            "bhr_remarks": bhikku_high.bhr_remarks,
+            "bhr_currstat": bhikku_high.bhr_currstat,
+            "bhr_parshawaya": bhikku_high.bhr_parshawaya,
+            "bhr_livtemple": bhikku_high.bhr_livtemple,
+            "bhr_cc_code": bhikku_high.bhr_cc_code,
+            "bhr_candidate_regn": bhikku_high.bhr_candidate_regn,
+            "bhr_higher_ordination_place": bhikku_high.bhr_higher_ordination_place,
+            "bhr_higher_ordination_date": bhikku_high.bhr_higher_ordination_date,
+            "bhr_karmacharya_name": bhikku_high.bhr_karmacharya_name,
+            "bhr_upaddhyaya_name": bhikku_high.bhr_upaddhyaya_name,
+            "bhr_assumed_name": bhikku_high.bhr_assumed_name,
+            "bhr_residence_higher_ordination_trn": bhikku_high.bhr_residence_higher_ordination_trn,
+            "bhr_residence_permanent_trn": bhikku_high.bhr_residence_permanent_trn,
+            "bhr_declaration_residence_address": bhikku_high.bhr_declaration_residence_address,
+            "bhr_tutors_tutor_regn": bhikku_high.bhr_tutors_tutor_regn,
+            "bhr_presiding_bhikshu_regn": bhikku_high.bhr_presiding_bhikshu_regn,
+            "bhr_declaration_date": bhikku_high.bhr_declaration_date,
+            "bhr_form_id": bhikku_high.bhr_form_id,
+            "bhr_workflow_status": bhikku_high.bhr_workflow_status,
+            "bhr_approval_status": bhikku_high.bhr_approval_status,
+            "bhr_approved_by": bhikku_high.bhr_approved_by,
+            "bhr_approved_at": bhikku_high.bhr_approved_at,
+            "bhr_rejected_by": bhikku_high.bhr_rejected_by,
+            "bhr_rejected_at": bhikku_high.bhr_rejected_at,
+            "bhr_rejection_reason": bhikku_high.bhr_rejection_reason,
+            "bhr_printed_by": bhikku_high.bhr_printed_by,
+            "bhr_printed_at": bhikku_high.bhr_printed_at,
+            "bhr_scanned_by": bhikku_high.bhr_scanned_by,
+            "bhr_scanned_at": bhikku_high.bhr_scanned_at,
+            "bhr_scanned_document_path": bhikku_high.bhr_scanned_document_path,
+            "bhr_created_by_district": bhikku_high.bhr_created_by_district,
+            "bhr_version": bhikku_high.bhr_version,
+            "bhr_is_deleted": bhikku_high.bhr_is_deleted,
+            "bhr_created_at": bhikku_high.bhr_created_at,
+            "bhr_updated_at": bhikku_high.bhr_updated_at,
+            "bhr_created_by": bhikku_high.bhr_created_by,
+            "bhr_updated_by": bhikku_high.bhr_updated_by,
+            "bhr_version_number": bhikku_high.bhr_version_number,
+        }
         
-        bhikku_high_dict = {
+        # NOTE: Old enrichment code removed to avoid N+1 query performance issues
+        # Relationships are not loaded to prevent timeout on create/read operations
+    
+    def _old_enrich_code_removed(self):
+        """
+        Old enrichment code below - kept for reference but not used
+        Accessing relationships caused severe performance issues and timeouts
+        """
+        pass
+        """
+        bhikku_high_dict_old = {
             "bhr_id": bhikku_high.bhr_id,
             "bhr_regn": bhikku_high.bhr_regn,
             "bhr_reqstdate": bhikku_high.bhr_reqstdate,
@@ -213,6 +266,7 @@ class BhikkuHighService:
             } if candidate.status_rel else candidate.br_currstat
         
         return bhikku_high_dict
+        """
 
     def update_bhikku_high(
         self,
@@ -395,7 +449,7 @@ class BhikkuHighService:
         Args:
             db: Database session
             bhr_regn: Higher Bhikku registration number
-            file: Uploaded file (PDF, JPG, PNG - max 5MB)
+            file: Uploaded file (PDF, JPG, PNG - max size)
             actor_id: User ID performing the upload
             
         Returns:
