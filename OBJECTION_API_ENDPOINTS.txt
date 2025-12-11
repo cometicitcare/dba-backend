@@ -6,6 +6,13 @@ Local: http://localhost:8000/api/v1
 
 All endpoints require authentication (login first to get session cookie).
 
+⚠️ SCHEMA UPDATE (December 11, 2025):
+- Objections now use foreign key IDs (vh_id, ar_id, dv_id) instead of entity_type + TRN
+- Entity type auto-detected from which ID is provided or from TRN prefix
+- TRN Prefixes: TRN* = Vihara | ARN* = Arama | DVL* = Devala
+- When creating: provide exactly ONE of vh_id, ar_id, or dv_id (not TRN)
+- When checking: use TRN in the URL (system looks up the entity ID)
+
 ================================================================================
 OVERVIEW
 ================================================================================
@@ -29,18 +36,49 @@ Permission: objection:create
 Description: Submit a new objection to restrict resident bhikkus/silmathas from 
 being added to a specific vihara, arama, or devala.
 
-Request Body:
+Request Body (for Vihara):
 {
   "action": "CREATE",
   "payload": {
     "data": {
-      "obj_entity_type": "VIHARA",           // VIHARA, ARAMA, or DEVALA
-      "obj_entity_trn": "TRN0000001",        // TRN of the entity
-      "obj_entity_name": "Temple Name",      // Optional - auto-populated if not provided
+      "vh_id": 123,                          // Vihara ID (required)
+      "ar_id": null,                         // Must be null for vihara
+      "dv_id": null,                         // Must be null for vihara
+      "obj_type_id": 1,                      // Objection type (1-6, see below)
       "obj_reason": "Cannot add more resident bhikkus due to capacity constraints"
     }
   }
 }
+
+Request Body (for Arama):
+{
+  "action": "CREATE",
+  "payload": {
+    "data": {
+      "vh_id": null,                         // Must be null for arama
+      "ar_id": 456,                          // Arama ID (required)
+      "dv_id": null,                         // Must be null for arama
+      "obj_type_id": 1,                      // Objection type (1-6, see below)
+      "obj_reason": "Cannot add more resident silmathas due to capacity constraints"
+    }
+  }
+}
+
+Request Body (for Devala):
+{
+  "action": "CREATE",
+  "payload": {
+    "data": {
+      "vh_id": null,                         // Must be null for devala
+      "ar_id": null,                         // Must be null for devala
+      "dv_id": 789,                          // Devala ID (required)
+      "obj_type_id": 2,                      // Objection type (1-6, see below)
+      "obj_reason": "Construction work in progress"
+    }
+  }
+}
+
+⚠️ VALIDATION: Exactly ONE of vh_id, ar_id, or dv_id must be provided (not TRN).
 
 Response (200 OK):
 {
@@ -48,9 +86,10 @@ Response (200 OK):
   "message": "Objection submitted successfully. Status: PENDING",
   "data": {
     "obj_id": 1,
-    "obj_entity_type": "VIHARA",
-    "obj_entity_trn": "TRN0000001",
-    "obj_entity_name": "Temple Name",
+    "vh_id": 123,                           // Set for vihara objections
+    "ar_id": null,
+    "dv_id": null,
+    "obj_type_id": 1,
     "obj_reason": "Cannot add more resident bhikkus due to capacity constraints",
     "obj_status": "PENDING",
     "obj_submitted_by": "UA0001",
@@ -70,10 +109,21 @@ Response (200 OK):
   }
 }
 
-Entity Types:
-- VIHARA  - For vihara/temple entities
-- ARAMA   - For arama entities
-- DEVALA  - For devala entities
+How to Get Entity IDs:
+1. Vihara: Use GET /vihara-data/manage with READ_ALL action, search by name/TRN to get vh_id
+2. Arama: Use GET /arama-data/manage with READ_ALL action, search by name/TRN to get ar_id
+3. Devala: Use GET /devala-data/manage with READ_ALL action, search by name/TRN to get dv_id
+
+Objection Type (obj_type_id):
+Get available types from GET /objections/types endpoint (see section 8)
+
+Default Objection Types:
+- 1 = CAPACITY (Capacity Full)
+- 2 = CONSTRUCTION (Construction Work)
+- 3 = ADMIN (Administrative Review)
+- 4 = MAINTENANCE (Maintenance)
+- 5 = TEMPORARY (Temporary Restriction)
+- 6 = OTHER (Other reasons)
 
 ================================================================================
 2. READ ONE OBJECTION
@@ -122,14 +172,25 @@ Request Body:
 {
   "action": "READ_ALL",
   "payload": {
-    // Optional filters
-    "obj_entity_type": "VIHARA",      // Filter by entity type
-    "obj_entity_trn": "TRN0000001",   // Filter by specific entity
+    // Optional filters (provide only what you need to filter)
+    "vh_id": 123,                     // Filter by vihara ID
+    "ar_id": 456,                     // Filter by arama ID
+    "dv_id": 789,                     // Filter by devala ID
     "obj_status": "APPROVED",         // Filter by status (PENDING, APPROVED, REJECTED, CANCELLED)
     
     // Pagination
     "page": 1,                        // Default: 1
     "limit": 10                       // Default: 10, max: 100
+  }
+}
+
+// Example: Get all objections for a specific vihara
+{
+  "action": "READ_ALL",
+  "payload": {
+    "vh_id": 123,
+    "page": 1,
+    "limit": 20
   }
 }
 
@@ -300,26 +361,34 @@ Status Transition: PENDING → CANCELLED or APPROVED → CANCELLED
 Effect: Restriction removed - resident additions are now ALLOWED ✅
 
 ================================================================================
-7. CHECK OBJECTION STATUS
+7. CHECK OBJECTION STATUS (BY TRN)
 ================================================================================
-Endpoint: GET /objections/check/{entity_type}/{entity_trn}
+Endpoint: GET /objections/check/{trn}
 Permission: Any authenticated user
 
 Description: Check if a specific vihara, arama, or devala has an active 
-(approved) objection. Use this before allowing resident additions.
+(approved) objection by its TRN. Entity type is auto-detected from TRN prefix.
+Use this before allowing resident additions.
+
+TRN Prefix Rules:
+- TRN* → Vihara
+- ARN* → Arama
+- DVL* → Devala
 
 Examples:
-GET /objections/check/VIHARA/TRN0000001
-GET /objections/check/ARAMA/ARN0000001
-GET /objections/check/DEVALA/DVL0000001
+GET /objections/check/TRN0000001  (checks vihara)
+GET /objections/check/ARN0000001  (checks arama)
+GET /objections/check/DVL0000001  (checks devala)
 
 Response (200 OK) - With Active Objection:
 {
   "has_active_objection": true,
   "objection": {
     "obj_id": 1,
-    "obj_entity_type": "VIHARA",
-    "obj_entity_trn": "TRN0000001",
+    "vh_id": 123,
+    "ar_id": null,
+    "dv_id": null,
+    "obj_type_id": 1,
     "obj_status": "APPROVED",
     "obj_reason": "Cannot add more resident bhikkus due to capacity",
     "obj_approved_by": "UA0002",
@@ -492,8 +561,12 @@ INTEGRATION WITH VIHARA/ARAMA/DEVALA
 
 When displaying "Add Resident Bhikku/Silmatha" functionality:
 
-1. Call CHECK endpoint:
-   GET /objections/check/{entity_type}/{entity_trn}
+1. Call CHECK endpoint with TRN:
+   GET /objections/check/{trn}
+   
+   Example: GET /objections/check/TRN0000001  (for vihara)
+           GET /objections/check/ARN0000001  (for arama)
+           GET /objections/check/DVL0000001  (for devala)
 
 2. If has_active_objection = true:
    - Disable "Add Resident" button
@@ -508,8 +581,8 @@ Example Frontend Logic:
 
 ```javascript
 // Before showing Add Resident form
-async function checkObjection(entityType, entityTrn) {
-  const response = await fetch(`/api/v1/objections/check/${entityType}/${entityTrn}`);
+async function checkObjection(trn) {
+  const response = await fetch(`/api/v1/objections/check/${trn}`);
   const data = await response.json();
   
   if (data.has_active_objection) {
@@ -521,6 +594,11 @@ async function checkObjection(entityType, entityTrn) {
     enableAddButton();
   }
 }
+
+// Usage:
+checkObjection('TRN0000001');  // For vihara
+checkObjection('ARN0000001');  // For arama
+checkObjection('DVL0000001');  // For devala
 
 // When trying to add resident
 async function addResident(data) {
@@ -572,7 +650,8 @@ Use Case 3: Administrative Review
 TESTING CHECKLIST FOR FRONTEND DEVELOPERS
 ================================================================================
 
-✅ Create new objection (all entity types)
+✅ Get objection types list
+✅ Create new objection with type (all entity types)
 ✅ View list of objections with filters
 ✅ View single objection details
 ✅ Approve pending objection
@@ -587,6 +666,7 @@ TESTING CHECKLIST FOR FRONTEND DEVELOPERS
 ✅ Filter objections by status, entity type, entity TRN
 ✅ Pagination works correctly
 ✅ Permission-based button visibility
+✅ Display objection type name in UI
 
 ================================================================================
 SAMPLE DATA FOR TESTING
@@ -599,6 +679,7 @@ Sample Objection Creation:
     "data": {
       "obj_entity_type": "VIHARA",
       "obj_entity_trn": "TRN0000001",
+      "obj_type_id": 1,
       "obj_reason": "පදිංචිකරුවන් සඳහා ඉඩ සීමිතය - Maximum capacity reached"
     }
   }
@@ -621,18 +702,73 @@ NOTES FOR FRONTEND DEVELOPERS
 
 1. All dates/timestamps are in ISO 8601 format with timezone
 2. Entity names are auto-populated from the entity record
-3. Check objection status BEFORE showing resident addition forms
-4. Status transitions are enforced - invalid transitions return 400 error
-5. Only APPROVED objections block resident additions
-6. Cancelled objections immediately remove restrictions
-7. Rejection reason is REQUIRED for REJECT action
-8. Cancellation reason is OPTIONAL for CANCEL action
-9. Use appropriate icons/colors for different statuses
-10. Show objection details when displaying restriction message
-11. Pagination limit max is 100, default is 10
-12. All list responses include totalRecords for pagination
-13. The check endpoint is public (any authenticated user can call it)
-14. Action buttons should be permission-based
+3. Objection type (obj_type_id) is REQUIRED when creating objections
+4. Get objection types from GET /objections/types before showing create form
+5. Check objection status BEFORE showing resident addition forms
+6. Status transitions are enforced - invalid transitions return 400 error
+7. Only APPROVED objections block resident additions
+8. Cancelled objections immediately remove restrictions
+9. Rejection reason is REQUIRED for REJECT action
+10. Cancellation reason is OPTIONAL for CANCEL action
+11. Use appropriate icons/colors for different statuses
+12. Show objection details when displaying restriction message
+13. Pagination limit max is 100, default is 10
+14. All list responses include totalRecords for pagination
+15. The check endpoint is public (any authenticated user can call it)
+16. Action buttons should be permission-based
+17. Display objection type name (ot_name_si for Sinhala, ot_name_en for English)
+
+================================================================================
+8. GET OBJECTION TYPES
+================================================================================
+Endpoint: GET /objections/types
+Permission: Any authenticated user
+
+Description: Get list of available objection types for creating objections.
+
+Query Parameters:
+- is_active (boolean): Filter by active status (default: true)
+
+Example: GET /objections/types
+Example: GET /objections/types?is_active=false
+
+Response (200 OK):
+[
+  {
+    "ot_id": 1,
+    "ot_code": "CAPACITY",
+    "ot_name_en": "Capacity Full",
+    "ot_name_si": "ධාරිතාව සම්පූර්ණයි",
+    "ot_name_ta": null,
+    "ot_description": "Maximum capacity reached, cannot accommodate more residents",
+    "ot_is_active": true,
+    "ot_is_deleted": false,
+    "ot_created_at": "2025-12-10T00:00:00+05:30",
+    "ot_updated_at": null,
+    "ot_created_by": "SYSTEM",
+    "ot_updated_by": null
+  },
+  {
+    "ot_id": 2,
+    "ot_code": "CONSTRUCTION",
+    "ot_name_en": "Construction Work",
+    "ot_name_si": "ඉදිකිරීම් කටයුතු",
+    "ot_name_ta": null,
+    "ot_description": "Ongoing construction or renovation work",
+    "ot_is_active": true,
+    "ot_is_deleted": false,
+    "ot_created_at": "2025-12-10T00:00:00+05:30",
+    "ot_updated_at": null,
+    "ot_created_by": "SYSTEM",
+    "ot_updated_by": null
+  },
+  ... (other types)
+]
+
+Use Cases:
+- Populate dropdown in "Create Objection" form
+- Display objection type name in objection details
+- Filter objections by type
 
 ================================================================================
 ENDPOINT SUMMARY
@@ -640,6 +776,7 @@ ENDPOINT SUMMARY
 
 POST   /objections/manage               - Manage objections (all CRUD operations)
 GET    /objections/check/{type}/{trn}   - Check if entity has active objection
+GET    /objections/types                - Get list of objection types
 
 Actions for /objections/manage:
 - CREATE      - Submit new objection

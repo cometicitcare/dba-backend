@@ -31,6 +31,7 @@ from app.api.v1.routes import (
     location_hierarchy,
     nilame,
     objections,
+    objection_types,
     payment_methods,
     province,
     reprint,
@@ -197,6 +198,11 @@ api_router.include_router(
 )
 api_router.include_router(
     objections.router,
+    prefix="/objections",
+    tags=["🏛️ Vihara & Religious Data"]
+)
+api_router.include_router(
+    objection_types.router,
     prefix="/objections",
     tags=["🏛️ Vihara & Religious Data"]
 )

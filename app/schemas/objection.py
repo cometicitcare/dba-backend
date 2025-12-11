@@ -1,14 +1,7 @@
 from datetime import datetime
 from enum import Enum
 from typing import Annotated, Optional, List, Union, Any
-from pydantic import BaseModel, ConfigDict, Field, field_validator
-
-
-class EntityType(str, Enum):
-    """Type of entity for objection"""
-    VIHARA = "VIHARA"
-    ARAMA = "ARAMA"
-    DEVALA = "DEVALA"
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 
 class ObjectionStatus(str, Enum):
@@ -30,11 +23,41 @@ class ObjectionAction(str, Enum):
 
 
 class ObjectionBase(BaseModel):
-    """Base schema for objection"""
-    obj_entity_type: EntityType
-    obj_entity_trn: Annotated[str, Field(min_length=1, max_length=50)]
-    obj_entity_name: Optional[str] = Field(None, max_length=200)
-    obj_reason: Annotated[str, Field(min_length=1, max_length=1000)]
+    """
+    Base schema for objection.
+    Provide EITHER trn OR one of (vh_id, ar_id, dv_id).
+    
+    If trn is provided, entity type is auto-detected:
+    - TRN* → Vihara (populates vh_id)
+    - ARN* → Arama (populates ar_id)
+    - DVL* → Devala (populates dv_id)
+    """
+    trn: Optional[str] = Field(None, min_length=1, max_length=50, description="Entity TRN (auto-detects type from prefix)")
+    vh_id: Optional[int] = Field(None, ge=1, description="Vihara ID (if objection is for vihara)")
+    ar_id: Optional[int] = Field(None, ge=1, description="Arama ID (if objection is for arama)")
+    dv_id: Optional[int] = Field(None, ge=1, description="Devala ID (if objection is for devala)")
+    obj_type_id: Annotated[int, Field(ge=1, description="Objection type ID")]
+    obj_reason: Annotated[str, Field(min_length=1, max_length=1000, description="Reason for objection")]
+    
+    @model_validator(mode='after')
+    def validate_entity_provided(self):
+        """Ensure either trn or exactly one entity FK is provided"""
+        has_trn = self.trn is not None
+        entity_ids = [self.vh_id, self.ar_id, self.dv_id]
+        non_null_count = sum(1 for eid in entity_ids if eid is not None)
+        
+        # If TRN provided, no entity IDs should be provided
+        if has_trn and non_null_count > 0:
+            raise ValueError("Provide either 'trn' OR one of (vh_id, ar_id, dv_id), not both")
+        
+        # If TRN not provided, exactly one entity ID required
+        if not has_trn:
+            if non_null_count == 0:
+                raise ValueError("Either 'trn' or exactly one of (vh_id, ar_id, dv_id) must be provided")
+            if non_null_count > 1:
+                raise ValueError("Only one of vh_id, ar_id, or dv_id can be provided")
+        
+        return self
 
 
 class ObjectionCreate(ObjectionBase):
@@ -50,7 +73,7 @@ class ObjectionUpdate(BaseModel):
 
 class ObjectionOut(ObjectionBase):
     """Schema for objection output"""
-    model_config = ConfigDict(from_attributes=True)
+    model_config = ConfigDict(from_attributes=True, exclude={'objection_type', 'vihara', 'arama', 'devala'})
     
     obj_id: int
     obj_status: ObjectionStatus
@@ -73,8 +96,9 @@ class ObjectionOut(ObjectionBase):
 class ObjectionRequestPayload(BaseModel):
     """Payload for objection requests"""
     obj_id: Optional[int] = Field(None, ge=1)
-    obj_entity_type: Optional[EntityType] = None
-    obj_entity_trn: Optional[str] = Field(None, max_length=50)
+    vh_id: Optional[int] = Field(None, ge=1, description="Filter by vihara ID")
+    ar_id: Optional[int] = Field(None, ge=1, description="Filter by arama ID")
+    dv_id: Optional[int] = Field(None, ge=1, description="Filter by devala ID")
     obj_status: Optional[ObjectionStatus] = None
     
     # Pagination
@@ -106,7 +130,26 @@ class ObjectionManagementResponse(BaseModel):
 
 
 class ObjectionCheckResponse(BaseModel):
-    """Response for checking if entity has active objection"""
+    """Response for checking if entity has active objection by TRN"""
     has_active_objection: bool
     objection: Optional[ObjectionOut] = None
     message: str
+
+
+# Helper function to determine entity type from TRN
+def get_entity_type_from_trn(trn: str) -> str:
+    """
+    Determine entity type from TRN prefix:
+    - TRN* -> VIHARA
+    - ARN* -> ARAMA  
+    - DVL* -> DEVALA
+    """
+    trn_upper = trn.upper().strip()
+    if trn_upper.startswith("TRN"):
+        return "VIHARA"
+    elif trn_upper.startswith("ARN"):
+        return "ARAMA"
+    elif trn_upper.startswith("DVL"):
+        return "DEVALA"
+    else:
+        raise ValueError(f"Invalid TRN format: {trn}. Must start with TRN, ARN, or DVL")

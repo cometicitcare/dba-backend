@@ -48,6 +48,7 @@ from app.models.silmatha_id_card import SilmathaIDCard
 
 # Objection model
 from app.models.objection import Objection
+from app.models.objection_type import ObjectionType
 
 # Other models
 from app.models.status import StatusData
