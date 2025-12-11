@@ -5,7 +5,7 @@ Searches: Bhikku, Silmatha, High Bhikku, Direct High Bhikku, Vihara, Arama, Deva
 """
 from typing import Optional, List, Tuple
 from datetime import date
-from sqlalchemy.orm import Session, noload
+from sqlalchemy.orm import Session
 from sqlalchemy import or_, and_, func
 
 from app.models.bhikku import Bhikku
@@ -229,8 +229,9 @@ class ReprintSearchService:
         limit: int
     ) -> Tuple[List[ReprintSearchResultItem], int]:
         """Search High Bhikku records"""
+        from sqlalchemy.orm import lazyload
         
-        query = db.query(BhikkuHighRegist).options(noload('*')).filter(BhikkuHighRegist.bhr_is_deleted == False)
+        query = db.query(BhikkuHighRegist).options(lazyload('*')).filter(BhikkuHighRegist.bhr_is_deleted == False)
         
         if registration_number:
             query = query.filter(BhikkuHighRegist.bhr_regn.ilike(f"%{registration_number}%"))
@@ -643,7 +644,7 @@ class ReprintSearchService:
     
     def _get_high_bhikku_detail(self, db: Session, regn: str) -> Optional[List[QRStyleDetailItem]]:
         """Get detailed High Bhikku information"""
-        entity = db.query(BhikkuHighRegist).options(noload('*')).filter(BhikkuHighRegist.bhr_regn == regn, BhikkuHighRegist.bhr_is_deleted == False).first()
+        entity = db.query(BhikkuHighRegist).filter(BhikkuHighRegist.bhr_regn == regn, BhikkuHighRegist.bhr_is_deleted == False).first()
         if not entity:
             return None
         
@@ -726,7 +727,6 @@ class ReprintSearchService:
         return [
             QRStyleDetailItem(titel="Entity Type", text="Direct High Bhikku"),
             QRStyleDetailItem(titel="Registration Number", text=entity.dbh_regn),
-            QRStyleDetailItem(titel="Form ID", text=entity.dbh_form_id),
             QRStyleDetailItem(titel="Ordained Name", text=ordained_name),
             QRStyleDetailItem(titel="Birth Name", text=entity.dbh_gihiname),
             QRStyleDetailItem(titel="Date of Birth", text=str(entity.dbh_dofb) if entity.dbh_dofb else None),
@@ -787,24 +787,36 @@ class ReprintSearchService:
     
     def _get_devala_detail(self, db: Session, trn: str) -> Optional[List[QRStyleDetailItem]]:
         """Get detailed Devala information"""
-        entity = db.query(DevalaData).filter(DevalaData.dv_trn == trn, DevalaData.dv_is_deleted == False).first()
-        if not entity:
+        # Query only specific columns to avoid missing field errors
+        result = db.query(
+            DevalaData.dv_trn,
+            DevalaData.dv_form_id,
+            DevalaData.dv_vname,
+            DevalaData.dv_addrs,
+            DevalaData.dv_mobile,
+            DevalaData.dv_whtapp,
+            DevalaData.dv_email,
+            DevalaData.dv_bgndate,
+            DevalaData.dv_workflow_status
+        ).filter(
+            DevalaData.dv_trn == trn,
+            DevalaData.dv_is_deleted == False
+        ).first()
+        
+        if not result:
             return None
         
         return [
             QRStyleDetailItem(titel="Entity Type", text="Devala"),
-            QRStyleDetailItem(titel="Registration Number (TRN)", text=entity.dv_trn),
-            QRStyleDetailItem(titel="Form ID", text=entity.dv_form_id),
-            QRStyleDetailItem(titel="Devala Name", text=entity.dv_vname),
-            QRStyleDetailItem(titel="Address", text=entity.dv_addrs),
-            QRStyleDetailItem(titel="Contact Number", text=entity.dv_mobile),
-            QRStyleDetailItem(titel="WhatsApp", text=entity.dv_whtapp),
-            QRStyleDetailItem(titel="Email", text=entity.dv_email),
-            QRStyleDetailItem(titel="Devadhipathi Name", text=entity.dv_viharadhipathi_name),
-            QRStyleDetailItem(titel="Province", text=entity.dv_province),
-            QRStyleDetailItem(titel="District", text=entity.dv_district),
-            QRStyleDetailItem(titel="Establishment Date", text=str(entity.dv_bgndate) if entity.dv_bgndate else None),
-            QRStyleDetailItem(titel="Workflow Status", text=entity.dv_workflow_status),
+            QRStyleDetailItem(titel="Registration Number (TRN)", text=result.dv_trn),
+            QRStyleDetailItem(titel="Form ID", text=result.dv_form_id),
+            QRStyleDetailItem(titel="Devala Name", text=result.dv_vname),
+            QRStyleDetailItem(titel="Address", text=result.dv_addrs),
+            QRStyleDetailItem(titel="Contact Number", text=result.dv_mobile),
+            QRStyleDetailItem(titel="WhatsApp", text=result.dv_whtapp),
+            QRStyleDetailItem(titel="Email", text=result.dv_email),
+            QRStyleDetailItem(titel="Establishment Date", text=str(result.dv_bgndate) if result.dv_bgndate else None),
+            QRStyleDetailItem(titel="Workflow Status", text=result.dv_workflow_status),
         ]
 
 
