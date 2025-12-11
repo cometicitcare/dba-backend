@@ -95,17 +95,74 @@ class BhikkuHighService:
 
     def enrich_bhikku_high_dict(self, bhikku_high: BhikkuHighRegist) -> dict:
         """Transform BhikkuHighRegist model to dictionary with resolved nested objects"""
+        from sqlalchemy.orm import joinedload
         
-        # Return basic dict without loading relationships to avoid performance issues
-        return {
+        # Manually fetch related data with explicit queries to avoid N+1
+        candidate = None
+        status_obj = None
+        parshawaya_obj = None
+        livtemple_obj = None
+        residence_higher_obj = None
+        residence_permanent_obj = None
+        tutor_obj = None
+        presiding_obj = None
+        
+        db = bhikku_high._sa_instance_state.session
+        if db:
+            if bhikku_high.bhr_candidate_regn:
+                from app.models.bhikku import Bhikku
+                candidate = db.query(Bhikku).filter(Bhikku.br_regn == bhikku_high.bhr_candidate_regn).first()
+            
+            if bhikku_high.bhr_currstat:
+                from app.models.status import StatusData
+                status_obj = db.query(StatusData).filter(StatusData.st_statcd == bhikku_high.bhr_currstat).first()
+            
+            if bhikku_high.bhr_parshawaya:
+                from app.models.parshawa import ParshawaData
+                parshawaya_obj = db.query(ParshawaData).filter(ParshawaData.pr_prn == bhikku_high.bhr_parshawaya).first()
+            
+            if bhikku_high.bhr_livtemple:
+                from app.models.vihara import ViharaData
+                livtemple_obj = db.query(ViharaData).filter(ViharaData.vh_trn == bhikku_high.bhr_livtemple).first()
+            
+            if bhikku_high.bhr_residence_higher_ordination_trn:
+                from app.models.vihara import ViharaData
+                residence_higher_obj = db.query(ViharaData).filter(ViharaData.vh_trn == bhikku_high.bhr_residence_higher_ordination_trn).first()
+            
+            if bhikku_high.bhr_residence_permanent_trn:
+                from app.models.vihara import ViharaData
+                residence_permanent_obj = db.query(ViharaData).filter(ViharaData.vh_trn == bhikku_high.bhr_residence_permanent_trn).first()
+            
+            if bhikku_high.bhr_tutors_tutor_regn:
+                from app.models.bhikku import Bhikku
+                tutor_obj = db.query(Bhikku).filter(Bhikku.br_regn == bhikku_high.bhr_tutors_tutor_regn).first()
+            
+            if bhikku_high.bhr_presiding_bhikshu_regn:
+                from app.models.bhikku import Bhikku
+                presiding_obj = db.query(Bhikku).filter(Bhikku.br_regn == bhikku_high.bhr_presiding_bhikshu_regn).first()
+        
+        bhikku_high_dict = {
             "bhr_id": bhikku_high.bhr_id,
             "bhr_regn": bhikku_high.bhr_regn,
             "bhr_reqstdate": bhikku_high.bhr_reqstdate,
             "bhr_samanera_serial_no": bhikku_high.bhr_samanera_serial_no,
             "bhr_remarks": bhikku_high.bhr_remarks,
-            "bhr_currstat": bhikku_high.bhr_currstat,
-            "bhr_parshawaya": bhikku_high.bhr_parshawaya,
-            "bhr_livtemple": bhikku_high.bhr_livtemple,
+            
+            "bhr_currstat": {
+                "st_statcd": status_obj.st_statcd,
+                "st_descr": status_obj.st_descr
+            } if status_obj else bhikku_high.bhr_currstat,
+            
+            "bhr_parshawaya": {
+                "code": parshawaya_obj.pr_prn,
+                "name": parshawaya_obj.pr_pname
+            } if parshawaya_obj else bhikku_high.bhr_parshawaya,
+            
+            "bhr_livtemple": {
+                "vh_trn": livtemple_obj.vh_trn,
+                "vh_vname": livtemple_obj.vh_vname
+            } if livtemple_obj else bhikku_high.bhr_livtemple,
+            
             "bhr_cc_code": bhikku_high.bhr_cc_code,
             "bhr_candidate_regn": bhikku_high.bhr_candidate_regn,
             "bhr_higher_ordination_place": bhikku_high.bhr_higher_ordination_place,
@@ -113,11 +170,31 @@ class BhikkuHighService:
             "bhr_karmacharya_name": bhikku_high.bhr_karmacharya_name,
             "bhr_upaddhyaya_name": bhikku_high.bhr_upaddhyaya_name,
             "bhr_assumed_name": bhikku_high.bhr_assumed_name,
-            "bhr_residence_higher_ordination_trn": bhikku_high.bhr_residence_higher_ordination_trn,
-            "bhr_residence_permanent_trn": bhikku_high.bhr_residence_permanent_trn,
+            
+            "bhr_residence_higher_ordination_trn": {
+                "vh_trn": residence_higher_obj.vh_trn,
+                "vh_vname": residence_higher_obj.vh_vname
+            } if residence_higher_obj else bhikku_high.bhr_residence_higher_ordination_trn,
+            
+            "bhr_residence_permanent_trn": {
+                "vh_trn": residence_permanent_obj.vh_trn,
+                "vh_vname": residence_permanent_obj.vh_vname
+            } if residence_permanent_obj else bhikku_high.bhr_residence_permanent_trn,
+            
             "bhr_declaration_residence_address": bhikku_high.bhr_declaration_residence_address,
-            "bhr_tutors_tutor_regn": bhikku_high.bhr_tutors_tutor_regn,
-            "bhr_presiding_bhikshu_regn": bhikku_high.bhr_presiding_bhikshu_regn,
+            
+            "bhr_tutors_tutor_regn": {
+                "br_regn": tutor_obj.br_regn,
+                "br_mahananame": tutor_obj.br_mahananame or "",
+                "br_upasampadaname": ""
+            } if tutor_obj else bhikku_high.bhr_tutors_tutor_regn,
+            
+            "bhr_presiding_bhikshu_regn": {
+                "br_regn": presiding_obj.br_regn,
+                "br_mahananame": presiding_obj.br_mahananame or "",
+                "br_upasampadaname": ""
+            } if presiding_obj else bhikku_high.bhr_presiding_bhikshu_regn,
+            
             "bhr_declaration_date": bhikku_high.bhr_declaration_date,
             "bhr_form_id": bhikku_high.bhr_form_id,
             "bhr_workflow_status": bhikku_high.bhr_workflow_status,
@@ -142,8 +219,7 @@ class BhikkuHighService:
             "bhr_version_number": bhikku_high.bhr_version_number,
         }
         
-        # NOTE: Old enrichment code removed to avoid N+1 query performance issues
-        # Relationships are not loaded to prevent timeout on create/read operations
+        return bhikku_high_dict
     
     def _old_enrich_code_removed(self):
         """
