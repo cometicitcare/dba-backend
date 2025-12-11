@@ -118,7 +118,7 @@ class BhikkuHighService:
                 status_obj = db.query(StatusData).filter(StatusData.st_statcd == bhikku_high.bhr_currstat).first()
             
             if bhikku_high.bhr_parshawaya:
-                from app.models.parshawa import ParshawaData
+                from app.models.parshawadata import ParshawaData
                 parshawaya_obj = db.query(ParshawaData).filter(ParshawaData.pr_prn == bhikku_high.bhr_parshawaya).first()
             
             if bhikku_high.bhr_livtemple:
