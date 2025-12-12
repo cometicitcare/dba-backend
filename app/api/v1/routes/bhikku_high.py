@@ -84,16 +84,31 @@ def manage_bhikku_high_records(
             raise validation_error([("payload.bhr_id", "bhr_id or bhr_regn is required for READ_ONE action")])
 
         entity = None
+        enriched_data = None
+        
+        # First, try to find in bhikku_high_regist table
         if payload.bhr_id:
             entity = bhikku_high_service.get_bhikku_high(db, bhr_id=payload.bhr_id)
         elif payload.bhr_regn:
             entity = bhikku_high_service.get_bhikku_high_by_regn(db, bhr_regn=payload.bhr_regn)
 
-        if not entity:
-            raise HTTPException(status_code=404, detail="Higher bhikku registration not found")
-
-        # Enrich the entity with nested objects from candidate
-        enriched_data = bhikku_high_service.enrich_bhikku_high_dict(entity)
+        if entity:
+            # Enrich the entity with nested objects from candidate
+            enriched_data = bhikku_high_service.enrich_bhikku_high_dict(entity)
+        else:
+            # If not found, try to find in direct_bhikku_high table
+            from app.services.direct_bhikku_high_service import direct_bhikku_high_service
+            direct_entity = None
+            
+            if payload.bhr_regn:
+                # Can only search by regn in direct_bhikku_high (no bhr_id mapping)
+                direct_entity = direct_bhikku_high_service.get_direct_bhikku_high_by_regn(db, payload.bhr_regn)
+            
+            if direct_entity:
+                # Convert direct_bhikku_high to bhikku_high format
+                enriched_data = bhikku_high_service.convert_direct_to_bhikku_high_dict(direct_entity, db)
+            else:
+                raise HTTPException(status_code=404, detail="Higher bhikku registration not found")
 
         return schemas.BhikkuHighManagementResponse(status="success", message="Higher bhikku registration retrieved successfully.", data=enriched_data)
 
@@ -108,17 +123,38 @@ def manage_bhikku_high_records(
         limit = max(1, min(limit, 200))
         skip = max(0, skip)
 
+        # Get records from bhikku_high_regist table
         records = bhikku_high_service.list_bhikku_highs(db, skip=skip, limit=limit, search=search, current_user=current_user)
         total = bhikku_high_service.count_bhikku_highs(db, search=search)
 
+        # Get records from direct_bhikku_high table
+        from app.services.direct_bhikku_high_service import direct_bhikku_high_service
+        direct_records = direct_bhikku_high_service.list_direct_bhikku_highs(
+            db, 
+            skip=skip, 
+            limit=limit, 
+            search=search, 
+            current_user=current_user
+        )
+        direct_total = direct_bhikku_high_service.count_direct_bhikku_highs(db, search=search, current_user=current_user)
+
         # Enrich all records with nested objects from candidates
         enriched_records = [bhikku_high_service.enrich_bhikku_high_dict(record) for record in records]
+        
+        # Convert and add direct_bhikku_high records
+        enriched_direct_records = [bhikku_high_service.convert_direct_to_bhikku_high_dict(record, db) for record in direct_records]
+        
+        # Merge both lists
+        all_enriched_records = enriched_records + enriched_direct_records
+        
+        # Calculate total count
+        total_count = total + direct_total
 
         return schemas.BhikkuHighManagementResponse(
             status="success",
             message="Higher bhikku registrations retrieved successfully.",
-            data=enriched_records,
-            totalRecords=total,
+            data=all_enriched_records,
+            totalRecords=total_count,
             page=page,
             limit=limit,
         )
