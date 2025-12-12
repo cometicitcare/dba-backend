@@ -310,6 +310,10 @@ class ViharaService:
         if entity.vh_workflow_status != "PEND-APPROVAL":
             raise ValueError(f"Cannot approve vihara with workflow status: {entity.vh_workflow_status}. Must be PEND-APPROVAL.")
         
+        # Check if either printed or scanned before allowing approval
+        if not entity.vh_printed_at and not entity.vh_scanned_at:
+            raise ValueError("Cannot approve vihara. The vihara must be either printed or scanned before approval.")
+        
         # Update workflow fields - goes to APPROVED then COMPLETED
         entity.vh_workflow_status = "COMPLETED"
         entity.vh_approval_status = "APPROVED"
