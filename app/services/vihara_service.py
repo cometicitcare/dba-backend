@@ -302,17 +302,18 @@ class ViharaService:
         vh_id: int,
         actor_id: Optional[str],
     ) -> ViharaData:
-        """Approve a vihara registration - transitions workflow from PEND-APPROVAL to COMPLETED status"""
+        """Approve a vihara registration - can approve after printed or scanned"""
         entity = vihara_repo.get(db, vh_id)
         if not entity:
             raise ValueError("Vihara record not found.")
         
-        if entity.vh_workflow_status != "PEND-APPROVAL":
-            raise ValueError(f"Cannot approve vihara with workflow status: {entity.vh_workflow_status}. Must be PEND-APPROVAL.")
-        
         # Check if either printed or scanned before allowing approval
         if not entity.vh_printed_at and not entity.vh_scanned_at:
             raise ValueError("Cannot approve vihara. The vihara must be either printed or scanned before approval.")
+        
+        # Allow approval from PRINTED or PEND-APPROVAL status
+        if entity.vh_workflow_status not in ["PRINTED", "PEND-APPROVAL"]:
+            raise ValueError(f"Cannot approve vihara with workflow status: {entity.vh_workflow_status}. Must be PRINTED or PEND-APPROVAL.")
         
         # Update workflow fields - goes to APPROVED then COMPLETED
         entity.vh_workflow_status = "COMPLETED"
