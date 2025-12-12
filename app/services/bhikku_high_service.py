@@ -220,6 +220,118 @@ class BhikkuHighService:
         }
         
         return bhikku_high_dict
+
+    def convert_direct_to_bhikku_high_dict(self, direct_bhikku_high, db: Session) -> dict:
+        """
+        Convert DirectBhikkuHigh model to bhikku_high format dictionary.
+        Maps direct_bhikku_high fields to bhikku_high equivalent fields.
+        """
+        from app.models.status import StatusData
+        from app.models.parshawadata import ParshawaData
+        from app.models.vihara import ViharaData
+        
+        # Fetch related objects
+        status_obj = None
+        parshawaya_obj = None
+        livtemple_obj = None
+        residence_higher_obj = None
+        residence_permanent_obj = None
+        
+        if direct_bhikku_high.dbh_currstat:
+            status_obj = db.query(StatusData).filter(StatusData.st_statcd == direct_bhikku_high.dbh_currstat).first()
+        
+        if direct_bhikku_high.dbh_parshawaya:
+            parshawaya_obj = db.query(ParshawaData).filter(ParshawaData.pr_prn == direct_bhikku_high.dbh_parshawaya).first()
+        
+        if direct_bhikku_high.dbh_livtemple:
+            livtemple_obj = db.query(ViharaData).filter(ViharaData.vh_trn == direct_bhikku_high.dbh_livtemple).first()
+        
+        if direct_bhikku_high.dbh_residence_higher_ordination_trn:
+            residence_higher_obj = db.query(ViharaData).filter(ViharaData.vh_trn == direct_bhikku_high.dbh_residence_higher_ordination_trn).first()
+        
+        if direct_bhikku_high.dbh_residence_permanent_trn:
+            residence_permanent_obj = db.query(ViharaData).filter(ViharaData.vh_trn == direct_bhikku_high.dbh_residence_permanent_trn).first()
+        
+        # Create the converted dictionary with bhikku_high field names
+        converted_dict = {
+            # Map direct bhikku high ID to bhikku high format (prefixed to avoid conflicts)
+            "bhr_id": f"DBH-{direct_bhikku_high.dbh_id}",  # Prefix to distinguish from regular bhikku_high records
+            "bhr_regn": direct_bhikku_high.dbh_regn,
+            "bhr_reqstdate": direct_bhikku_high.dbh_reqstdate,
+            "bhr_samanera_serial_no": direct_bhikku_high.dbh_samanera_serial_no,
+            "bhr_remarks": direct_bhikku_high.dbh_remarks,
+            
+            "bhr_currstat": {
+                "st_statcd": status_obj.st_statcd,
+                "st_descr": status_obj.st_descr
+            } if status_obj else direct_bhikku_high.dbh_currstat,
+            
+            "bhr_parshawaya": {
+                "code": parshawaya_obj.pr_prn,
+                "name": parshawaya_obj.pr_pname
+            } if parshawaya_obj else direct_bhikku_high.dbh_parshawaya,
+            
+            "bhr_livtemple": {
+                "vh_trn": livtemple_obj.vh_trn,
+                "vh_vname": livtemple_obj.vh_vname
+            } if livtemple_obj else direct_bhikku_high.dbh_livtemple,
+            
+            "bhr_cc_code": direct_bhikku_high.dbh_cc_code,
+            "bhr_candidate_regn": None,  # Direct high bhikku doesn't have candidate_regn
+            "bhr_higher_ordination_place": direct_bhikku_high.dbh_higher_ordination_place,
+            "bhr_higher_ordination_date": direct_bhikku_high.dbh_higher_ordination_date,
+            "bhr_karmacharya_name": direct_bhikku_high.dbh_karmacharya_name,
+            "bhr_upaddhyaya_name": direct_bhikku_high.dbh_upaddhyaya_name,
+            "bhr_assumed_name": direct_bhikku_high.dbh_assumed_name,
+            
+            "bhr_residence_higher_ordination_trn": {
+                "vh_trn": residence_higher_obj.vh_trn,
+                "vh_vname": residence_higher_obj.vh_vname
+            } if residence_higher_obj else direct_bhikku_high.dbh_residence_higher_ordination_trn,
+            
+            "bhr_residence_permanent_trn": {
+                "vh_trn": residence_permanent_obj.vh_trn,
+                "vh_vname": residence_permanent_obj.vh_vname
+            } if residence_permanent_obj else direct_bhikku_high.dbh_residence_permanent_trn,
+            
+            "bhr_declaration_residence_address": direct_bhikku_high.dbh_declaration_residence_address,
+            "bhr_tutors_tutor_regn": direct_bhikku_high.dbh_tutors_tutor_regn,
+            "bhr_presiding_bhikshu_regn": direct_bhikku_high.dbh_presiding_bhikshu_regn,
+            "bhr_declaration_date": direct_bhikku_high.dbh_declaration_date,
+            "bhr_form_id": None,  # Direct high bhikku doesn't use form_id
+            "bhr_workflow_status": direct_bhikku_high.dbh_workflow_status,
+            "bhr_approval_status": direct_bhikku_high.dbh_approval_status,
+            "bhr_approved_by": direct_bhikku_high.dbh_approved_by,
+            "bhr_approved_at": direct_bhikku_high.dbh_approved_at,
+            "bhr_rejected_by": direct_bhikku_high.dbh_rejected_by,
+            "bhr_rejected_at": direct_bhikku_high.dbh_rejected_at,
+            "bhr_rejection_reason": direct_bhikku_high.dbh_rejection_reason,
+            "bhr_printed_by": direct_bhikku_high.dbh_printed_by,
+            "bhr_printed_at": direct_bhikku_high.dbh_printed_at,
+            "bhr_scanned_by": direct_bhikku_high.dbh_scanned_by,
+            "bhr_scanned_at": direct_bhikku_high.dbh_scanned_at,
+            "bhr_scanned_document_path": direct_bhikku_high.dbh_scanned_document_path,
+            "bhr_created_by_district": direct_bhikku_high.dbh_created_by_district,
+            "bhr_version": direct_bhikku_high.dbh_version,
+            "bhr_is_deleted": direct_bhikku_high.dbh_is_deleted,
+            "bhr_created_at": direct_bhikku_high.dbh_created_at,
+            "bhr_updated_at": direct_bhikku_high.dbh_updated_at,
+            "bhr_created_by": direct_bhikku_high.dbh_created_by,
+            "bhr_updated_by": direct_bhikku_high.dbh_updated_by,
+            "bhr_version_number": direct_bhikku_high.dbh_version_number,
+            
+            # Additional fields from direct bhikku high (these are from the combined record)
+            "br_gihiname": direct_bhikku_high.dbh_gihiname,
+            "br_mahananame": direct_bhikku_high.dbh_mahananame,
+            "br_dofb": direct_bhikku_high.dbh_dofb,
+            "br_mobile": direct_bhikku_high.dbh_mobile,
+            "br_email": direct_bhikku_high.dbh_email,
+            
+            # Flag to indicate this is from direct_bhikku_high table
+            "_source": "direct_bhikku_high"
+        }
+        
+        return converted_dict
     
     def _old_enrich_code_removed(self):
         """
