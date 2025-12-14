@@ -1,5 +1,6 @@
 import time
 from typing import Any, Optional
+from datetime import datetime
 
 from sqlalchemy import func, or_, select, text
 from sqlalchemy.exc import IntegrityError
@@ -9,6 +10,9 @@ from app.models.vihara import ViharaData
 from app.models.temple_land import TempleLand
 from app.models.resident_bhikkhu import ResidentBhikkhu
 from app.models.vihara_land import ViharaLand
+from app.models.user import UserAccount
+from app.models.roles import Role
+from app.models.user_roles import UserRole
 from app.schemas.vihara import ViharaCreate, ViharaUpdate
 
 
@@ -89,6 +93,7 @@ class ViharaRepository:
         vh_typ: Optional[str] = None,
         date_from: Optional[Any] = None,
         date_to: Optional[Any] = None,
+        current_user: Optional[UserAccount] = None,
     ) -> list[ViharaData]:
         query = db.query(ViharaData).filter(ViharaData.vh_is_deleted.is_(False))
 
@@ -126,7 +131,6 @@ class ViharaRepository:
         
         if vh_typ:  # Vihara type
             query = query.filter(ViharaData.vh_typ == vh_typ)
-        
         # Date range filtering (on creation date)
         if date_from:
             query = query.filter(ViharaData.vh_created_at >= date_from)
@@ -138,9 +142,26 @@ class ViharaRepository:
         # are not currently in the ViharaData model. If they are in related tables,
         # you'll need to add joins here. For now, we skip them to avoid errors.
 
-        return (
-            query.order_by(ViharaData.vh_id).offset(max(skip, 0)).limit(limit).all()
-        )
+        # Data Entry users should see newest first
+        order_desc = False
+        if current_user:
+            now = datetime.utcnow()
+            data_entry_role = (
+                db.query(UserRole)
+                .join(Role, Role.ro_role_id == UserRole.ur_role_id)
+                .filter(
+                    UserRole.ur_user_id == current_user.ua_user_id,
+                    UserRole.ur_is_active.is_(True),
+                    (UserRole.ur_expires_date.is_(None) | (UserRole.ur_expires_date > now)),
+                    Role.ro_level == "DATA_ENTRY",
+                )
+                .first()
+            )
+            order_desc = data_entry_role is not None
+
+        query = query.order_by(ViharaData.vh_id.desc() if order_desc else ViharaData.vh_id)
+
+        return query.offset(max(skip, 0)).limit(limit).all()
 
     def count(
         self, 

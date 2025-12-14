@@ -7,6 +7,8 @@ from sqlalchemy.orm import Session, noload
 
 from app.models.bhikku_high import BhikkuHighRegist
 from app.models.user import UserAccount
+from app.models.roles import Role
+from app.models.user_roles import UserRole
 from app.schemas.bhikku_high import BhikkuHighCreate, BhikkuHighUpdate
 
 
@@ -151,12 +153,26 @@ class BhikkuHighRepository:
                 )
             )
 
-        return (
-            query.order_by(BhikkuHighRegist.bhr_id)
-            .offset(max(skip, 0))
-            .limit(limit)
-            .all()
-        )
+        # Data Entry users should see newest first
+        order_desc = False
+        if current_user:
+            now = datetime.utcnow()
+            data_entry_role = (
+                db.query(UserRole)
+                .join(Role, Role.ro_role_id == UserRole.ur_role_id)
+                .filter(
+                    UserRole.ur_user_id == current_user.ua_user_id,
+                    UserRole.ur_is_active.is_(True),
+                    (UserRole.ur_expires_date.is_(None) | (UserRole.ur_expires_date > now)),
+                    Role.ro_level == "DATA_ENTRY",
+                )
+                .first()
+            )
+            order_desc = data_entry_role is not None
+
+        query = query.order_by(BhikkuHighRegist.bhr_id.desc() if order_desc else BhikkuHighRegist.bhr_id)
+
+        return query.offset(max(skip, 0)).limit(limit).all()
 
     def count(self, db: Session, *, search: Optional[str] = None) -> int:
         query = db.query(func.count(BhikkuHighRegist.bhr_id)).filter(

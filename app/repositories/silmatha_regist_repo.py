@@ -7,6 +7,8 @@ from sqlalchemy.orm import Session
 
 from app.models.silmatha_regist import SilmathaRegist
 from app.models.user import UserAccount
+from app.models.roles import Role
+from app.models.user_roles import UserRole
 from app.schemas import silmatha_regist as schemas
 
 
@@ -213,12 +215,26 @@ class SilmathaRegistRepository:
         if date_to:
             query = query.filter(SilmathaRegist.sil_reqstdate <= date_to)
 
-        return (
-            query.order_by(SilmathaRegist.sil_id)
-            .offset(max(skip, 0))
-            .limit(limit)
-            .all()
-        )
+        # Data Entry users should see newest first
+        order_desc = False
+        if current_user:
+            now = datetime.utcnow()
+            data_entry_role = (
+                db.query(UserRole)
+                .join(Role, Role.ro_role_id == UserRole.ur_role_id)
+                .filter(
+                    UserRole.ur_user_id == current_user.ua_user_id,
+                    UserRole.ur_is_active.is_(True),
+                    (UserRole.ur_expires_date.is_(None) | (UserRole.ur_expires_date > now)),
+                    Role.ro_level == "DATA_ENTRY",
+                )
+                .first()
+            )
+            order_desc = data_entry_role is not None
+
+        query = query.order_by(SilmathaRegist.sil_id.desc() if order_desc else SilmathaRegist.sil_id)
+
+        return query.offset(max(skip, 0)).limit(limit).all()
 
     def get_total_count(
         self, 

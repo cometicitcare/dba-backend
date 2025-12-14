@@ -126,10 +126,11 @@ def manage_vihara_records(
             "vh_typ": payload.vh_typ,
             "date_from": payload.date_from,
             "date_to": payload.date_to,
+            "current_user": current_user,
         }
 
         records = vihara_service.list_viharas(db, **filters)
-        total = vihara_service.count_viharas(db, **{k: v for k, v in filters.items() if k not in ["skip", "limit"]})
+        total = vihara_service.count_viharas(db, **{k: v for k, v in filters.items() if k not in ["skip", "limit", "current_user"]})
         
         return ViharaManagementResponse(
             status="success",
