@@ -27,6 +27,7 @@ router = APIRouter()
 @router.post(
     "/manage",
     response_model=DirectBhikkuHighManagementResponse,
+    response_model_by_alias=True,
     dependencies=[has_any_permission("bhikku:create", "bhikku:read", "bhikku:update", "bhikku:delete")]
 )
 def manage_direct_bhikku_high_records(

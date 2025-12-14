@@ -25,7 +25,7 @@ class CRUDAction(str, Enum):
 
 class DirectBhikkuHighBase(BaseModel):
     """Base schema with all direct high bhikku fields"""
-    model_config = ConfigDict(str_strip_whitespace=True, populate_by_name=True)
+    model_config = ConfigDict(str_strip_whitespace=True, populate_by_name=True, use_enum_values=True)
 
     # Basic Information
     dbh_regn: Optional[str] = Field(default=None, max_length=20)
@@ -68,7 +68,7 @@ class DirectBhikkuHighBase(BaseModel):
     dbh_mahanayaka_name: Optional[str] = Field(default=None, max_length=200)
     dbh_mahanayaka_address: Optional[str] = Field(default=None, max_length=500)
     dbh_residence_at_declaration: Optional[str] = Field(default=None, max_length=500)
-    dbh_declaration_date: Optional[date] = None
+    dbh_declaration_date: Optional[date] = Field(default=None, alias="dbh_u_date_declaration")
     dbh_robing_tutor_residence: Optional[str] = Field(default=None, max_length=20)
     dbh_robing_after_residence_temple: Optional[str] = Field(default=None, max_length=20)
     
@@ -87,14 +87,18 @@ class DirectBhikkuHighBase(BaseModel):
     dbh_cc_code: Optional[str] = Field(default=None, max_length=5)
     dbh_higher_ordination_place: Optional[str] = Field(default=None, max_length=50)
     dbh_higher_ordination_date: Optional[date] = None
-    dbh_karmacharya_name: Optional[str] = Field(default=None, max_length=12)
-    dbh_upaddhyaya_name: Optional[str] = Field(default=None, max_length=12)
-    dbh_assumed_name: Optional[str] = Field(default=None, max_length=50)
-    dbh_residence_higher_ordination_trn: Optional[str] = Field(default=None, max_length=50)
-    dbh_residence_permanent_trn: Optional[str] = Field(default=None, max_length=50)
-    dbh_declaration_residence_address: Optional[str] = Field(default=None, max_length=200)
+    dbh_karmacharya_name: Optional[str] = Field(default=None, max_length=100, alias="dbh_higher_ordination_karmaacharya")
+    dbh_upaddhyaya_name: Optional[str] = Field(default=None, max_length=100, alias="dbh_higher_ordination_upaadhyaaya")
+    dbh_assumed_name: Optional[str] = Field(default=None, max_length=50, alias="dbh_name_assumed_at_higher_ordination")
+    dbh_residence_higher_ordination_trn: Optional[str] = Field(default=None, max_length=50, alias="dbh_residence_at_time_of_higher_ordination")
+    dbh_residence_permanent_trn: Optional[str] = Field(default=None, max_length=50, alias="dbh_permanent_residence")
+    dbh_declaration_residence_address: Optional[str] = Field(default=None, max_length=200, alias="dbh_residence_at_time_of_declaration_and_full_postal_address")
     dbh_tutors_tutor_regn: Optional[str] = Field(default=None, max_length=200)
-    dbh_presiding_bhikshu_regn: Optional[str] = Field(default=None, max_length=200)
+    dbh_presiding_bhikshu_regn: Optional[str] = Field(default=None, max_length=200, alias="dbh_name_of_bhikshu_presiding_at_higher_ordination")
+    
+    # Additional Fields
+    dbh_form_id: Optional[str] = Field(default=None, max_length=50)
+    dbh_remarks_upasampada: Optional[str] = Field(default=None, max_length=500)
 
 
 class DirectBhikkuHighCreate(DirectBhikkuHighBase):
@@ -138,7 +142,7 @@ class DirectBhikkuHighOut(DirectBhikkuHighBase):
     dbh_version_number: int
     dbh_created_by_district: Optional[str] = None
 
-    model_config = ConfigDict(from_attributes=True)
+    model_config = ConfigDict(from_attributes=True, populate_by_name=True)
 
 
 # ==================== MANAGEMENT REQUEST/RESPONSE ====================
