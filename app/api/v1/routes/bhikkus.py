@@ -596,6 +596,7 @@ def get_vihara_for_bhikkus(
         vihara_item = {
             "vh_trn": vihara.vh_trn,
             "vh_vname": vihara.vh_vname,
+            "vh_addrs": vihara.vh_addrs,
         }
         
         return {
@@ -637,6 +638,7 @@ def get_vihara_for_bhikkus(
             {
                 "vh_trn": vihara.vh_trn,
                 "vh_vname": vihara.vh_vname,
+                "vh_addrs": vihara.vh_addrs,
             }
             for vihara in viharas
         ]
