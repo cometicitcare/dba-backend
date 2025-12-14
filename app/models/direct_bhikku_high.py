@@ -74,14 +74,18 @@ class DirectBhikkuHigh(Base):
     dbh_cc_code = Column(String(5))
     dbh_higher_ordination_place = Column(String(50))
     dbh_higher_ordination_date = Column(Date)
-    dbh_karmacharya_name = Column(String(12))
-    dbh_upaddhyaya_name = Column(String(12))
+    dbh_karmacharya_name = Column(String(100))
+    dbh_upaddhyaya_name = Column(String(100))
     dbh_assumed_name = Column(String(50))
     dbh_residence_higher_ordination_trn = Column(String(50))
     dbh_residence_permanent_trn = Column(String(50))
     dbh_declaration_residence_address = Column(String(200))
     dbh_tutors_tutor_regn = Column(String(200))
     dbh_presiding_bhikshu_regn = Column(String(200))
+    
+    # Additional Fields
+    dbh_form_id = Column(String(50))
+    dbh_remarks_upasampada = Column(String(500))
     
     # ==================== WORKFLOW FIELDS ====================
     # Document Storage
