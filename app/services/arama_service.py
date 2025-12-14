@@ -122,6 +122,7 @@ class AramaService:
         ar_typ: Optional[str] = None,
         date_from: Optional[Any] = None,
         date_to: Optional[Any] = None,
+        current_user = None,
     ) -> list[AramaData]:
         limit = max(1, min(limit, 200))
         skip = max(0, skip)
@@ -144,6 +145,7 @@ class AramaService:
             ar_typ=ar_typ,
             date_from=date_from,
             date_to=date_to,
+            current_user=current_user,
         )
 
     def count_aramas(

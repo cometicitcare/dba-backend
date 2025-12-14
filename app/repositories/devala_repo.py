@@ -1,5 +1,6 @@
 import time
 from typing import Any, Optional
+from datetime import datetime
 
 from sqlalchemy import func, or_, select, text
 from sqlalchemy.exc import IntegrityError
@@ -7,6 +8,9 @@ from sqlalchemy.orm import Session
 
 from app.models.devala import DevalaData
 from app.models.devala_land import DevalaLand
+from app.models.user import UserAccount
+from app.models.roles import Role
+from app.models.user_roles import UserRole
 from app.schemas.devala import DevalaCreate, DevalaUpdate
 
 
@@ -85,6 +89,7 @@ class DevalaRepository:
         dv_typ: Optional[str] = None,
         date_from: Optional[Any] = None,
         date_to: Optional[Any] = None,
+        current_user: Optional[UserAccount] = None,
     ) -> list[DevalaData]:
         query = db.query(DevalaData).filter(DevalaData.dv_is_deleted.is_(False))
 
@@ -123,7 +128,6 @@ class DevalaRepository:
         if dv_typ:  # Devala type
             query = query.filter(DevalaData.dv_typ == dv_typ)
         
-        # Date range filtering (on creation date)
         if date_from:
             query = query.filter(DevalaData.dv_created_at >= date_from)
         
@@ -134,9 +138,26 @@ class DevalaRepository:
         # are not currently in the DevalaData model. If they are in related tables,
         # you'll need to add joins here. For now, we skip them to avoid errors.
 
-        return (
-            query.order_by(DevalaData.dv_id).offset(max(skip, 0)).limit(limit).all()
-        )
+        # Data Entry users should see newest first
+        order_desc = False
+        if current_user:
+            now = datetime.utcnow()
+            data_entry_role = (
+                db.query(UserRole)
+                .join(Role, Role.ro_role_id == UserRole.ur_role_id)
+                .filter(
+                    UserRole.ur_user_id == current_user.ua_user_id,
+                    UserRole.ur_is_active.is_(True),
+                    (UserRole.ur_expires_date.is_(None) | (UserRole.ur_expires_date > now)),
+                    Role.ro_level == "DATA_ENTRY",
+                )
+                .first()
+            )
+            order_desc = data_entry_role is not None
+
+        query = query.order_by(DevalaData.dv_id.desc() if order_desc else DevalaData.dv_id)
+
+        return query.offset(max(skip, 0)).limit(limit).all()
 
     def count(
         self, 

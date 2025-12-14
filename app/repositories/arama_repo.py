@@ -1,5 +1,6 @@
 import time
 from typing import Any, Optional
+from datetime import datetime
 
 from sqlalchemy import func, or_, select, text
 from sqlalchemy.exc import IntegrityError
@@ -8,6 +9,9 @@ from sqlalchemy.orm import Session
 from app.models.arama import AramaData
 from app.models.arama_land import AramaLand
 from app.models.arama_resident_silmatha import AramaResidentSilmatha
+from app.models.user import UserAccount
+from app.models.roles import Role
+from app.models.user_roles import UserRole
 from app.schemas.arama import AramaCreate, AramaUpdate
 
 
@@ -86,6 +90,7 @@ class AramaRepository:
         ar_typ: Optional[str] = None,
         date_from: Optional[Any] = None,
         date_to: Optional[Any] = None,
+        current_user: Optional[UserAccount] = None,
     ) -> list[AramaData]:
         query = db.query(AramaData).filter(AramaData.ar_is_deleted.is_(False))
 
@@ -135,9 +140,26 @@ class AramaRepository:
         # are not currently in the AramaData model. If they are in related tables,
         # you'll need to add joins here. For now, we skip them to avoid errors.
 
-        return (
-            query.order_by(AramaData.ar_id).offset(max(skip, 0)).limit(limit).all()
-        )
+        # Data Entry users should see newest first
+        order_desc = False
+        if current_user:
+            now = datetime.utcnow()
+            data_entry_role = (
+                db.query(UserRole)
+                .join(Role, Role.ro_role_id == UserRole.ur_role_id)
+                .filter(
+                    UserRole.ur_user_id == current_user.ua_user_id,
+                    UserRole.ur_is_active.is_(True),
+                    (UserRole.ur_expires_date.is_(None) | (UserRole.ur_expires_date > now)),
+                    Role.ro_level == "DATA_ENTRY",
+                )
+                .first()
+            )
+            order_desc = data_entry_role is not None
+
+        query = query.order_by(AramaData.ar_id.desc() if order_desc else AramaData.ar_id)
+
+        return query.offset(max(skip, 0)).limit(limit).all()
 
     def count(
         self, 

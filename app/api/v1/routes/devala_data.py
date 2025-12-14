@@ -100,10 +100,11 @@ def manage_devala_records(
             "dv_typ": payload.dv_typ,
             "date_from": payload.date_from,
             "date_to": payload.date_to,
+            "current_user": current_user,
         }
 
         records = devala_service.list_devalas(db, **filters)
-        total = devala_service.count_devalas(db, **{k: v for k, v in filters.items() if k not in ["skip", "limit"]})
+        total = devala_service.count_devalas(db, **{k: v for k, v in filters.items() if k not in ["skip", "limit", "current_user"]})
         
         return DevalaManagementResponse(
             status="success",

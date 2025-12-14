@@ -131,10 +131,11 @@ def manage_arama_records(
             "ar_typ": payload.ar_typ,
             "date_from": payload.date_from,
             "date_to": payload.date_to,
+            "current_user": current_user,
         }
 
         records = arama_service.list_aramas(db, **filters)
-        total = arama_service.count_aramas(db, **{k: v for k, v in filters.items() if k not in ["skip", "limit"]})
+        total = arama_service.count_aramas(db, **{k: v for k, v in filters.items() if k not in ["skip", "limit", "current_user"]})
         
         return AramaManagementResponse(
             status="success",
