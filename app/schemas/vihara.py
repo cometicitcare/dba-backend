@@ -415,6 +415,7 @@ class ViharaManagementResponse(BaseModel):
 class BhikkuViharaListItem(BaseModel):
     vh_trn: str
     vh_vname: Optional[str] = None
+    vh_addrs: Optional[str] = None
 
 
 class BhikkuViharaListResponse(BaseModel):
