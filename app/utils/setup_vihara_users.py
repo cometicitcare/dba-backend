@@ -117,7 +117,18 @@ def assign_permissions_to_roles(db: Session, permissions: dict, roles: dict):
     """Assign permissions to roles"""
     print("\n[4/5] Assigning Permissions to Roles...")
     
+    # Get bhikku read-only permissions (if they exist)
+    bhikku_read_perms = []
+    bhikku_read_perm = db.query(Permission).filter(Permission.pe_name == "bhikku:read").first()
+    bhikku_high_read_perm = db.query(Permission).filter(Permission.pe_name == "READ_BHIKKU_HIGH").first()
+    
+    if bhikku_read_perm:
+        bhikku_read_perms.append(("bhikku:read", bhikku_read_perm.pe_permission_id))
+    if bhikku_high_read_perm:
+        bhikku_read_perms.append(("READ_BHIKKU_HIGH", bhikku_high_read_perm.pe_permission_id))
+    
     # Vihara Data Entry: Read and Write only (create, read, update - no delete)
+    # Plus bhikku read-only access
     dataentry_perms = [
         "vihara:create",
         "vihara:read",
@@ -125,6 +136,7 @@ def assign_permissions_to_roles(db: Session, permissions: dict, roles: dict):
     ]
     
     # Vihara Admin: Full access (all permissions)
+    # Plus bhikku read-only access
     admin_perms = [
         "vihara:create",
         "vihara:read",
@@ -143,6 +155,8 @@ def assign_permissions_to_roles(db: Session, permissions: dict, roles: dict):
             continue
         
         print(f"\n      {role_name}:")
+        
+        # Assign vihara permissions
         for perm_name in perm_names:
             perm_id = permissions.get(perm_name)
             if not perm_id:
@@ -163,6 +177,26 @@ def assign_permissions_to_roles(db: Session, permissions: dict, roles: dict):
             else:
                 existing.rp_granted = True
                 print(f"        - {perm_name}")
+        
+        # Assign bhikku read-only permissions
+        if bhikku_read_perms:
+            print(f"        [Bhikku Read-Only Access]")
+            for perm_name, perm_id in bhikku_read_perms:
+                existing = db.query(RolePermission).filter(
+                    RolePermission.rp_role_id == role_id,
+                    RolePermission.rp_permission_id == perm_id
+                ).first()
+                
+                if not existing:
+                    db.add(RolePermission(
+                        rp_role_id=role_id,
+                        rp_permission_id=perm_id,
+                        rp_granted=True
+                    ))
+                    print(f"        ✓ {perm_name}")
+                else:
+                    existing.rp_granted = True
+                    print(f"        - {perm_name}")
     
     db.commit()
 
@@ -311,6 +345,7 @@ def main():
         print("   - Can UPDATE existing vihara records")
         print("   - CANNOT DELETE vihara records")
         print("   - Read and Write access only")
+        print("   - READ-ONLY access to Bhikku data")
         
         print("\n2. VIHARA ADMIN (vihara_admin)")
         print("   - Can CREATE new vihara records")
@@ -318,6 +353,7 @@ def main():
         print("   - Can UPDATE existing vihara records")
         print("   - Can DELETE vihara records")
         print("   - Full access to all vihara endpoints")
+        print("   - READ-ONLY access to Bhikku data")
         
         print("\n" + "=" * 70)
         print("🔗 VIHARA ENDPOINTS AVAILABLE:")
