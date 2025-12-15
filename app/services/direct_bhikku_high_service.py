@@ -376,6 +376,117 @@ class DirectBhikkuHighService:
         
         return entity
 
+    def enrich_direct_bhikku_high_dict(self, entity: DirectBhikkuHigh, db: Session = None) -> dict:
+        """Transform DirectBhikkuHigh model to dictionary with all foreign key relationships as nested objects"""
+        from app.schemas.direct_bhikku_high import DirectBhikkuHighOut
+        
+        # Convert model to dict using the schema
+        entity_dict = DirectBhikkuHighOut.model_validate(entity).model_dump()
+        
+        # Geographic relationships
+        if entity.province_rel:
+            entity_dict["dbh_province"] = {
+                "cp_code": entity.province_rel.cp_code,
+                "cp_name": entity.province_rel.cp_name
+            }
+        
+        if entity.district_rel:
+            entity_dict["dbh_district"] = {
+                "dd_dcode": entity.district_rel.dd_dcode,
+                "dd_dname": entity.district_rel.dd_dname
+            }
+        
+        if entity.division_rel:
+            entity_dict["dbh_division"] = {
+                "dv_dvcode": entity.division_rel.dv_dvcode,
+                "dv_dvname": entity.division_rel.dv_dvname
+            }
+        
+        if entity.gndiv_rel:
+            entity_dict["dbh_gndiv"] = {
+                "gn_gnc": entity.gndiv_rel.gn_gnc,
+                "gn_gnname": entity.gndiv_rel.gn_gnname
+            }
+        
+        # Status and administrative relationships
+        if entity.status_rel:
+            entity_dict["dbh_currstat"] = {
+                "st_statcd": entity.status_rel.st_statcd,
+                "st_descr": entity.status_rel.st_descr
+            }
+        
+        if entity.parshawaya_rel:
+            entity_dict["dbh_parshawaya"] = {
+                "code": entity.parshawaya_rel.pr_prn,
+                "name": entity.parshawaya_rel.pr_pname
+            }
+        
+        if entity.category_rel:
+            entity_dict["dbh_cat"] = {
+                "cc_code": entity.category_rel.cc_code,
+                "cc_catogry": entity.category_rel.cc_catogry
+            }
+        
+        if entity.nikaya_rel:
+            entity_dict["dbh_nikaya"] = {
+                "code": entity.nikaya_rel.nk_nkn,
+                "name": entity.nikaya_rel.nk_nname
+            }
+        
+        # Temple/Vihara relationships
+        if entity.livtemple_rel:
+            entity_dict["dbh_livtemple"] = {
+                "vh_trn": entity.livtemple_rel.vh_trn,
+                "vh_vname": entity.livtemple_rel.vh_vname
+            }
+        
+        if entity.mahanatemple_rel:
+            entity_dict["dbh_mahanatemple"] = {
+                "vh_trn": entity.mahanatemple_rel.vh_trn,
+                "vh_vname": entity.mahanatemple_rel.vh_vname
+            }
+        
+        if entity.robing_tutor_residence_rel:
+            entity_dict["dbh_robing_tutor_residence"] = {
+                "vh_trn": entity.robing_tutor_residence_rel.vh_trn,
+                "vh_vname": entity.robing_tutor_residence_rel.vh_vname
+            }
+        
+        if entity.robing_after_residence_temple_rel:
+            entity_dict["dbh_robing_after_residence_temple"] = {
+                "vh_trn": entity.robing_after_residence_temple_rel.vh_trn,
+                "vh_vname": entity.robing_after_residence_temple_rel.vh_vname
+            }
+        
+        if entity.residence_higher_ordination_rel:
+            entity_dict["dbh_residence_higher_ordination_trn"] = {
+                "vh_trn": entity.residence_higher_ordination_rel.vh_trn,
+                "vh_vname": entity.residence_higher_ordination_rel.vh_vname
+            }
+        
+        if entity.residence_permanent_rel:
+            entity_dict["dbh_residence_permanent_trn"] = {
+                "vh_trn": entity.residence_permanent_rel.vh_trn,
+                "vh_vname": entity.residence_permanent_rel.vh_vname
+            }
+        
+        # Bhikku relationships
+        if entity.mahanaacharyacd_rel:
+            entity_dict["dbh_mahanaacharyacd"] = {
+                "br_regn": entity.mahanaacharyacd_rel.br_regn,
+                "br_mahananame": entity.mahanaacharyacd_rel.br_mahananame or "",
+                "br_upasampadaname": ""
+            }
+        
+        if entity.viharadhipathi_rel:
+            entity_dict["dbh_viharadhipathi"] = {
+                "br_regn": entity.viharadhipathi_rel.br_regn,
+                "br_mahananame": entity.viharadhipathi_rel.br_mahananame or "",
+                "br_upasampadaname": ""
+            }
+        
+        return entity_dict
+
 
 # Singleton instance
 direct_bhikku_high_service = DirectBhikkuHighService()

@@ -7,7 +7,7 @@ from datetime import date, datetime
 from enum import Enum
 from typing import Optional, Union, List, Any
 
-from pydantic import BaseModel, ConfigDict, EmailStr, Field
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_serializer
 
 
 class CRUDAction(str, Enum):
@@ -114,10 +114,90 @@ class DirectBhikkuHighUpdate(DirectBhikkuHighBase):
     pass
 
 
+# ==================== NESTED RESPONSE SCHEMAS ====================
+class ProvinceResponse(BaseModel):
+    """Nested response for province"""
+    cp_code: str
+    cp_name: str
+
+
+class DistrictResponse(BaseModel):
+    """Nested response for district"""
+    dd_dcode: str
+    dd_dname: str
+
+
+class DivisionResponse(BaseModel):
+    """Nested response for divisional secretariat"""
+    dv_dvcode: str
+    dv_dvname: str
+
+
+class GNDivisionResponse(BaseModel):
+    """Nested response for GN division"""
+    gn_gnc: str
+    gn_gnname: str
+
+
+class StatusResponse(BaseModel):
+    """Nested response for status"""
+    st_statcd: str
+    st_descr: str
+
+
+class ParshawaResponse(BaseModel):
+    """Nested response for parshawa"""
+    code: str
+    name: str
+
+
+class CategoryResponse(BaseModel):
+    """Nested response for category"""
+    cc_code: str
+    cc_catogry: str
+
+
+class NikayaResponse(BaseModel):
+    """Nested response for nikaya"""
+    code: str
+    name: str
+
+
+class ViharaResponse(BaseModel):
+    """Nested response for vihara/temple"""
+    vh_trn: str
+    vh_vname: str
+
+
+class BhikkuRefResponse(BaseModel):
+    """Nested response for bhikku references"""
+    br_regn: str
+    br_mahananame: str
+    br_upasampadaname: Optional[str] = ""
+
+
 class DirectBhikkuHighOut(DirectBhikkuHighBase):
     """Schema for direct high bhikku output with all fields"""
     dbh_id: int
     dbh_regn: str
+    
+    # Override fields to support nested objects
+    dbh_province: Optional[Union[ProvinceResponse, str]] = None
+    dbh_district: Optional[Union[DistrictResponse, str]] = None
+    dbh_division: Optional[Union[DivisionResponse, str]] = None
+    dbh_gndiv: Optional[Union[GNDivisionResponse, str]] = None
+    dbh_currstat: Optional[Union[StatusResponse, str]] = None
+    dbh_parshawaya: Optional[Union[ParshawaResponse, str]] = None
+    dbh_cat: Optional[Union[CategoryResponse, str]] = None
+    dbh_nikaya: Optional[Union[NikayaResponse, str]] = None
+    dbh_livtemple: Optional[Union[ViharaResponse, str]] = None
+    dbh_mahanatemple: Optional[Union[ViharaResponse, str]] = None
+    dbh_robing_tutor_residence: Optional[Union[ViharaResponse, str]] = None
+    dbh_robing_after_residence_temple: Optional[Union[ViharaResponse, str]] = None
+    dbh_residence_higher_ordination_trn: Optional[Union[ViharaResponse, str]] = None
+    dbh_residence_permanent_trn: Optional[Union[ViharaResponse, str]] = None
+    dbh_mahanaacharyacd: Optional[Union[BhikkuRefResponse, str]] = None
+    dbh_viharadhipathi: Optional[Union[BhikkuRefResponse, str]] = None
     
     # Workflow fields
     dbh_scanned_document_path: Optional[str] = None
