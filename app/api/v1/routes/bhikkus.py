@@ -759,7 +759,7 @@ def list_id_gn_summary(
 @router.post(
     "/manage",
     response_model=schemas.BhikkuManagementResponse,
-    dependencies=[has_any_permission("bhikku:create", "bhikku:update", "bhikku:delete")],
+    dependencies=[has_any_permission("bhikku:create", "bhikku:read", "bhikku:update", "bhikku:delete")],
 )
 def manage_bhikku_records(
     request: schemas.BhikkuManagementRequest, 
