@@ -217,6 +217,9 @@ class BhikkuHighService:
             "bhr_created_by": bhikku_high.bhr_created_by,
             "bhr_updated_by": bhikku_high.bhr_updated_by,
             "bhr_version_number": bhikku_high.bhr_version_number,
+            
+            # Flag to indicate this is from bhikku_high_regist table
+            "form_type": "not_direct"
         }
         
         return bhikku_high_dict
@@ -328,7 +331,8 @@ class BhikkuHighService:
             "br_email": direct_bhikku_high.dbh_email,
             
             # Flag to indicate this is from direct_bhikku_high table
-            "_source": "direct_bhikku_high"
+            "_source": "direct_bhikku_high",
+            "form_type": "direct"
         }
         
         return converted_dict
