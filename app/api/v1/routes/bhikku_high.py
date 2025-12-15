@@ -123,16 +123,20 @@ def manage_bhikku_high_records(
         limit = max(1, min(limit, 200))
         skip = max(0, skip)
 
+        # Get ALL records from both tables (we'll paginate after merging)
+        # Fetch more records than needed to ensure we have enough after merging
+        fetch_limit = limit * 2  # Fetch double to account for both sources
+        
         # Get records from bhikku_high_regist table
-        records = bhikku_high_service.list_bhikku_highs(db, skip=skip, limit=limit, search=search, current_user=current_user)
+        records = bhikku_high_service.list_bhikku_highs(db, skip=0, limit=fetch_limit, search=search, current_user=current_user)
         total = bhikku_high_service.count_bhikku_highs(db, search=search)
 
         # Get records from direct_bhikku_high table
         from app.services.direct_bhikku_high_service import direct_bhikku_high_service
         direct_records = direct_bhikku_high_service.list_direct_bhikku_highs(
             db, 
-            skip=skip, 
-            limit=limit, 
+            skip=0, 
+            limit=fetch_limit, 
             search=search, 
             current_user=current_user
         )
@@ -147,13 +151,16 @@ def manage_bhikku_high_records(
         # Merge both lists
         all_enriched_records = enriched_records + enriched_direct_records
         
+        # Apply pagination to the merged result
+        paginated_records = all_enriched_records[skip:skip + limit]
+        
         # Calculate total count
         total_count = total + direct_total
 
         return schemas.BhikkuHighManagementResponse(
             status="success",
             message="Higher bhikku registrations retrieved successfully.",
-            data=all_enriched_records,
+            data=paginated_records,
             totalRecords=total_count,
             page=page,
             limit=limit,
