@@ -119,10 +119,35 @@ class BhikkuHighRepository:
         limit: int = 100,
         search: Optional[str] = None,
         current_user: Optional[UserAccount] = None,
+        vh_trn: Optional[str] = None,
+        province: Optional[str] = None,
+        district: Optional[str] = None,
+        divisional_secretariat: Optional[str] = None,
+        gn_division: Optional[str] = None,
+        temple: Optional[str] = None,
+        child_temple: Optional[str] = None,
+        nikaya: Optional[str] = None,
+        parshawaya: Optional[str] = None,
+        status: Optional[list] = None,
+        date_from: Optional[str] = None,
+        date_to: Optional[str] = None,
     ) -> list[BhikkuHighRegist]:
-        query = db.query(BhikkuHighRegist).options(noload('*')).filter(
-            BhikkuHighRegist.bhr_is_deleted.is_(False)
-        )
+        from app.models.bhikku import Bhikku
+        
+        # Need to join with candidate bhikku for location filters
+        needs_join = any([province, district, divisional_secretariat, gn_division, nikaya])
+        
+        if needs_join:
+            query = db.query(BhikkuHighRegist).options(noload('*')).join(
+                Bhikku,
+                BhikkuHighRegist.bhr_candidate_regn == Bhikku.br_regn
+            ).filter(
+                BhikkuHighRegist.bhr_is_deleted.is_(False)
+            )
+        else:
+            query = db.query(BhikkuHighRegist).options(noload('*')).filter(
+                BhikkuHighRegist.bhr_is_deleted.is_(False)
+            )
 
         # Apply location-based filtering for all workflow stages except COMPLETED
         if current_user:
@@ -152,6 +177,70 @@ class BhikkuHighRepository:
                     BhikkuHighRegist.bhr_email.ilike(term),
                 )
             )
+        
+        # Apply specific field filters
+        if vh_trn:
+            query = query.filter(
+                or_(
+                    BhikkuHighRegist.bhr_livtemple == vh_trn,
+                    BhikkuHighRegist.bhr_residence_higher_ordination_trn == vh_trn,
+                    BhikkuHighRegist.bhr_residence_permanent_trn == vh_trn
+                )
+            )
+        
+        # Location filters from candidate
+        if province:
+            query = query.filter(Bhikku.br_province == province)
+        
+        if district:
+            query = query.filter(Bhikku.br_district == district)
+        
+        if divisional_secretariat:
+            query = query.filter(Bhikku.br_division == divisional_secretariat)
+        
+        if gn_division:
+            query = query.filter(Bhikku.br_gndiv == gn_division)
+        
+        # Temple filters
+        if temple:
+            query = query.filter(
+                or_(
+                    BhikkuHighRegist.bhr_livtemple == temple,
+                    BhikkuHighRegist.bhr_residence_higher_ordination_trn == temple,
+                    BhikkuHighRegist.bhr_residence_permanent_trn == temple
+                )
+            )
+        
+        if child_temple:
+            query = query.filter(
+                or_(
+                    BhikkuHighRegist.bhr_livtemple == child_temple,
+                    BhikkuHighRegist.bhr_residence_higher_ordination_trn == child_temple,
+                    BhikkuHighRegist.bhr_residence_permanent_trn == child_temple
+                )
+            )
+        
+        # Nikaya filter from candidate
+        if nikaya:
+            query = query.filter(Bhikku.br_nikaya == nikaya)
+        
+        # Parshawaya filter
+        if parshawaya:
+            query = query.filter(BhikkuHighRegist.bhr_parshawaya == parshawaya)
+        
+        # Status filter (can be a list)
+        if status:
+            if isinstance(status, list):
+                query = query.filter(BhikkuHighRegist.bhr_currstat.in_(status))
+            else:
+                query = query.filter(BhikkuHighRegist.bhr_currstat == status)
+        
+        # Date range filters (on higher ordination date)
+        if date_from:
+            query = query.filter(BhikkuHighRegist.bhr_higher_ordination_date >= date_from)
+        
+        if date_to:
+            query = query.filter(BhikkuHighRegist.bhr_higher_ordination_date <= date_to)
 
         # Data Entry users should see newest first
         order_desc = False
@@ -174,10 +263,40 @@ class BhikkuHighRepository:
 
         return query.offset(max(skip, 0)).limit(limit).all()
 
-    def count(self, db: Session, *, search: Optional[str] = None) -> int:
-        query = db.query(func.count(BhikkuHighRegist.bhr_id)).filter(
-            BhikkuHighRegist.bhr_is_deleted.is_(False)
-        )
+    def count(
+        self,
+        db: Session,
+        *,
+        search: Optional[str] = None,
+        vh_trn: Optional[str] = None,
+        province: Optional[str] = None,
+        district: Optional[str] = None,
+        divisional_secretariat: Optional[str] = None,
+        gn_division: Optional[str] = None,
+        temple: Optional[str] = None,
+        child_temple: Optional[str] = None,
+        nikaya: Optional[str] = None,
+        parshawaya: Optional[str] = None,
+        status: Optional[list] = None,
+        date_from: Optional[str] = None,
+        date_to: Optional[str] = None,
+    ) -> int:
+        from app.models.bhikku import Bhikku
+        
+        # Need to join with candidate bhikku for location filters
+        needs_join = any([province, district, divisional_secretariat, gn_division, nikaya])
+        
+        if needs_join:
+            query = db.query(func.count(BhikkuHighRegist.bhr_id)).join(
+                Bhikku,
+                BhikkuHighRegist.bhr_candidate_regn == Bhikku.br_regn
+            ).filter(
+                BhikkuHighRegist.bhr_is_deleted.is_(False)
+            )
+        else:
+            query = db.query(func.count(BhikkuHighRegist.bhr_id)).filter(
+                BhikkuHighRegist.bhr_is_deleted.is_(False)
+            )
 
         if search:
             term = f"%{search.strip()}%"
@@ -196,6 +315,64 @@ class BhikkuHighRepository:
                     BhikkuHighRegist.bhr_email.ilike(term),
                 )
             )
+        
+        # Apply specific field filters (same as list method)
+        if vh_trn:
+            query = query.filter(
+                or_(
+                    BhikkuHighRegist.bhr_livtemple == vh_trn,
+                    BhikkuHighRegist.bhr_residence_higher_ordination_trn == vh_trn,
+                    BhikkuHighRegist.bhr_residence_permanent_trn == vh_trn
+                )
+            )
+        
+        if province:
+            query = query.filter(Bhikku.br_province == province)
+        
+        if district:
+            query = query.filter(Bhikku.br_district == district)
+        
+        if divisional_secretariat:
+            query = query.filter(Bhikku.br_division == divisional_secretariat)
+        
+        if gn_division:
+            query = query.filter(Bhikku.br_gndiv == gn_division)
+        
+        if temple:
+            query = query.filter(
+                or_(
+                    BhikkuHighRegist.bhr_livtemple == temple,
+                    BhikkuHighRegist.bhr_residence_higher_ordination_trn == temple,
+                    BhikkuHighRegist.bhr_residence_permanent_trn == temple
+                )
+            )
+        
+        if child_temple:
+            query = query.filter(
+                or_(
+                    BhikkuHighRegist.bhr_livtemple == child_temple,
+                    BhikkuHighRegist.bhr_residence_higher_ordination_trn == child_temple,
+                    BhikkuHighRegist.bhr_residence_permanent_trn == child_temple
+                )
+            )
+        
+        if nikaya:
+            query = query.filter(Bhikku.br_nikaya == nikaya)
+        
+        if parshawaya:
+            query = query.filter(BhikkuHighRegist.bhr_parshawaya == parshawaya)
+        
+        if status:
+            if isinstance(status, list):
+                query = query.filter(BhikkuHighRegist.bhr_currstat.in_(status))
+            else:
+                query = query.filter(BhikkuHighRegist.bhr_currstat == status)
+        
+        if date_from:
+            query = query.filter(BhikkuHighRegist.bhr_higher_ordination_date >= date_from)
+        
+        if date_to:
+            query = query.filter(BhikkuHighRegist.bhr_higher_ordination_date <= date_to)
 
         return query.scalar() or 0
 

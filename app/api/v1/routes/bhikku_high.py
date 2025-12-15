@@ -122,25 +122,96 @@ def manage_bhikku_high_records(
         skip = payload.skip if payload.page is None else (page - 1) * limit
         limit = max(1, min(limit, 200))
         skip = max(0, skip)
+        
+        # Extract filter parameters
+        vh_trn = payload.vh_trn
+        province = payload.province
+        district = payload.district
+        divisional_secretariat = payload.divisional_secretariat
+        gn_division = payload.gn_division
+        temple = payload.temple
+        child_temple = payload.child_temple
+        nikaya = payload.nikaya
+        parshawaya = payload.parshawaya
+        status = payload.status
+        date_from = payload.date_from
+        date_to = payload.date_to
 
         # Get ALL records from both tables (we'll paginate after merging)
         # Fetch more records than needed to ensure we have enough after merging
         fetch_limit = limit * 2  # Fetch double to account for both sources
         
         # Get records from bhikku_high_regist table
-        records = bhikku_high_service.list_bhikku_highs(db, skip=0, limit=fetch_limit, search=search, current_user=current_user)
-        total = bhikku_high_service.count_bhikku_highs(db, search=search)
+        records = bhikku_high_service.list_bhikku_highs(
+            db,
+            skip=0,
+            limit=fetch_limit,
+            search=search,
+            current_user=current_user,
+            vh_trn=vh_trn,
+            province=province,
+            district=district,
+            divisional_secretariat=divisional_secretariat,
+            gn_division=gn_division,
+            temple=temple,
+            child_temple=child_temple,
+            nikaya=nikaya,
+            parshawaya=parshawaya,
+            status=status,
+            date_from=date_from,
+            date_to=date_to,
+        )
+        total = bhikku_high_service.count_bhikku_highs(
+            db,
+            search=search,
+            vh_trn=vh_trn,
+            province=province,
+            district=district,
+            divisional_secretariat=divisional_secretariat,
+            gn_division=gn_division,
+            temple=temple,
+            child_temple=child_temple,
+            nikaya=nikaya,
+            parshawaya=parshawaya,
+            status=status,
+            date_from=date_from,
+            date_to=date_to,
+        )
 
         # Get records from direct_bhikku_high table
         from app.services.direct_bhikku_high_service import direct_bhikku_high_service
+        
+        # Convert status list to single value for direct_bhikku_high (it doesn't support list yet)
+        status_single = status[0] if status and isinstance(status, list) and len(status) > 0 else None
+        
         direct_records = direct_bhikku_high_service.list_direct_bhikku_highs(
             db, 
             skip=0, 
             limit=fetch_limit, 
             search=search, 
-            current_user=current_user
+            current_user=current_user,
+            province=province,
+            district=district,
+            divisional_secretariat=divisional_secretariat,
+            gn_division=gn_division,
+            parshawaya=parshawaya,
+            status=status_single,
+            date_from=date_from,
+            date_to=date_to,
         )
-        direct_total = direct_bhikku_high_service.count_direct_bhikku_highs(db, search=search, current_user=current_user)
+        direct_total = direct_bhikku_high_service.count_direct_bhikku_highs(
+            db,
+            search=search,
+            current_user=current_user,
+            province=province,
+            district=district,
+            divisional_secretariat=divisional_secretariat,
+            gn_division=gn_division,
+            parshawaya=parshawaya,
+            status=status_single,
+            date_from=date_from,
+            date_to=date_to,
+        )
 
         # Enrich all records with nested objects from candidates
         enriched_records = [bhikku_high_service.enrich_bhikku_high_dict(record) for record in records]

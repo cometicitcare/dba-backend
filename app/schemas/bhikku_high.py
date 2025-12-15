@@ -243,6 +243,23 @@ class BhikkuHighRequestPayload(BaseModel):
     limit: int = 10
     page: Optional[int] = 1
     search_key: Optional[str] = ""
+    
+    # Location and organization filters
+    vh_trn: Optional[str] = Field(default=None, max_length=12)
+    province: Optional[str] = Field(default=None, max_length=10)
+    district: Optional[str] = Field(default=None, max_length=10)
+    divisional_secretariat: Optional[str] = Field(default=None, max_length=10)
+    gn_division: Optional[str] = Field(default=None, max_length=10)
+    temple: Optional[str] = Field(default=None, max_length=12)
+    child_temple: Optional[str] = Field(default=None, max_length=12)
+    nikaya: Optional[str] = Field(default=None, max_length=10)
+    parshawaya: Optional[str] = Field(default=None, max_length=10)
+    status: Optional[List[str]] = Field(default=None)
+    
+    # Date range filters
+    date_from: Optional[date] = None
+    date_to: Optional[date] = None
+    
     data: Optional[Any] = None  # Accept any type, will be parsed in the route
 
 
