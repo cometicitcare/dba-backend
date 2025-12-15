@@ -91,10 +91,13 @@ def manage_direct_bhikku_high_records(
         if not entity:
             raise HTTPException(status_code=404, detail="Direct high bhikku record not found")
 
+        # Enrich with nested province and district objects
+        enriched_data = direct_bhikku_high_service.enrich_direct_bhikku_high_dict(entity, db)
+
         return DirectBhikkuHighManagementResponse(
             status="success",
             message="Direct high bhikku record retrieved successfully.",
-            data=entity,
+            data=enriched_data,
         )
 
     # ==================== READ_ALL ====================
