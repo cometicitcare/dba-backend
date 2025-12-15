@@ -99,7 +99,10 @@ class ReprintSearchService:
         limit: int
     ) -> Tuple[List[ReprintSearchResultItem], int]:
         """Search Bhikku records"""
-        query = db.query(Bhikku).filter(Bhikku.br_is_deleted == False)
+        query = db.query(Bhikku).filter(
+            Bhikku.br_is_deleted == False,
+            Bhikku.br_complete == True
+        )
         
         if registration_number:
             query = query.filter(Bhikku.br_regn.ilike(f"%{registration_number}%"))
@@ -164,7 +167,10 @@ class ReprintSearchService:
         limit: int
     ) -> Tuple[List[ReprintSearchResultItem], int]:
         """Search Silmatha records"""
-        query = db.query(SilmathaRegist).filter(SilmathaRegist.sil_is_deleted == False)
+        query = db.query(SilmathaRegist).filter(
+            SilmathaRegist.sil_is_deleted == False,
+            SilmathaRegist.sil_complete == True
+        )
         
         if registration_number:
             query = query.filter(SilmathaRegist.sil_regn.ilike(f"%{registration_number}%"))
@@ -231,7 +237,10 @@ class ReprintSearchService:
         """Search High Bhikku records"""
         from sqlalchemy.orm import lazyload
         
-        query = db.query(BhikkuHighRegist).options(lazyload('*')).filter(BhikkuHighRegist.bhr_is_deleted == False)
+        query = db.query(BhikkuHighRegist).options(lazyload('*')).filter(
+            BhikkuHighRegist.bhr_is_deleted == False,
+            BhikkuHighRegist.bhr_complete == True
+        )
         
         if registration_number:
             query = query.filter(BhikkuHighRegist.bhr_regn.ilike(f"%{registration_number}%"))
@@ -319,7 +328,10 @@ class ReprintSearchService:
         """Search Direct High Bhikku records"""
         from sqlalchemy.orm import lazyload
         
-        query = db.query(DirectBhikkuHigh).options(lazyload('*')).filter(DirectBhikkuHigh.dbh_is_deleted == False)
+        query = db.query(DirectBhikkuHigh).options(lazyload('*')).filter(
+            DirectBhikkuHigh.dbh_is_deleted == False,
+            DirectBhikkuHigh.dbh_complete == True
+        )
         
         if registration_number:
             query = query.filter(DirectBhikkuHigh.dbh_regn.ilike(f"%{registration_number}%"))
@@ -388,7 +400,10 @@ class ReprintSearchService:
         limit: int
     ) -> Tuple[List[ReprintSearchResultItem], int]:
         """Search Vihara records"""
-        query = db.query(ViharaData).filter(ViharaData.vh_is_deleted == False)
+        query = db.query(ViharaData).filter(
+            ViharaData.vh_is_deleted == False,
+            ViharaData.vh_complete == True
+        )
         
         if registration_number:
             query = query.filter(ViharaData.vh_trn.ilike(f"%{registration_number}%"))
@@ -431,7 +446,10 @@ class ReprintSearchService:
         limit: int
     ) -> Tuple[List[ReprintSearchResultItem], int]:
         """Search Arama records"""
-        query = db.query(AramaData).filter(AramaData.ar_is_deleted == False)
+        query = db.query(AramaData).filter(
+            AramaData.ar_is_deleted == False,
+            AramaData.ar_complete == True
+        )
         
         if registration_number:
             query = query.filter(AramaData.ar_trn.ilike(f"%{registration_number}%"))
@@ -477,7 +495,10 @@ class ReprintSearchService:
         from sqlalchemy import func as sqlfunc
         
         # Build count query separately to avoid column issues
-        count_query = db.query(sqlfunc.count(DevalaData.dv_id)).filter(DevalaData.dv_is_deleted == False)
+        count_query = db.query(sqlfunc.count(DevalaData.dv_id)).filter(
+            DevalaData.dv_is_deleted == False,
+            DevalaData.dv_complete == True
+        )
         
         if registration_number:
             count_query = count_query.filter(DevalaData.dv_trn.ilike(f"%{registration_number}%"))
@@ -495,7 +516,10 @@ class ReprintSearchService:
             DevalaData.dv_email,
             DevalaData.dv_form_id,
             DevalaData.dv_workflow_status
-        ).filter(DevalaData.dv_is_deleted == False)
+        ).filter(
+            DevalaData.dv_is_deleted == False,
+            DevalaData.dv_complete == True
+        )
         
         if registration_number:
             query = query.filter(DevalaData.dv_trn.ilike(f"%{registration_number}%"))
