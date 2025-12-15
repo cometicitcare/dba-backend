@@ -319,8 +319,8 @@ class BhikkuHighService:
         
         # Create the converted dictionary with bhikku_high field names
         converted_dict = {
-            # Map direct bhikku high ID to bhikku high format (prefixed to avoid conflicts)
-            "bhr_id": f"DBH-{direct_bhikku_high.dbh_id}",  # Prefix to distinguish from regular bhikku_high records
+            # Map direct bhikku high ID to bhikku high format
+            "bhr_id": direct_bhikku_high.dbh_id,
             "bhr_regn": direct_bhikku_high.dbh_regn,
             "bhr_reqstdate": direct_bhikku_high.dbh_reqstdate,
             "bhr_samanera_serial_no": direct_bhikku_high.dbh_samanera_serial_no,
