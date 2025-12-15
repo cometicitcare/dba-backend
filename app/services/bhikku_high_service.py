@@ -76,13 +76,75 @@ class BhikkuHighService:
         limit: int = 100,
         search: Optional[str] = None,
         current_user: Optional[UserAccount] = None,
+        vh_trn: Optional[str] = None,
+        province: Optional[str] = None,
+        district: Optional[str] = None,
+        divisional_secretariat: Optional[str] = None,
+        gn_division: Optional[str] = None,
+        temple: Optional[str] = None,
+        child_temple: Optional[str] = None,
+        nikaya: Optional[str] = None,
+        parshawaya: Optional[str] = None,
+        status: Optional[list] = None,
+        date_from: Optional[str] = None,
+        date_to: Optional[str] = None,
     ) -> list[BhikkuHighRegist]:
         limit = max(1, min(limit, 200))
         skip = max(0, skip)
-        return bhikku_high_repo.list(db, skip=skip, limit=limit, search=search, current_user=current_user)
+        return bhikku_high_repo.list(
+            db,
+            skip=skip,
+            limit=limit,
+            search=search,
+            current_user=current_user,
+            vh_trn=vh_trn,
+            province=province,
+            district=district,
+            divisional_secretariat=divisional_secretariat,
+            gn_division=gn_division,
+            temple=temple,
+            child_temple=child_temple,
+            nikaya=nikaya,
+            parshawaya=parshawaya,
+            status=status,
+            date_from=date_from,
+            date_to=date_to,
+        )
 
-    def count_bhikku_highs(self, db: Session, *, search: Optional[str] = None) -> int:
-        total = bhikku_high_repo.count(db, search=search)
+    def count_bhikku_highs(
+        self,
+        db: Session,
+        *,
+        search: Optional[str] = None,
+        vh_trn: Optional[str] = None,
+        province: Optional[str] = None,
+        district: Optional[str] = None,
+        divisional_secretariat: Optional[str] = None,
+        gn_division: Optional[str] = None,
+        temple: Optional[str] = None,
+        child_temple: Optional[str] = None,
+        nikaya: Optional[str] = None,
+        parshawaya: Optional[str] = None,
+        status: Optional[list] = None,
+        date_from: Optional[str] = None,
+        date_to: Optional[str] = None,
+    ) -> int:
+        total = bhikku_high_repo.count(
+            db,
+            search=search,
+            vh_trn=vh_trn,
+            province=province,
+            district=district,
+            divisional_secretariat=divisional_secretariat,
+            gn_division=gn_division,
+            temple=temple,
+            child_temple=child_temple,
+            nikaya=nikaya,
+            parshawaya=parshawaya,
+            status=status,
+            date_from=date_from,
+            date_to=date_to,
+        )
         return int(total or 0)
 
     def get_bhikku_high(self, db: Session, *, bhr_id: int) -> Optional[BhikkuHighRegist]:
