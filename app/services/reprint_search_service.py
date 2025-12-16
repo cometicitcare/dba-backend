@@ -101,7 +101,7 @@ class ReprintSearchService:
         """Search Bhikku records"""
         query = db.query(Bhikku).filter(
             Bhikku.br_is_deleted == False,
-            Bhikku.br_complete == True
+            Bhikku.br_workflow_status == 'COMPLETED'
         )
         
         if registration_number:
@@ -169,7 +169,7 @@ class ReprintSearchService:
         """Search Silmatha records"""
         query = db.query(SilmathaRegist).filter(
             SilmathaRegist.sil_is_deleted == False,
-            SilmathaRegist.sil_complete == True
+            SilmathaRegist.sil_workflow_status == 'COMPLETED'
         )
         
         if registration_number:
@@ -239,7 +239,7 @@ class ReprintSearchService:
         
         query = db.query(BhikkuHighRegist).options(lazyload('*')).filter(
             BhikkuHighRegist.bhr_is_deleted == False,
-            BhikkuHighRegist.bhr_complete == True
+            BhikkuHighRegist.bhr_workflow_status == 'COMPLETED'
         )
         
         if registration_number:
@@ -330,7 +330,7 @@ class ReprintSearchService:
         
         query = db.query(DirectBhikkuHigh).options(lazyload('*')).filter(
             DirectBhikkuHigh.dbh_is_deleted == False,
-            DirectBhikkuHigh.dbh_complete == True
+            DirectBhikkuHigh.dbh_workflow_status == 'COMPLETED'
         )
         
         if registration_number:
@@ -402,7 +402,7 @@ class ReprintSearchService:
         """Search Vihara records"""
         query = db.query(ViharaData).filter(
             ViharaData.vh_is_deleted == False,
-            ViharaData.vh_complete == True
+            ViharaData.vh_workflow_status == 'COMPLETED'
         )
         
         if registration_number:
@@ -448,7 +448,7 @@ class ReprintSearchService:
         """Search Arama records"""
         query = db.query(AramaData).filter(
             AramaData.ar_is_deleted == False,
-            AramaData.ar_complete == True
+            AramaData.ar_workflow_status == 'COMPLETED'
         )
         
         if registration_number:
@@ -497,7 +497,7 @@ class ReprintSearchService:
         # Build count query separately to avoid column issues
         count_query = db.query(sqlfunc.count(DevalaData.dv_id)).filter(
             DevalaData.dv_is_deleted == False,
-            DevalaData.dv_complete == True
+            DevalaData.dv_workflow_status == 'COMPLETED'
         )
         
         if registration_number:
@@ -518,7 +518,7 @@ class ReprintSearchService:
             DevalaData.dv_workflow_status
         ).filter(
             DevalaData.dv_is_deleted == False,
-            DevalaData.dv_complete == True
+            DevalaData.dv_workflow_status == 'COMPLETED'
         )
         
         if registration_number:
