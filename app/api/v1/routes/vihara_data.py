@@ -31,6 +31,95 @@ def manage_vihara_records(
     payload = request.payload
     user_id = current_user.ua_user_id
 
+    # Stage-specific actions for multi-stage data entry
+    if action == CRUDAction.SAVE_STAGE_ONE:
+        # Save or create Stage 1: Basic Profile
+        vh_id = payload.vh_id
+        raw_data = payload.data
+        if isinstance(raw_data, BaseModel):
+            raw_data = raw_data.model_dump(exclude_unset=True)
+        
+        try:
+            result = vihara_service.save_stage_one(
+                db, payload_data=raw_data, actor_id=user_id, vh_id=vh_id
+            )
+            return ViharaManagementResponse(
+                status="success",
+                message="Stage 1 (Basic Profile) saved successfully.",
+                data=result,
+            )
+        except ValueError as exc:
+            raise validation_error([(None, str(exc))]) from exc
+
+    if action == CRUDAction.SAVE_STAGE_TWO:
+        # Save Stage 2: Assets, Certification & Annex
+        if payload.vh_id is None:
+            raise validation_error(
+                [("payload.vh_id", "vh_id is required for SAVE_STAGE_TWO action. Please save Stage 1 first.")]
+            )
+        
+        raw_data = payload.data
+        if isinstance(raw_data, BaseModel):
+            raw_data = raw_data.model_dump(exclude_unset=True)
+        
+        try:
+            result = vihara_service.save_stage_two(
+                db, vh_id=payload.vh_id, payload_data=raw_data, actor_id=user_id
+            )
+            return ViharaManagementResponse(
+                status="success",
+                message="Stage 2 (Assets & Certification) saved successfully.",
+                data=result,
+            )
+        except ValueError as exc:
+            raise validation_error([(None, str(exc))]) from exc
+
+    if action == CRUDAction.UPDATE_STAGE_ONE:
+        # Update Stage 1: Basic Profile
+        if payload.vh_id is None:
+            raise validation_error(
+                [("payload.vh_id", "vh_id is required for UPDATE_STAGE_ONE action")]
+            )
+        
+        raw_data = payload.data
+        if isinstance(raw_data, BaseModel):
+            raw_data = raw_data.model_dump(exclude_unset=True)
+        
+        try:
+            result = vihara_service.save_stage_one(
+                db, payload_data=raw_data, actor_id=user_id, vh_id=payload.vh_id
+            )
+            return ViharaManagementResponse(
+                status="success",
+                message="Stage 1 (Basic Profile) updated successfully.",
+                data=result,
+            )
+        except ValueError as exc:
+            raise validation_error([(None, str(exc))]) from exc
+
+    if action == CRUDAction.UPDATE_STAGE_TWO:
+        # Update Stage 2: Assets, Certification & Annex
+        if payload.vh_id is None:
+            raise validation_error(
+                [("payload.vh_id", "vh_id is required for UPDATE_STAGE_TWO action")]
+            )
+        
+        raw_data = payload.data
+        if isinstance(raw_data, BaseModel):
+            raw_data = raw_data.model_dump(exclude_unset=True)
+        
+        try:
+            result = vihara_service.save_stage_two(
+                db, vh_id=payload.vh_id, payload_data=raw_data, actor_id=user_id
+            )
+            return ViharaManagementResponse(
+                status="success",
+                message="Stage 2 (Assets & Certification) updated successfully.",
+                data=result,
+            )
+        except ValueError as exc:
+            raise validation_error([(None, str(exc))]) from exc
+
     if action == CRUDAction.CREATE:
         # Try camelCase first, then fall back to snake_case
         create_payload = None

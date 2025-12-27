@@ -22,6 +22,10 @@ class CRUDAction(str, Enum):
     REJECT = "REJECT"
     MARK_PRINTED = "MARK_PRINTED"
     MARK_SCANNED = "MARK_SCANNED"
+    SAVE_STAGE_ONE = "SAVE_STAGE_ONE"
+    SAVE_STAGE_TWO = "SAVE_STAGE_TWO"
+    UPDATE_STAGE_ONE = "UPDATE_STAGE_ONE"
+    UPDATE_STAGE_TWO = "UPDATE_STAGE_TWO"
 
 
 class ViharaBase(BaseModel):
@@ -181,6 +185,7 @@ class ViharaCreatePayload(BaseModel):
     parshawaya: str = Field(min_length=1, max_length=10)
     owner_code: str = Field(min_length=1, max_length=12)  # Required: Bhikku registration number
     viharadhipathi_name: Optional[str] = Field(default=None, max_length=200)
+    viharadhipathi_regn: Optional[str] = Field(default=None, max_length=50)
     period_established: Optional[str] = Field(default=None, max_length=100)
     buildings_description: Optional[str] = Field(default=None, max_length=1000)
     dayaka_families_count: Optional[str] = Field(default=None, max_length=50)
@@ -354,6 +359,72 @@ class ViharaUpdate(BaseModel):
         return value
 
 
+# Stage-specific schemas for multi-stage vihara data entry
+class ViharaStageOneData(BaseModel):
+    """Data for Stage 1: Basic Profile (steps 1–4)"""
+    vh_typ: str = Field(min_length=1, max_length=10)
+    vh_ownercd: str = Field(min_length=1, max_length=12)
+    vh_vname: Optional[str] = Field(default=None, max_length=200)
+    vh_addrs: Optional[str] = Field(default=None, max_length=200)
+    vh_mobile: str = Field(min_length=10, max_length=10)
+    vh_whtapp: str = Field(min_length=10, max_length=10)
+    vh_email: EmailStr
+    vh_province: Optional[str] = Field(default=None, max_length=100)
+    vh_district: Optional[str] = Field(default=None, max_length=100)
+    vh_divisional_secretariat: Optional[str] = Field(default=None, max_length=100)
+    vh_pradeshya_sabha: Optional[str] = Field(default=None, max_length=100)
+    vh_gndiv: str = Field(min_length=1, max_length=10)
+    vh_nikaya: Optional[str] = Field(default=None, max_length=50)
+    vh_parshawa: str = Field(min_length=1, max_length=10)
+    vh_viharadhipathi_name: Optional[str] = Field(default=None, max_length=200)
+    vh_viharadhipathi_regn: Optional[str] = Field(default=None, max_length=50)
+    vh_period_established: Optional[str] = Field(default=None, max_length=100)
+    vh_bgndate: Optional[date] = None
+
+    @field_validator("vh_mobile", "vh_whtapp")
+    @classmethod
+    def _validate_phone(cls, value: str) -> str:
+        if not PHONE_PATTERN.fullmatch(value):
+            raise ValueError("Phone numbers must be exactly 10 digits.")
+        return value
+
+
+class ViharaStageTwoData(BaseModel):
+    """Data for Stage 2: Assets, Certification & Annex (steps 5–10)"""
+    vh_buildings_description: Optional[str] = Field(default=None, max_length=1000)
+    vh_dayaka_families_count: Optional[str] = Field(default=None, max_length=50)
+    vh_fmlycnt: Optional[int] = Field(default=None, ge=0)
+    vh_kulangana_committee: Optional[str] = Field(default=None, max_length=500)
+    vh_dayaka_sabha: Optional[str] = Field(default=None, max_length=500)
+    vh_temple_working_committee: Optional[str] = Field(default=None, max_length=500)
+    vh_other_associations: Optional[str] = Field(default=None, max_length=500)
+    
+    temple_owned_land: List[ViharaLandCreate] = Field(default_factory=list)
+    vh_land_info_certified: Optional[bool] = None
+    
+    resident_bhikkhus: List[ResidentBhikkhuCreate] = Field(default_factory=list)
+    vh_resident_bhikkhus_certified: Optional[bool] = None
+    
+    vh_inspection_report: Optional[str] = Field(default=None, max_length=1000)
+    vh_inspection_code: Optional[str] = Field(default=None, max_length=100)
+    
+    vh_grama_niladhari_division_ownership: Optional[str] = Field(default=None, max_length=200)
+    vh_sanghika_donation_deed: Optional[bool] = None
+    vh_government_donation_deed: Optional[bool] = None
+    vh_government_donation_deed_in_progress: Optional[bool] = None
+    vh_authority_consent_attached: Optional[bool] = None
+    vh_recommend_new_center: Optional[bool] = None
+    vh_recommend_registered_temple: Optional[bool] = None
+    
+    vh_annex2_recommend_construction: Optional[bool] = None
+    vh_annex2_land_ownership_docs: Optional[bool] = None
+    vh_annex2_chief_incumbent_letter: Optional[bool] = None
+    vh_annex2_coordinator_recommendation: Optional[bool] = None
+    vh_annex2_divisional_secretary_recommendation: Optional[bool] = None
+    vh_annex2_approval_construction: Optional[bool] = None
+    vh_annex2_referral_resubmission: Optional[bool] = None
+
+
 class ViharaOut(ViharaBase):
     model_config = ConfigDict(from_attributes=True)
 
@@ -393,8 +464,8 @@ class ViharaRequestPayload(BaseModel):
     # Workflow action fields
     rejection_reason: Annotated[Optional[str], Field(default=None, max_length=500)] = None
     
-    # Data payload for CREATE/UPDATE (supports both snake_case and camelCase)
-    data: Optional[Union[ViharaCreate, ViharaCreatePayload, ViharaUpdate, dict]] = None
+    # Data payload for CREATE/UPDATE (supports both snake_case and camelCase, and staged operations)
+    data: Optional[Union[ViharaCreate, ViharaCreatePayload, ViharaUpdate, ViharaStageOneData, ViharaStageTwoData, dict]] = None
 
 
 class ViharaManagementRequest(BaseModel):
