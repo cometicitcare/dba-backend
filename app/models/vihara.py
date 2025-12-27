@@ -50,6 +50,7 @@ class ViharaData(Base):
     vh_pradeshya_sabha = Column(String(100))  # No reference table available
     vh_nikaya = Column(String(50), ForeignKey('cmm_nikayadata.nk_nkn', ondelete='SET NULL'))
     vh_viharadhipathi_name = Column(String(200))
+    vh_viharadhipathi_regn = Column(String(50))
     vh_period_established = Column(String(100))
     vh_buildings_description = Column(String(1000))
     vh_dayaka_families_count = Column(String(50))

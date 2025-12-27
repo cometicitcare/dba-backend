@@ -37,6 +37,7 @@ class ViharaService:
                 "vh_nikaya": payload.nikaya,
                 "vh_parshawa": payload.parshawaya,
                 "vh_viharadhipathi_name": payload.viharadhipathi_name,
+                "vh_viharadhipathi_regn": payload.viharadhipathi_regn,
                 "vh_period_established": payload.period_established,
                 "vh_buildings_description": payload.buildings_description,
                 "vh_dayaka_families_count": payload.dayaka_families_count,
@@ -293,6 +294,145 @@ class ViharaService:
         entity.vh_updated_by = actor_id
         entity.vh_updated_at = datetime.utcnow()
         return vihara_repo.soft_delete(db, entity=entity)
+
+    # --------------------------------------------------------------------- #
+    # Stage-specific Methods (Multi-stage data entry)
+    # --------------------------------------------------------------------- #
+    def save_stage_one(
+        self, db: Session, *, payload_data: dict, actor_id: Optional[str], vh_id: Optional[int] = None
+    ) -> ViharaData:
+        """Save or create Stage 1: Basic Profile (steps 1–4)"""
+        from app.schemas.vihara import ViharaCreate
+        
+        now = datetime.utcnow()
+        
+        if vh_id:
+            # Update existing record - stage one fields only
+            entity = vihara_repo.get(db, vh_id)
+            if not entity:
+                raise ValueError("Vihara record not found.")
+            
+            # Only update stage one fields
+            for key, value in payload_data.items():
+                if hasattr(entity, key):
+                    setattr(entity, key, value)
+            
+            entity.vh_updated_by = actor_id
+            entity.vh_updated_at = now
+            db.commit()
+            db.refresh(entity)
+            return entity
+        else:
+            # Create new draft record
+            # Validate contact fields
+            vh_mobile = payload_data.get("vh_mobile")
+            vh_whtapp = payload_data.get("vh_whtapp")
+            vh_email = payload_data.get("vh_email")
+            
+            contact_fields = (
+                ("vh_mobile", vh_mobile, vihara_repo.get_by_mobile),
+                ("vh_whtapp", vh_whtapp, vihara_repo.get_by_whtapp),
+                ("vh_email", vh_email, vihara_repo.get_by_email),
+            )
+            for field_name, value, getter in contact_fields:
+                if value and getter(db, value):
+                    raise ValueError(f"{field_name} '{value}' is already registered.")
+            
+            payload_data["vh_created_by"] = actor_id
+            payload_data["vh_updated_by"] = actor_id
+            payload_data["vh_created_at"] = now
+            payload_data["vh_updated_at"] = now
+            payload_data["vh_is_deleted"] = False
+            payload_data["vh_version_number"] = 1
+            payload_data["vh_workflow_status"] = "PENDING"
+            payload_data.pop("vh_trn", None)
+            payload_data.pop("vh_id", None)
+            
+            # Set default values for required fields that are not in Stage 1
+            payload_data.setdefault("temple_owned_land", [])
+            payload_data.setdefault("resident_bhikkhus", [])
+            
+            self._validate_foreign_keys(db, payload_data)
+            enriched_payload = ViharaCreate(**payload_data)
+            return vihara_repo.create(db, data=enriched_payload)
+    
+    def save_stage_two(
+        self, db: Session, *, vh_id: int, payload_data: dict, actor_id: Optional[str]
+    ) -> ViharaData:
+        """Save Stage 2: Assets, Certification & Annex (steps 5–10) - requires vh_id from stage one"""
+        entity = vihara_repo.get(db, vh_id)
+        if not entity:
+            raise ValueError("Vihara record not found. Please save Stage 1 first.")
+        
+        now = datetime.utcnow()
+        
+        # Extract nested data
+        temple_lands = payload_data.pop("temple_owned_land", [])
+        resident_bhikkhus = payload_data.pop("resident_bhikkhus", [])
+        
+        # Update stage two fields
+        for key, value in payload_data.items():
+            if hasattr(entity, key):
+                setattr(entity, key, value)
+        
+        entity.vh_updated_by = actor_id
+        entity.vh_updated_at = now
+        
+        # Handle nested relationships - use ViharaLand (not TempleLand)
+        if temple_lands:
+            # Clear existing lands and add new ones
+            entity.vihara_lands = []
+            for land_data in temple_lands:
+                from app.models.vihara_land import ViharaLand
+                # Remove any ID fields and convert camelCase to snake_case
+                land_data.pop('id', None)
+                land_data.pop('vh_id', None)
+                
+                # Convert camelCase to snake_case
+                snake_case_land = {
+                    'serial_number': land_data.get('serialNumber', land_data.get('serial_number')),
+                    'land_name': land_data.get('landName', land_data.get('land_name')),
+                    'village': land_data.get('village'),
+                    'district': land_data.get('district'),
+                    'extent': land_data.get('extent'),
+                    'cultivation_description': land_data.get('cultivationDescription', land_data.get('cultivation_description')),
+                    'ownership_nature': land_data.get('ownershipNature', land_data.get('ownership_nature')),
+                    'deed_number': land_data.get('deedNumber', land_data.get('deed_number')),
+                    'title_registration_number': land_data.get('titleRegistrationNumber', land_data.get('title_registration_number')),
+                    'tax_details': land_data.get('taxDetails', land_data.get('tax_details')),
+                    'land_occupants': land_data.get('landOccupants', land_data.get('land_occupants')),
+                }
+                
+                # Remove None values to use model defaults
+                snake_case_land = {k: v for k, v in snake_case_land.items() if v is not None}
+                
+                land = ViharaLand(vh_id=vh_id, **snake_case_land)
+                entity.vihara_lands.append(land)
+        
+        if resident_bhikkhus:
+            # Clear existing residents and add new ones
+            entity.resident_bhikkhus = []
+            for bhikkhu_data in resident_bhikkhus:
+                from app.models.resident_bhikkhu import ResidentBhikkhu
+                # Remove any ID fields and convert camelCase to snake_case
+                bhikkhu_data.pop('id', None)
+                bhikkhu_data.pop('vh_id', None)
+                
+                snake_case_bhikkhu = {
+                    'serial_number': bhikkhu_data.get('serialNumber', bhikkhu_data.get('serial_number')),
+                    'bhikkhu_name': bhikkhu_data.get('bhikkhuName', bhikkhu_data.get('bhikkhu_name')),
+                    'registration_number': bhikkhu_data.get('registrationNumber', bhikkhu_data.get('registration_number')),
+                    'occupation_education': bhikkhu_data.get('occupationEducation', bhikkhu_data.get('occupation_education')),
+                }
+                
+                snake_case_bhikkhu = {k: v for k, v in snake_case_bhikkhu.items() if v is not None}
+                
+                bhikkhu = ResidentBhikkhu(vh_id=vh_id, **snake_case_bhikkhu)
+                entity.resident_bhikkhus.append(bhikkhu)
+        
+        db.commit()
+        db.refresh(entity)
+        return entity
 
     # --------------------------------------------------------------------- #
     # Workflow Methods (following bhikku_regist pattern)
