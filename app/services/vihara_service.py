@@ -114,8 +114,10 @@ class ViharaService:
         if not entity:
             raise ValueError("Vihara record not found.")
         
+        # Allow marking as printed only from S1_PENDING (or legacy PENDING)
+        # Works independently of Stage 2 status
         if entity.vh_workflow_status not in ["S1_PENDING", "PENDING"]:
-            raise ValueError(f"Cannot mark as printed. Current status: {entity.vh_workflow_status}. Must be S1_PENDING.")
+            raise ValueError(f"Cannot mark Stage 1 as printed. Current status: {entity.vh_workflow_status}. Must be S1_PENDING.")
         
         entity.vh_workflow_status = "S1_PRINTING"
         entity.vh_s1_printed_by = actor_id
@@ -149,6 +151,7 @@ class ViharaService:
         if not entity:
             raise ValueError(f"Vihara with ID '{vh_id}' not found.")
         
+        # Works independently of Stage 2 status
         if entity.vh_workflow_status not in ["S1_PRINTING", "PRINTED"]:
             raise ValueError(f"Cannot upload Stage 1 document. Current status: {entity.vh_workflow_status}. Must be S1_PRINTING.")
         
@@ -195,7 +198,7 @@ class ViharaService:
         if not entity:
             raise ValueError("Vihara record not found.")
         
-        # Allow marking stage 2 as printed even when stage 1 is pending
+        # Works independently of Stage 1 status
         if entity.vh_workflow_status != "S2_PENDING":
             raise ValueError(f"Cannot mark Stage 2 as printed. Current status: {entity.vh_workflow_status}. Must be S2_PENDING.")
         
@@ -220,17 +223,32 @@ class ViharaService:
         """
         Approve Stage 1.
         Workflow: S1_PEND_APPROVAL → S1_APPROVED
+        If Stage 2 is also already approved (S2_APPROVED), automatically sets to COMPLETED.
         """
         entity = vihara_repo.get(db, vh_id)
         if not entity:
             raise ValueError("Vihara record not found.")
         
+        # Works independently of Stage 2 status
         if entity.vh_workflow_status != "S1_PEND_APPROVAL":
             raise ValueError(f"Cannot approve Stage 1. Current status: {entity.vh_workflow_status}. Must be S1_PEND_APPROVAL.")
         
-        entity.vh_workflow_status = "S1_APPROVED"
+        # Check if Stage 2 is already approved
+        stage2_approved = entity.vh_s2_approved_at is not None
+        
+        # Set Stage 1 approval fields
         entity.vh_s1_approved_by = actor_id
         entity.vh_s1_approved_at = datetime.utcnow()
+        
+        # If both stages are approved, go to COMPLETED, otherwise S1_APPROVED
+        if stage2_approved:
+            entity.vh_workflow_status = "COMPLETED"
+            entity.vh_approval_status = "APPROVED"
+            entity.vh_approved_by = actor_id  # Legacy field
+            entity.vh_approved_at = datetime.utcnow()  # Legacy field
+        else:
+            entity.vh_workflow_status = "S1_APPROVED"
+        
         entity.vh_updated_by = actor_id
         entity.vh_updated_at = datetime.utcnow()
         entity.vh_version_number = (entity.vh_version_number or 1) + 1
@@ -255,6 +273,7 @@ class ViharaService:
         if not entity:
             raise ValueError("Vihara record not found.")
         
+        # Works independently of Stage 2 status
         if entity.vh_workflow_status != "S1_PEND_APPROVAL":
             raise ValueError(f"Cannot reject Stage 1. Current status: {entity.vh_workflow_status}. Must be S1_PEND_APPROVAL.")
         
@@ -286,8 +305,12 @@ class ViharaService:
             raise ValueError("Vihara record not found. Please save Stage 1 first.")
         
         # Allow stage 2 data entry while stage 1 is pending/in progress
-        # Only block if stage 1 was explicitly rejected
-        allowed_statuses = ["S1_PENDING", "S1_PRINTING", "S1_PEND_APPROVAL", "S1_APPROVED", "S2_PENDING", "S2_PEND_APPROVAL"]
+        # Also allow when stage 2 is already in progress (for updates)
+        # Only block if stage 1 was explicitly rejected or workflow is completed/final rejected
+        allowed_statuses = [
+            "S1_PENDING", "S1_PRINTING", "S1_PEND_APPROVAL", "S1_APPROVED",
+            "S2_PENDING", "S2_PRINTING", "S2_PEND_APPROVAL", "S2_APPROVED"
+        ]
         if entity.vh_workflow_status not in allowed_statuses:
             raise ValueError(f"Cannot save Stage 2. Current status: {entity.vh_workflow_status}. Stage 1 must not be rejected.")
         
@@ -371,10 +394,11 @@ class ViharaService:
         if not entity:
             raise ValueError(f"Vihara with ID '{vh_id}' not found.")
         
-        # Allow stage 2 document upload even when stage 1 is still pending
-        allowed_statuses = ["S1_PENDING", "S1_PRINTING", "S1_PEND_APPROVAL", "S1_APPROVED", "S2_PENDING", "S2_PRINTING"]
+        # Allow stage 2 document upload from various statuses
+        # Works independently of Stage 1 status
+        allowed_statuses = ["S1_PENDING", "S1_PRINTING", "S1_PEND_APPROVAL", "S1_APPROVED", "S2_PENDING", "S2_PRINTING", "S2_PEND_APPROVAL"]
         if entity.vh_workflow_status not in allowed_statuses:
-            raise ValueError(f"Cannot upload Stage 2 document. Current status: {entity.vh_workflow_status}. Must be in stage 1 or stage 2 pending/printing/approved status.")
+            raise ValueError(f"Cannot upload Stage 2 document. Current status: {entity.vh_workflow_status}. Must be in stage 1 or stage 2 pending/printing/approval status.")
         
         # Archive old stage2 file if exists
         if entity.vh_stage2_document_path:
@@ -409,22 +433,34 @@ class ViharaService:
         actor_id: Optional[str],
     ) -> ViharaData:
         """
-        Approve Stage 2 (final approval).
-        Workflow: S2_PEND_APPROVAL → COMPLETED
+        Approve Stage 2.
+        Workflow: S2_PEND_APPROVAL → S2_APPROVED or COMPLETED
+        If Stage 1 is also already approved (S1_APPROVED), automatically sets to COMPLETED.
         """
         entity = vihara_repo.get(db, vh_id)
         if not entity:
             raise ValueError("Vihara record not found.")
         
+        # Works independently of Stage 1 status
         if entity.vh_workflow_status != "S2_PEND_APPROVAL":
             raise ValueError(f"Cannot approve Stage 2. Current status: {entity.vh_workflow_status}. Must be S2_PEND_APPROVAL.")
         
-        entity.vh_workflow_status = "COMPLETED"
-        entity.vh_approval_status = "APPROVED"
+        # Check if Stage 1 is already approved
+        stage1_approved = entity.vh_s1_approved_at is not None
+        
+        # Set Stage 2 approval fields
         entity.vh_s2_approved_by = actor_id
         entity.vh_s2_approved_at = datetime.utcnow()
-        entity.vh_approved_by = actor_id  # Legacy field
-        entity.vh_approved_at = datetime.utcnow()  # Legacy field
+        
+        # If both stages are approved, go to COMPLETED, otherwise S2_APPROVED
+        if stage1_approved:
+            entity.vh_workflow_status = "COMPLETED"
+            entity.vh_approval_status = "APPROVED"
+            entity.vh_approved_by = actor_id  # Legacy field
+            entity.vh_approved_at = datetime.utcnow()  # Legacy field
+        else:
+            entity.vh_workflow_status = "S2_APPROVED"
+        
         entity.vh_updated_by = actor_id
         entity.vh_updated_at = datetime.utcnow()
         entity.vh_version_number = (entity.vh_version_number or 1) + 1
