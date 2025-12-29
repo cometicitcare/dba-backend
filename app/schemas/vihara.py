@@ -27,6 +27,7 @@ class CRUDAction(str, Enum):
     # Stage Two Actions
     SAVE_STAGE_TWO = "SAVE_STAGE_TWO"
     UPDATE_STAGE_TWO = "UPDATE_STAGE_TWO"
+    MARK_S2_PRINTED = "MARK_S2_PRINTED"
     APPROVE_STAGE_TWO = "APPROVE_STAGE_TWO"
     REJECT_STAGE_TWO = "REJECT_STAGE_TWO"
     # Legacy actions (kept for backward compatibility)
