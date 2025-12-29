@@ -77,13 +77,38 @@ class ViharaData(Base):
     vh_annex2_approval_construction = Column(Boolean)
     vh_annex2_referral_resubmission = Column(Boolean)
     
-    # Document Storage
-    vh_scanned_document_path = Column(String(500))
+    # Document Storage - Stage 1 and Stage 2 documents
+    vh_scanned_document_path = Column(String(500))  # Stage 1 scanned document
+    vh_stage2_document_path = Column(String(500))   # Stage 2 scanned document
     vh_form_id = Column(String(50), index=True)
     
-    # Workflow Fields (following bhikku_regist pattern)
-    vh_workflow_status = Column(String(20), server_default=text("'PENDING'"), nullable=False, index=True)
+    # Workflow Fields - Staged workflow
+    # Main workflow status: S1_PENDING, S1_PRINTING, S1_PEND_APPROVAL, S1_APPROVED, S1_REJECTED,
+    #                       S2_PENDING, S2_PEND_APPROVAL, COMPLETED, REJECTED
+    vh_workflow_status = Column(String(25), server_default=text("'S1_PENDING'"), nullable=False, index=True)
     vh_approval_status = Column(String(20))
+    
+    # Stage 1 workflow fields
+    vh_s1_printed_at = Column(DateTime(timezone=True))
+    vh_s1_printed_by = Column(String(25))
+    vh_s1_scanned_at = Column(DateTime(timezone=True))
+    vh_s1_scanned_by = Column(String(25))
+    vh_s1_approved_by = Column(String(25))
+    vh_s1_approved_at = Column(DateTime(timezone=True))
+    vh_s1_rejected_by = Column(String(25))
+    vh_s1_rejected_at = Column(DateTime(timezone=True))
+    vh_s1_rejection_reason = Column(String(500))
+    
+    # Stage 2 workflow fields
+    vh_s2_scanned_at = Column(DateTime(timezone=True))
+    vh_s2_scanned_by = Column(String(25))
+    vh_s2_approved_by = Column(String(25))
+    vh_s2_approved_at = Column(DateTime(timezone=True))
+    vh_s2_rejected_by = Column(String(25))
+    vh_s2_rejected_at = Column(DateTime(timezone=True))
+    vh_s2_rejection_reason = Column(String(500))
+    
+    # Legacy fields (kept for backward compatibility)
     vh_approved_by = Column(String(25))
     vh_approved_at = Column(DateTime(timezone=True))
     vh_rejected_by = Column(String(25))

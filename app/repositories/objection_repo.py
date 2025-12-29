@@ -230,7 +230,8 @@ class ObjectionRepository:
         bh_regn: Optional[str] = None,
         sil_regn: Optional[str] = None,
         dbh_regn: Optional[str] = None,
-        status: Optional[ObjectionStatus] = None
+        status: Optional[ObjectionStatus] = None,
+        search: Optional[str] = None
     ) -> List[Objection]:
         """List objections with filters"""
         query = db.query(Objection).filter(Objection.obj_is_deleted.is_(False))
@@ -255,6 +256,23 @@ class ObjectionRepository:
         
         if status:
             query = query.filter(Objection.obj_status == status)
+        
+        # Global search across multiple fields
+        if search:
+            search_pattern = f"%{search}%"
+            query = query.filter(
+                or_(
+                    Objection.vh_trn.ilike(search_pattern),
+                    Objection.ar_trn.ilike(search_pattern),
+                    Objection.dv_trn.ilike(search_pattern),
+                    Objection.bh_regn.ilike(search_pattern),
+                    Objection.sil_regn.ilike(search_pattern),
+                    Objection.dbh_regn.ilike(search_pattern),
+                    Objection.obj_reason.ilike(search_pattern),
+                    Objection.obj_requester_name.ilike(search_pattern),
+                    Objection.form_id.ilike(search_pattern)
+                )
+            )
 
         return (
             query.order_by(Objection.obj_submitted_at.desc())
@@ -273,7 +291,8 @@ class ObjectionRepository:
         bh_regn: Optional[str] = None,
         sil_regn: Optional[str] = None,
         dbh_regn: Optional[str] = None,
-        status: Optional[ObjectionStatus] = None
+        status: Optional[ObjectionStatus] = None,
+        search: Optional[str] = None
     ) -> int:
         """Count objections with filters"""
         query = db.query(Objection).filter(Objection.obj_is_deleted.is_(False))
@@ -298,6 +317,23 @@ class ObjectionRepository:
         
         if status:
             query = query.filter(Objection.obj_status == status)
+        
+        # Global search across multiple fields
+        if search:
+            search_pattern = f"%{search}%"
+            query = query.filter(
+                or_(
+                    Objection.vh_trn.ilike(search_pattern),
+                    Objection.ar_trn.ilike(search_pattern),
+                    Objection.dv_trn.ilike(search_pattern),
+                    Objection.bh_regn.ilike(search_pattern),
+                    Objection.sil_regn.ilike(search_pattern),
+                    Objection.dbh_regn.ilike(search_pattern),
+                    Objection.obj_reason.ilike(search_pattern),
+                    Objection.obj_requester_name.ilike(search_pattern),
+                    Objection.form_id.ilike(search_pattern)
+                )
+            )
 
         return query.count()
 

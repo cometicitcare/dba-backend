@@ -231,7 +231,8 @@ class ObjectionService:
         bh_regn: Optional[str] = None,
         sil_regn: Optional[str] = None,
         dbh_regn: Optional[str] = None,
-        status: Optional[ObjectionStatus] = None
+        status: Optional[ObjectionStatus] = None,
+        search: Optional[str] = None
     ) -> tuple[List[Objection], int]:
         """List objections with filters"""
         objections = self.repository.list(
@@ -244,7 +245,8 @@ class ObjectionService:
             bh_regn=bh_regn,
             sil_regn=sil_regn,
             dbh_regn=dbh_regn,
-            status=status
+            status=status,
+            search=search
         )
         
         total = self.repository.count(
@@ -255,7 +257,8 @@ class ObjectionService:
             bh_regn=bh_regn,
             sil_regn=sil_regn,
             dbh_regn=dbh_regn,
-            status=status
+            status=status,
+            search=search
         )
         
         return objections, total
