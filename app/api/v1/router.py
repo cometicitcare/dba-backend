@@ -43,6 +43,7 @@ from app.api.v1.routes import (
     silmatha_id,
     silmatha_id_card,
     silmatha_regist,
+    temporary_bhikku,
     vihara_data,
 )
 from app.api.v1 import auth_sms_test
@@ -109,6 +110,15 @@ api_router.include_router(
     bhikku_summary.router,
     prefix="/bhikkus-summary",
     tags=["👤 DBA-HRMS: Bhikku Registration"]
+)
+
+# ============================================================================
+# DBA-HRMS: TEMPORARY BHIKKU
+# ============================================================================
+api_router.include_router(
+    temporary_bhikku.router,
+    prefix="/temporary-bhikku",
+    tags=["👤 DBA-HRMS: Temporary Bhikku"]
 )
 
 # ============================================================================

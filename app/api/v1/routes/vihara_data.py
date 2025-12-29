@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File
+from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File, Query
 from pydantic import BaseModel, ValidationError
 from sqlalchemy.orm import Session
 
@@ -21,19 +21,49 @@ from app.utils.http_exceptions import validation_error
 router = APIRouter()  # Tags defined in router.py
 
 
+# =============================================================================
+# MAIN MANAGE ENDPOINT
+# =============================================================================
+
 @router.post("/manage", response_model=ViharaManagementResponse, dependencies=[has_any_permission("vihara:create", "vihara:read", "vihara:update", "vihara:delete")])
 def manage_vihara_records(
     request: ViharaManagementRequest,
     db: Session = Depends(get_db),
     current_user: UserAccount = Depends(get_current_user),
 ):
+    """
+    Main endpoint for managing Vihara records with staged workflow.
+    
+    ## Staged Workflow Overview:
+    
+    ### Stage 1 Flow:
+    1. **SAVE_STAGE_ONE** - Creates/updates basic profile → status: S1_PENDING
+    2. **MARK_S1_PRINTED** - Mark form as printed → status: S1_PRINTING
+    3. Upload document via `/upload-stage1-document` → status: S1_PEND_APPROVAL
+    4. **APPROVE_STAGE_ONE** or **REJECT_STAGE_ONE** → status: S1_APPROVED or S1_REJECTED
+    
+    ### Stage 2 Flow (only after Stage 1 approved):
+    1. **SAVE_STAGE_TWO** - Save assets & certification → status: S2_PENDING
+    2. Upload document via `/upload-stage2-document` → status: S2_PEND_APPROVAL
+    3. **APPROVE_STAGE_TWO** or **REJECT_STAGE_TWO** → status: COMPLETED or REJECTED
+    
+    ## Supported Actions:
+    - SAVE_STAGE_ONE, UPDATE_STAGE_ONE
+    - MARK_S1_PRINTED
+    - APPROVE_STAGE_ONE, REJECT_STAGE_ONE
+    - SAVE_STAGE_TWO, UPDATE_STAGE_TWO
+    - APPROVE_STAGE_TWO, REJECT_STAGE_TWO
+    - CREATE, READ_ONE, READ_ALL, UPDATE, DELETE (legacy)
+    """
     action = request.action
     payload = request.payload
     user_id = current_user.ua_user_id
 
-    # Stage-specific actions for multi-stage data entry
+    # =================================================================
+    # STAGE ONE OPERATIONS
+    # =================================================================
+    
     if action == CRUDAction.SAVE_STAGE_ONE:
-        # Save or create Stage 1: Basic Profile
         vh_id = payload.vh_id
         raw_data = payload.data
         if isinstance(raw_data, BaseModel):
@@ -45,37 +75,13 @@ def manage_vihara_records(
             )
             return ViharaManagementResponse(
                 status="success",
-                message="Stage 1 (Basic Profile) saved successfully.",
-                data=result,
-            )
-        except ValueError as exc:
-            raise validation_error([(None, str(exc))]) from exc
-
-    if action == CRUDAction.SAVE_STAGE_TWO:
-        # Save Stage 2: Assets, Certification & Annex
-        if payload.vh_id is None:
-            raise validation_error(
-                [("payload.vh_id", "vh_id is required for SAVE_STAGE_TWO action. Please save Stage 1 first.")]
-            )
-        
-        raw_data = payload.data
-        if isinstance(raw_data, BaseModel):
-            raw_data = raw_data.model_dump(exclude_unset=True)
-        
-        try:
-            result = vihara_service.save_stage_two(
-                db, vh_id=payload.vh_id, payload_data=raw_data, actor_id=user_id
-            )
-            return ViharaManagementResponse(
-                status="success",
-                message="Stage 2 (Assets & Certification) saved successfully.",
+                message="Stage 1 (Basic Profile) saved. Status: S1_PENDING. Next: Mark as printed.",
                 data=result,
             )
         except ValueError as exc:
             raise validation_error([(None, str(exc))]) from exc
 
     if action == CRUDAction.UPDATE_STAGE_ONE:
-        # Update Stage 1: Basic Profile
         if payload.vh_id is None:
             raise validation_error(
                 [("payload.vh_id", "vh_id is required for UPDATE_STAGE_ONE action")]
@@ -97,8 +103,106 @@ def manage_vihara_records(
         except ValueError as exc:
             raise validation_error([(None, str(exc))]) from exc
 
+    if action == CRUDAction.MARK_S1_PRINTED:
+        if payload.vh_id is None:
+            raise validation_error(
+                [("payload.vh_id", "vh_id is required for MARK_S1_PRINTED action")]
+            )
+        
+        try:
+            result = vihara_service.mark_stage1_printed(
+                db, vh_id=payload.vh_id, actor_id=user_id
+            )
+            return ViharaManagementResponse(
+                status="success",
+                message="Stage 1 form marked as printed. Status: S1_PRINTING. Next: Upload scanned document.",
+                data=result,
+            )
+        except ValueError as exc:
+            message = str(exc)
+            if "not found" in message.lower():
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND, detail=message
+                ) from exc
+            raise validation_error([(None, message)]) from exc
+
+    if action == CRUDAction.APPROVE_STAGE_ONE:
+        if payload.vh_id is None:
+            raise validation_error(
+                [("payload.vh_id", "vh_id is required for APPROVE_STAGE_ONE action")]
+            )
+        
+        try:
+            result = vihara_service.approve_stage_one(
+                db, vh_id=payload.vh_id, actor_id=user_id
+            )
+            return ViharaManagementResponse(
+                status="success",
+                message="Stage 1 approved. Status: S1_APPROVED. Ready for Stage 2 input.",
+                data=result,
+            )
+        except ValueError as exc:
+            message = str(exc)
+            if "not found" in message.lower():
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND, detail=message
+                ) from exc
+            raise validation_error([(None, message)]) from exc
+
+    if action == CRUDAction.REJECT_STAGE_ONE:
+        if payload.vh_id is None:
+            raise validation_error(
+                [("payload.vh_id", "vh_id is required for REJECT_STAGE_ONE action")]
+            )
+        if not payload.rejection_reason:
+            raise validation_error(
+                [("payload.rejection_reason", "Rejection reason is required for REJECT_STAGE_ONE action")]
+            )
+        
+        try:
+            result = vihara_service.reject_stage_one(
+                db, vh_id=payload.vh_id, actor_id=user_id, rejection_reason=payload.rejection_reason
+            )
+            return ViharaManagementResponse(
+                status="success",
+                message="Stage 1 rejected. Status: S1_REJECTED.",
+                data=result,
+            )
+        except ValueError as exc:
+            message = str(exc)
+            if "not found" in message.lower():
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND, detail=message
+                ) from exc
+            raise validation_error([(None, message)]) from exc
+
+    # =================================================================
+    # STAGE TWO OPERATIONS
+    # =================================================================
+    
+    if action == CRUDAction.SAVE_STAGE_TWO:
+        if payload.vh_id is None:
+            raise validation_error(
+                [("payload.vh_id", "vh_id is required for SAVE_STAGE_TWO action. Please complete Stage 1 first.")]
+            )
+        
+        raw_data = payload.data
+        if isinstance(raw_data, BaseModel):
+            raw_data = raw_data.model_dump(exclude_unset=True)
+        
+        try:
+            result = vihara_service.save_stage_two(
+                db, vh_id=payload.vh_id, payload_data=raw_data, actor_id=user_id
+            )
+            return ViharaManagementResponse(
+                status="success",
+                message="Stage 2 (Assets & Certification) saved. Status: S2_PENDING. Next: Upload scanned document.",
+                data=result,
+            )
+        except ValueError as exc:
+            raise validation_error([(None, str(exc))]) from exc
+
     if action == CRUDAction.UPDATE_STAGE_TWO:
-        # Update Stage 2: Assets, Certification & Annex
         if payload.vh_id is None:
             raise validation_error(
                 [("payload.vh_id", "vh_id is required for UPDATE_STAGE_TWO action")]
@@ -120,16 +224,66 @@ def manage_vihara_records(
         except ValueError as exc:
             raise validation_error([(None, str(exc))]) from exc
 
-    if action == CRUDAction.CREATE:
-        # Try camelCase first, then fall back to snake_case
-        create_payload = None
+    if action == CRUDAction.APPROVE_STAGE_TWO:
+        if payload.vh_id is None:
+            raise validation_error(
+                [("payload.vh_id", "vh_id is required for APPROVE_STAGE_TWO action")]
+            )
         
-        # Convert to dict if it's a BaseModel
+        try:
+            result = vihara_service.approve_stage_two(
+                db, vh_id=payload.vh_id, actor_id=user_id
+            )
+            return ViharaManagementResponse(
+                status="success",
+                message="Stage 2 approved. Vihara registration COMPLETED!",
+                data=result,
+            )
+        except ValueError as exc:
+            message = str(exc)
+            if "not found" in message.lower():
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND, detail=message
+                ) from exc
+            raise validation_error([(None, message)]) from exc
+
+    if action == CRUDAction.REJECT_STAGE_TWO:
+        if payload.vh_id is None:
+            raise validation_error(
+                [("payload.vh_id", "vh_id is required for REJECT_STAGE_TWO action")]
+            )
+        if not payload.rejection_reason:
+            raise validation_error(
+                [("payload.rejection_reason", "Rejection reason is required for REJECT_STAGE_TWO action")]
+            )
+        
+        try:
+            result = vihara_service.reject_stage_two(
+                db, vh_id=payload.vh_id, actor_id=user_id, rejection_reason=payload.rejection_reason
+            )
+            return ViharaManagementResponse(
+                status="success",
+                message="Stage 2 rejected. Status: REJECTED.",
+                data=result,
+            )
+        except ValueError as exc:
+            message = str(exc)
+            if "not found" in message.lower():
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND, detail=message
+                ) from exc
+            raise validation_error([(None, message)]) from exc
+
+    # =================================================================
+    # LEGACY / CRUD OPERATIONS
+    # =================================================================
+
+    if action == CRUDAction.CREATE:
+        create_payload = None
         raw_data = payload.data
         if isinstance(raw_data, BaseModel):
             raw_data = raw_data.model_dump(exclude_unset=True)
         
-        # Check if payload has camelCase keys
         if isinstance(raw_data, dict):
             has_camelcase = any(key in raw_data for key in ["temple_name", "telephone_number", "whatsapp_number", "email_address", "temple_type", "owner_code"])
             
@@ -141,7 +295,6 @@ def manage_vihara_records(
                         prefix="payload.data",
                     )
                 except Exception:
-                    # If camelCase validation fails, raise the error
                     raise
         
         if create_payload is None:
@@ -196,7 +349,6 @@ def manage_vihara_records(
             search = None
         skip = payload.skip if payload.page is None else (page - 1) * limit
 
-        # Extract all filter parameters from payload
         filters = {
             "skip": skip,
             "limit": limit,
@@ -281,6 +433,7 @@ def manage_vihara_records(
                 status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)
             ) from exc
 
+    # Legacy approval actions (for backward compatibility)
     if action == CRUDAction.APPROVE:
         if payload.vh_id is None:
             raise validation_error(
@@ -383,6 +536,339 @@ def manage_vihara_records(
     raise validation_error([("action", "Invalid action specified")])
 
 
+# =============================================================================
+# STAGE 1 DOCUMENT UPLOAD ENDPOINT
+# =============================================================================
+
+@router.post(
+    "/{vh_id}/upload-stage1-document",
+    response_model=ViharaManagementResponse,
+    dependencies=[has_any_permission("vihara:update")],
+)
+async def upload_stage1_document(
+    vh_id: int,
+    file: UploadFile = File(..., description="Scanned Stage 1 document file (max 5MB, PDF, JPG, PNG)"),
+    db: Session = Depends(get_db),
+    current_user: UserAccount = Depends(get_current_user),
+):
+    """
+    Upload a scanned document for Stage 1.
+    
+    **Workflow Transition:** S1_PRINTING → S1_PEND_APPROVAL
+    
+    This endpoint is used after the Stage 1 form has been printed and scanned.
+    Upon successful upload, the workflow status automatically changes to S1_PEND_APPROVAL.
+    
+    **Requirements:**
+    - Maximum file size: 5MB
+    - Allowed formats: PDF, JPG, JPEG, PNG
+    - Current workflow status must be S1_PRINTING
+    
+    **Example Usage:**
+    ```
+    POST /api/v1/vihara-data/{vh_id}/upload-stage1-document
+    Content-Type: multipart/form-data
+    Body: file=@scanned_document.pdf
+    ```
+    """
+    username = current_user.ua_user_id if current_user else None
+    
+    try:
+        MAX_FILE_SIZE = 5 * 1024 * 1024  # 5MB
+        file_content = await file.read()
+        file_size = len(file_content)
+        
+        if file_size > MAX_FILE_SIZE:
+            raise HTTPException(
+                status_code=400,
+                detail=f"File size ({file_size / 1024 / 1024:.2f}MB) exceeds maximum allowed size (5MB)"
+            )
+        
+        await file.seek(0)
+        
+        updated_vihara = await vihara_service.upload_stage1_document(
+            db, vh_id=vh_id, file=file, actor_id=username
+        )
+        
+        return ViharaManagementResponse(
+            status="success",
+            message="Stage 1 document uploaded. Status: S1_PEND_APPROVAL. Next: Approve or reject Stage 1.",
+            data=updated_vihara,
+        )
+        
+    except ValueError as exc:
+        message = str(exc)
+        if "not found" in message.lower():
+            raise HTTPException(status_code=404, detail=message) from exc
+        raise HTTPException(status_code=400, detail=message) from exc
+    except RuntimeError as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+
+# =============================================================================
+# STAGE 2 DOCUMENT UPLOAD ENDPOINT
+# =============================================================================
+
+@router.post(
+    "/{vh_id}/upload-stage2-document",
+    response_model=ViharaManagementResponse,
+    dependencies=[has_any_permission("vihara:update")],
+)
+async def upload_stage2_document(
+    vh_id: int,
+    file: UploadFile = File(..., description="Scanned Stage 2 document file (max 5MB, PDF, JPG, PNG)"),
+    db: Session = Depends(get_db),
+    current_user: UserAccount = Depends(get_current_user),
+):
+    """
+    Upload a scanned document for Stage 2.
+    
+    **Workflow Transition:** S2_PENDING → S2_PEND_APPROVAL
+    
+    This endpoint is used after Stage 2 data has been saved and the document scanned.
+    Upon successful upload, the workflow status automatically changes to S2_PEND_APPROVAL.
+    
+    **Requirements:**
+    - Maximum file size: 5MB
+    - Allowed formats: PDF, JPG, JPEG, PNG
+    - Current workflow status must be S2_PENDING
+    
+    **Example Usage:**
+    ```
+    POST /api/v1/vihara-data/{vh_id}/upload-stage2-document
+    Content-Type: multipart/form-data
+    Body: file=@scanned_document.pdf
+    ```
+    """
+    username = current_user.ua_user_id if current_user else None
+    
+    try:
+        MAX_FILE_SIZE = 5 * 1024 * 1024  # 5MB
+        file_content = await file.read()
+        file_size = len(file_content)
+        
+        if file_size > MAX_FILE_SIZE:
+            raise HTTPException(
+                status_code=400,
+                detail=f"File size ({file_size / 1024 / 1024:.2f}MB) exceeds maximum allowed size (5MB)"
+            )
+        
+        await file.seek(0)
+        
+        updated_vihara = await vihara_service.upload_stage2_document(
+            db, vh_id=vh_id, file=file, actor_id=username
+        )
+        
+        return ViharaManagementResponse(
+            status="success",
+            message="Stage 2 document uploaded. Status: S2_PEND_APPROVAL. Next: Approve or reject Stage 2.",
+            data=updated_vihara,
+        )
+        
+    except ValueError as exc:
+        message = str(exc)
+        if "not found" in message.lower():
+            raise HTTPException(status_code=404, detail=message) from exc
+        raise HTTPException(status_code=400, detail=message) from exc
+    except RuntimeError as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+
+# =============================================================================
+# LEGACY DOCUMENT UPLOAD ENDPOINT (kept for backward compatibility)
+# =============================================================================
+
+@router.post(
+    "/{vh_id}/upload-scanned-document",
+    response_model=ViharaManagementResponse,
+    dependencies=[has_any_permission("vihara:update")],
+)
+async def upload_scanned_document(
+    vh_id: int,
+    file: UploadFile = File(..., description="Scanned document file (max 5MB, PDF, JPG, PNG)"),
+    db: Session = Depends(get_db),
+    current_user: UserAccount = Depends(get_current_user),
+):
+    """
+    Legacy endpoint for uploading scanned documents.
+    
+    **DEPRECATED:** Use `/upload-stage1-document` or `/upload-stage2-document` instead.
+    
+    This endpoint is kept for backward compatibility and will route to the appropriate
+    stage upload based on the current workflow status.
+    """
+    username = current_user.ua_user_id if current_user else None
+    
+    try:
+        MAX_FILE_SIZE = 5 * 1024 * 1024  # 5MB
+        file_content = await file.read()
+        file_size = len(file_content)
+        
+        if file_size > MAX_FILE_SIZE:
+            raise HTTPException(
+                status_code=400,
+                detail=f"File size ({file_size / 1024 / 1024:.2f}MB) exceeds maximum allowed size (5MB)"
+            )
+        
+        await file.seek(0)
+        
+        updated_vihara = await vihara_service.upload_scanned_document(
+            db, vh_id=vh_id, file=file, actor_id=username
+        )
+        
+        return ViharaManagementResponse(
+            status="success",
+            message="Scanned document uploaded successfully.",
+            data=updated_vihara,
+        )
+        
+    except ValueError as exc:
+        message = str(exc)
+        if "not found" in message.lower():
+            raise HTTPException(status_code=404, detail=message) from exc
+        raise HTTPException(status_code=400, detail=message) from exc
+    except RuntimeError as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+
+# =============================================================================
+# STANDALONE APPROVAL ENDPOINTS
+# =============================================================================
+
+@router.post(
+    "/{vh_id}/approve-stage1",
+    response_model=ViharaManagementResponse,
+    dependencies=[has_any_permission("vihara:update", "vihara:approve")],
+)
+def approve_stage1(
+    vh_id: int,
+    db: Session = Depends(get_db),
+    current_user: UserAccount = Depends(get_current_user),
+):
+    """
+    Approve Stage 1 of vihara registration.
+    
+    **Workflow Transition:** S1_PEND_APPROVAL → S1_APPROVED
+    
+    After approval, Stage 2 input becomes available.
+    """
+    try:
+        result = vihara_service.approve_stage_one(
+            db, vh_id=vh_id, actor_id=current_user.ua_user_id
+        )
+        return ViharaManagementResponse(
+            status="success",
+            message="Stage 1 approved. Ready for Stage 2 input.",
+            data=result,
+        )
+    except ValueError as exc:
+        message = str(exc)
+        if "not found" in message.lower():
+            raise HTTPException(status_code=404, detail=message) from exc
+        raise HTTPException(status_code=400, detail=message) from exc
+
+
+@router.post(
+    "/{vh_id}/reject-stage1",
+    response_model=ViharaManagementResponse,
+    dependencies=[has_any_permission("vihara:update", "vihara:approve")],
+)
+def reject_stage1(
+    vh_id: int,
+    rejection_reason: str = Query(..., description="Reason for rejection"),
+    db: Session = Depends(get_db),
+    current_user: UserAccount = Depends(get_current_user),
+):
+    """
+    Reject Stage 1 of vihara registration.
+    
+    **Workflow Transition:** S1_PEND_APPROVAL → S1_REJECTED
+    """
+    try:
+        result = vihara_service.reject_stage_one(
+            db, vh_id=vh_id, actor_id=current_user.ua_user_id, rejection_reason=rejection_reason
+        )
+        return ViharaManagementResponse(
+            status="success",
+            message="Stage 1 rejected.",
+            data=result,
+        )
+    except ValueError as exc:
+        message = str(exc)
+        if "not found" in message.lower():
+            raise HTTPException(status_code=404, detail=message) from exc
+        raise HTTPException(status_code=400, detail=message) from exc
+
+
+@router.post(
+    "/{vh_id}/approve-stage2",
+    response_model=ViharaManagementResponse,
+    dependencies=[has_any_permission("vihara:update", "vihara:approve")],
+)
+def approve_stage2(
+    vh_id: int,
+    db: Session = Depends(get_db),
+    current_user: UserAccount = Depends(get_current_user),
+):
+    """
+    Approve Stage 2 of vihara registration.
+    
+    **Workflow Transition:** S2_PEND_APPROVAL → COMPLETED
+    
+    This is the final approval step. Vihara registration is now complete.
+    """
+    try:
+        result = vihara_service.approve_stage_two(
+            db, vh_id=vh_id, actor_id=current_user.ua_user_id
+        )
+        return ViharaManagementResponse(
+            status="success",
+            message="Vihara registration completed!",
+            data=result,
+        )
+    except ValueError as exc:
+        message = str(exc)
+        if "not found" in message.lower():
+            raise HTTPException(status_code=404, detail=message) from exc
+        raise HTTPException(status_code=400, detail=message) from exc
+
+
+@router.post(
+    "/{vh_id}/reject-stage2",
+    response_model=ViharaManagementResponse,
+    dependencies=[has_any_permission("vihara:update", "vihara:approve")],
+)
+def reject_stage2(
+    vh_id: int,
+    rejection_reason: str = Query(..., description="Reason for rejection"),
+    db: Session = Depends(get_db),
+    current_user: UserAccount = Depends(get_current_user),
+):
+    """
+    Reject Stage 2 of vihara registration.
+    
+    **Workflow Transition:** S2_PEND_APPROVAL → REJECTED
+    """
+    try:
+        result = vihara_service.reject_stage_two(
+            db, vh_id=vh_id, actor_id=current_user.ua_user_id, rejection_reason=rejection_reason
+        )
+        return ViharaManagementResponse(
+            status="success",
+            message="Stage 2 rejected.",
+            data=result,
+        )
+    except ValueError as exc:
+        message = str(exc)
+        if "not found" in message.lower():
+            raise HTTPException(status_code=404, detail=message) from exc
+        raise HTTPException(status_code=400, detail=message) from exc
+
+
+# =============================================================================
+# HELPER FUNCTIONS
+# =============================================================================
+
 def _build_pydantic_errors(
     exc: ValidationError,
     *,
@@ -424,92 +910,3 @@ def _coerce_payload(
     raise validation_error(
         [(prefix, f"Expected object compatible with {target.__name__}")],
     )
-
-
-@router.post(
-    "/{vh_id}/upload-scanned-document",
-    response_model=ViharaManagementResponse,
-    dependencies=[has_any_permission("vihara:update")],
-)
-async def upload_scanned_document(
-    vh_id: int,
-    file: UploadFile = File(..., description="Scanned document file (max 5MB, PDF, JPG, PNG)"),
-    db: Session = Depends(get_db),
-    current_user: UserAccount = Depends(get_current_user),
-):
-    """
-    Upload a scanned document for a Vihara record.
-    
-    **NEW BEHAVIOR**: Automatically changes workflow status from PRINTED → PEND-APPROVAL when document is uploaded.
-    
-    This endpoint allows uploading a scanned document (up to 5MB) for a specific vihara.
-    The file will be stored at: `app/storage/vihara_data/<year>/<month>/<day>/<vh_trn>/scanned_document_*.ext`
-    
-    **Requirements:**
-    - Maximum file size: 5MB
-    - Allowed formats: PDF, JPG, JPEG, PNG
-    - Current workflow status must be PRINTED
-    - Requires: vihara:update permission
-    
-    **Auto-Workflow Transition:**
-    - Status automatically changes from PRINTED → PEND-APPROVAL
-    - Sets vh_scanned_by and vh_scanned_at fields
-    - Eliminates need for separate MARK_SCANNED action
-    
-    **Path Parameters:**
-    - vh_id: Vihara ID (e.g., 5)
-    
-    **Form Data:**
-    - file: The scanned document file to upload
-    
-    **Response:**
-    Returns the updated Vihara record with:
-    - vh_scanned_document_path: File path stored  
-    - vh_workflow_status: "PEND-APPROVAL" (automatically set)
-    - vh_scanned_by: User who uploaded
-    - vh_scanned_at: Upload timestamp
-    
-    **Example Usage (Postman):**
-    1. Method: POST
-    2. URL: {{base_url}}/api/v1/vihara-data/5/upload-scanned-document
-    3. Headers: Authorization: Bearer <token>
-    4. Body: form-data
-       - file: (select file)
-    """
-    username = current_user.ua_user_id if current_user else None
-    
-    try:
-        # Validate file size (5MB = 5 * 1024 * 1024 bytes)
-        MAX_FILE_SIZE = 5 * 1024 * 1024  # 5MB
-        
-        # Read file content to check size
-        file_content = await file.read()
-        file_size = len(file_content)
-        
-        if file_size > MAX_FILE_SIZE:
-            raise HTTPException(
-                status_code=400,
-                detail=f"File size ({file_size / 1024 / 1024:.2f}MB) exceeds maximum allowed size (5MB)"
-            )
-        
-        # Reset file pointer for later processing
-        await file.seek(0)
-        
-        # Upload the file and update the vihara record
-        updated_vihara = await vihara_service.upload_scanned_document(
-            db, vh_id=vh_id, file=file, actor_id=username
-        )
-        
-        return ViharaManagementResponse(
-            status="success",
-            message="Scanned document uploaded successfully. Status automatically changed to PEND-APPROVAL.",
-            data=updated_vihara,
-        )
-        
-    except ValueError as exc:
-        message = str(exc)
-        if "not found" in message.lower():
-            raise HTTPException(status_code=404, detail=message) from exc
-        raise HTTPException(status_code=400, detail=message) from exc
-    except RuntimeError as exc:
-        raise HTTPException(status_code=500, detail=str(exc)) from exc

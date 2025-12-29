@@ -11,15 +11,473 @@ from app.schemas.vihara import ViharaCreate, ViharaCreatePayload, ViharaUpdate
 
 
 class ViharaService:
-    """Business logic layer for vihara data."""
+    """
+    Business logic layer for vihara data with staged workflow.
+    
+    Workflow States:
+    - S1_PENDING: Stage 1 data saved, waiting for printing
+    - S1_PRINTING: Stage 1 form printed, waiting for scan upload
+    - S1_PEND_APPROVAL: Stage 1 document uploaded, waiting for approval
+    - S1_APPROVED: Stage 1 approved, ready for Stage 2
+    - S1_REJECTED: Stage 1 rejected
+    - S2_PENDING: Stage 2 data saved, waiting for scan upload
+    - S2_PEND_APPROVAL: Stage 2 document uploaded, waiting for approval
+    - COMPLETED: Both stages approved, registration complete
+    - REJECTED: Final rejection
+    """
 
     def __init__(self) -> None:
         self._fk_targets: Optional[dict[str, tuple[Optional[str], str, str]]] = None
 
+    # =================================================================
+    # STAGE ONE METHODS
+    # =================================================================
+    
+    def save_stage_one(
+        self, db: Session, *, payload_data: dict, actor_id: Optional[str], vh_id: Optional[int] = None
+    ) -> ViharaData:
+        """
+        Save or create Stage 1: Basic Profile (steps 1–4)
+        Creates new record with status S1_PENDING or updates existing.
+        """
+        from app.schemas.vihara import ViharaCreate
+        
+        now = datetime.utcnow()
+        
+        if vh_id:
+            # Update existing record - stage one fields only
+            entity = vihara_repo.get(db, vh_id)
+            if not entity:
+                raise ValueError("Vihara record not found.")
+            
+            # Only allow updates in S1_PENDING or S1_REJECTED status
+            if entity.vh_workflow_status not in ["S1_PENDING", "S1_REJECTED", "PENDING"]:
+                raise ValueError(f"Cannot update Stage 1 when status is {entity.vh_workflow_status}. Must be S1_PENDING or S1_REJECTED.")
+            
+            # Only update stage one fields
+            for key, value in payload_data.items():
+                if hasattr(entity, key):
+                    setattr(entity, key, value)
+            
+            entity.vh_updated_by = actor_id
+            entity.vh_updated_at = now
+            entity.vh_workflow_status = "S1_PENDING"  # Reset to pending on update
+            db.commit()
+            db.refresh(entity)
+            return entity
+        else:
+            # Create new draft record
+            # Validate contact fields
+            vh_mobile = payload_data.get("vh_mobile")
+            vh_whtapp = payload_data.get("vh_whtapp")
+            vh_email = payload_data.get("vh_email")
+            
+            contact_fields = (
+                ("vh_mobile", vh_mobile, vihara_repo.get_by_mobile),
+                ("vh_whtapp", vh_whtapp, vihara_repo.get_by_whtapp),
+                ("vh_email", vh_email, vihara_repo.get_by_email),
+            )
+            for field_name, value, getter in contact_fields:
+                if value and getter(db, value):
+                    raise ValueError(f"{field_name} '{value}' is already registered.")
+            
+            payload_data["vh_created_by"] = actor_id
+            payload_data["vh_updated_by"] = actor_id
+            payload_data["vh_created_at"] = now
+            payload_data["vh_updated_at"] = now
+            payload_data["vh_is_deleted"] = False
+            payload_data["vh_version_number"] = 1
+            payload_data["vh_workflow_status"] = "S1_PENDING"  # New staged workflow status
+            payload_data.pop("vh_trn", None)
+            payload_data.pop("vh_id", None)
+            
+            # Set default values for required fields that are not in Stage 1
+            payload_data.setdefault("temple_owned_land", [])
+            payload_data.setdefault("resident_bhikkhus", [])
+            
+            self._validate_foreign_keys(db, payload_data)
+            enriched_payload = ViharaCreate(**payload_data)
+            return vihara_repo.create(db, data=enriched_payload)
+
+    def mark_stage1_printed(
+        self,
+        db: Session,
+        *,
+        vh_id: int,
+        actor_id: Optional[str],
+    ) -> ViharaData:
+        """
+        Mark Stage 1 form as printed.
+        Workflow: S1_PENDING → S1_PRINTING
+        """
+        entity = vihara_repo.get(db, vh_id)
+        if not entity:
+            raise ValueError("Vihara record not found.")
+        
+        if entity.vh_workflow_status not in ["S1_PENDING", "PENDING"]:
+            raise ValueError(f"Cannot mark as printed. Current status: {entity.vh_workflow_status}. Must be S1_PENDING.")
+        
+        entity.vh_workflow_status = "S1_PRINTING"
+        entity.vh_s1_printed_by = actor_id
+        entity.vh_s1_printed_at = datetime.utcnow()
+        entity.vh_printed_by = actor_id  # Legacy field
+        entity.vh_printed_at = datetime.utcnow()  # Legacy field
+        entity.vh_updated_by = actor_id
+        entity.vh_updated_at = datetime.utcnow()
+        entity.vh_version_number = (entity.vh_version_number or 1) + 1
+        
+        db.commit()
+        db.refresh(entity)
+        return entity
+
+    async def upload_stage1_document(
+        self,
+        db: Session,
+        *,
+        vh_id: int,
+        file,
+        actor_id: Optional[str],
+    ) -> ViharaData:
+        """
+        Upload scanned Stage 1 document.
+        Workflow: S1_PRINTING → S1_PEND_APPROVAL
+        """
+        from pathlib import Path
+        from app.utils.file_storage import file_storage_service
+        
+        entity = vihara_repo.get(db, vh_id)
+        if not entity:
+            raise ValueError(f"Vihara with ID '{vh_id}' not found.")
+        
+        if entity.vh_workflow_status not in ["S1_PRINTING", "PRINTED"]:
+            raise ValueError(f"Cannot upload Stage 1 document. Current status: {entity.vh_workflow_status}. Must be S1_PRINTING.")
+        
+        # Archive old file if exists
+        if entity.vh_scanned_document_path:
+            await self._archive_old_file(entity.vh_scanned_document_path)
+        
+        # Save new file
+        relative_path, _ = await file_storage_service.save_file(
+            file,
+            entity.vh_trn,
+            "stage1_document",
+            subdirectory="vihara_data"
+        )
+        
+        # Update record
+        entity.vh_scanned_document_path = relative_path
+        entity.vh_workflow_status = "S1_PEND_APPROVAL"
+        entity.vh_s1_scanned_by = actor_id
+        entity.vh_s1_scanned_at = datetime.utcnow()
+        entity.vh_scanned_by = actor_id  # Legacy field
+        entity.vh_scanned_at = datetime.utcnow()  # Legacy field
+        entity.vh_updated_by = actor_id
+        entity.vh_updated_at = datetime.utcnow()
+        entity.vh_version_number = (entity.vh_version_number or 1) + 1
+        
+        db.commit()
+        db.refresh(entity)
+        return entity
+
+    def approve_stage_one(
+        self,
+        db: Session,
+        *,
+        vh_id: int,
+        actor_id: Optional[str],
+    ) -> ViharaData:
+        """
+        Approve Stage 1.
+        Workflow: S1_PEND_APPROVAL → S1_APPROVED
+        """
+        entity = vihara_repo.get(db, vh_id)
+        if not entity:
+            raise ValueError("Vihara record not found.")
+        
+        if entity.vh_workflow_status != "S1_PEND_APPROVAL":
+            raise ValueError(f"Cannot approve Stage 1. Current status: {entity.vh_workflow_status}. Must be S1_PEND_APPROVAL.")
+        
+        entity.vh_workflow_status = "S1_APPROVED"
+        entity.vh_s1_approved_by = actor_id
+        entity.vh_s1_approved_at = datetime.utcnow()
+        entity.vh_updated_by = actor_id
+        entity.vh_updated_at = datetime.utcnow()
+        entity.vh_version_number = (entity.vh_version_number or 1) + 1
+        
+        db.commit()
+        db.refresh(entity)
+        return entity
+
+    def reject_stage_one(
+        self,
+        db: Session,
+        *,
+        vh_id: int,
+        actor_id: Optional[str],
+        rejection_reason: Optional[str] = None,
+    ) -> ViharaData:
+        """
+        Reject Stage 1.
+        Workflow: S1_PEND_APPROVAL → S1_REJECTED
+        """
+        entity = vihara_repo.get(db, vh_id)
+        if not entity:
+            raise ValueError("Vihara record not found.")
+        
+        if entity.vh_workflow_status != "S1_PEND_APPROVAL":
+            raise ValueError(f"Cannot reject Stage 1. Current status: {entity.vh_workflow_status}. Must be S1_PEND_APPROVAL.")
+        
+        entity.vh_workflow_status = "S1_REJECTED"
+        entity.vh_s1_rejected_by = actor_id
+        entity.vh_s1_rejected_at = datetime.utcnow()
+        entity.vh_s1_rejection_reason = rejection_reason
+        entity.vh_updated_by = actor_id
+        entity.vh_updated_at = datetime.utcnow()
+        entity.vh_version_number = (entity.vh_version_number or 1) + 1
+        
+        db.commit()
+        db.refresh(entity)
+        return entity
+
+    # =================================================================
+    # STAGE TWO METHODS
+    # =================================================================
+    
+    def save_stage_two(
+        self, db: Session, *, vh_id: int, payload_data: dict, actor_id: Optional[str]
+    ) -> ViharaData:
+        """
+        Save Stage 2: Assets, Certification & Annex (steps 5–10)
+        Requires vh_id from stage one. Must be in S1_APPROVED status.
+        """
+        entity = vihara_repo.get(db, vh_id)
+        if not entity:
+            raise ValueError("Vihara record not found. Please save Stage 1 first.")
+        
+        # Only allow stage 2 after stage 1 is approved (or in S2 statuses for updates)
+        allowed_statuses = ["S1_APPROVED", "S2_PENDING", "S2_PEND_APPROVAL"]
+        if entity.vh_workflow_status not in allowed_statuses:
+            raise ValueError(f"Cannot save Stage 2. Current status: {entity.vh_workflow_status}. Stage 1 must be approved first.")
+        
+        now = datetime.utcnow()
+        
+        # Extract nested data
+        temple_lands = payload_data.pop("temple_owned_land", [])
+        resident_bhikkhus = payload_data.pop("resident_bhikkhus", [])
+        
+        # Update stage two fields
+        for key, value in payload_data.items():
+            if hasattr(entity, key):
+                setattr(entity, key, value)
+        
+        entity.vh_workflow_status = "S2_PENDING"
+        entity.vh_updated_by = actor_id
+        entity.vh_updated_at = now
+        
+        # Handle nested relationships - use ViharaLand (not TempleLand)
+        if temple_lands:
+            entity.vihara_lands = []
+            for land_data in temple_lands:
+                from app.models.vihara_land import ViharaLand
+                land_data.pop('id', None)
+                land_data.pop('vh_id', None)
+                
+                snake_case_land = {
+                    'serial_number': land_data.get('serialNumber', land_data.get('serial_number')),
+                    'land_name': land_data.get('landName', land_data.get('land_name')),
+                    'village': land_data.get('village'),
+                    'district': land_data.get('district'),
+                    'extent': land_data.get('extent'),
+                    'cultivation_description': land_data.get('cultivationDescription', land_data.get('cultivation_description')),
+                    'ownership_nature': land_data.get('ownershipNature', land_data.get('ownership_nature')),
+                    'deed_number': land_data.get('deedNumber', land_data.get('deed_number')),
+                    'title_registration_number': land_data.get('titleRegistrationNumber', land_data.get('title_registration_number')),
+                    'tax_details': land_data.get('taxDetails', land_data.get('tax_details')),
+                    'land_occupants': land_data.get('landOccupants', land_data.get('land_occupants')),
+                }
+                snake_case_land = {k: v for k, v in snake_case_land.items() if v is not None}
+                land = ViharaLand(vh_id=vh_id, **snake_case_land)
+                entity.vihara_lands.append(land)
+        
+        if resident_bhikkhus:
+            entity.resident_bhikkhus = []
+            for bhikkhu_data in resident_bhikkhus:
+                from app.models.resident_bhikkhu import ResidentBhikkhu
+                bhikkhu_data.pop('id', None)
+                bhikkhu_data.pop('vh_id', None)
+                
+                snake_case_bhikkhu = {
+                    'serial_number': bhikkhu_data.get('serialNumber', bhikkhu_data.get('serial_number')),
+                    'bhikkhu_name': bhikkhu_data.get('bhikkhuName', bhikkhu_data.get('bhikkhu_name')),
+                    'registration_number': bhikkhu_data.get('registrationNumber', bhikkhu_data.get('registration_number')),
+                    'occupation_education': bhikkhu_data.get('occupationEducation', bhikkhu_data.get('occupation_education')),
+                }
+                snake_case_bhikkhu = {k: v for k, v in snake_case_bhikkhu.items() if v is not None}
+                bhikkhu = ResidentBhikkhu(vh_id=vh_id, **snake_case_bhikkhu)
+                entity.resident_bhikkhus.append(bhikkhu)
+        
+        db.commit()
+        db.refresh(entity)
+        return entity
+
+    async def upload_stage2_document(
+        self,
+        db: Session,
+        *,
+        vh_id: int,
+        file,
+        actor_id: Optional[str],
+    ) -> ViharaData:
+        """
+        Upload scanned Stage 2 document.
+        Workflow: S2_PENDING → S2_PEND_APPROVAL
+        """
+        from app.utils.file_storage import file_storage_service
+        
+        entity = vihara_repo.get(db, vh_id)
+        if not entity:
+            raise ValueError(f"Vihara with ID '{vh_id}' not found.")
+        
+        if entity.vh_workflow_status != "S2_PENDING":
+            raise ValueError(f"Cannot upload Stage 2 document. Current status: {entity.vh_workflow_status}. Must be S2_PENDING.")
+        
+        # Archive old stage2 file if exists
+        if entity.vh_stage2_document_path:
+            await self._archive_old_file(entity.vh_stage2_document_path)
+        
+        # Save new file
+        relative_path, _ = await file_storage_service.save_file(
+            file,
+            entity.vh_trn,
+            "stage2_document",
+            subdirectory="vihara_data"
+        )
+        
+        # Update record
+        entity.vh_stage2_document_path = relative_path
+        entity.vh_workflow_status = "S2_PEND_APPROVAL"
+        entity.vh_s2_scanned_by = actor_id
+        entity.vh_s2_scanned_at = datetime.utcnow()
+        entity.vh_updated_by = actor_id
+        entity.vh_updated_at = datetime.utcnow()
+        entity.vh_version_number = (entity.vh_version_number or 1) + 1
+        
+        db.commit()
+        db.refresh(entity)
+        return entity
+
+    def approve_stage_two(
+        self,
+        db: Session,
+        *,
+        vh_id: int,
+        actor_id: Optional[str],
+    ) -> ViharaData:
+        """
+        Approve Stage 2 (final approval).
+        Workflow: S2_PEND_APPROVAL → COMPLETED
+        """
+        entity = vihara_repo.get(db, vh_id)
+        if not entity:
+            raise ValueError("Vihara record not found.")
+        
+        if entity.vh_workflow_status != "S2_PEND_APPROVAL":
+            raise ValueError(f"Cannot approve Stage 2. Current status: {entity.vh_workflow_status}. Must be S2_PEND_APPROVAL.")
+        
+        entity.vh_workflow_status = "COMPLETED"
+        entity.vh_approval_status = "APPROVED"
+        entity.vh_s2_approved_by = actor_id
+        entity.vh_s2_approved_at = datetime.utcnow()
+        entity.vh_approved_by = actor_id  # Legacy field
+        entity.vh_approved_at = datetime.utcnow()  # Legacy field
+        entity.vh_updated_by = actor_id
+        entity.vh_updated_at = datetime.utcnow()
+        entity.vh_version_number = (entity.vh_version_number or 1) + 1
+        
+        db.commit()
+        db.refresh(entity)
+        return entity
+
+    def reject_stage_two(
+        self,
+        db: Session,
+        *,
+        vh_id: int,
+        actor_id: Optional[str],
+        rejection_reason: Optional[str] = None,
+    ) -> ViharaData:
+        """
+        Reject Stage 2.
+        Workflow: S2_PEND_APPROVAL → REJECTED
+        """
+        entity = vihara_repo.get(db, vh_id)
+        if not entity:
+            raise ValueError("Vihara record not found.")
+        
+        if entity.vh_workflow_status != "S2_PEND_APPROVAL":
+            raise ValueError(f"Cannot reject Stage 2. Current status: {entity.vh_workflow_status}. Must be S2_PEND_APPROVAL.")
+        
+        entity.vh_workflow_status = "REJECTED"
+        entity.vh_approval_status = "REJECTED"
+        entity.vh_s2_rejected_by = actor_id
+        entity.vh_s2_rejected_at = datetime.utcnow()
+        entity.vh_s2_rejection_reason = rejection_reason
+        entity.vh_rejected_by = actor_id  # Legacy field
+        entity.vh_rejected_at = datetime.utcnow()  # Legacy field
+        entity.vh_rejection_reason = rejection_reason  # Legacy field
+        entity.vh_updated_by = actor_id
+        entity.vh_updated_at = datetime.utcnow()
+        entity.vh_version_number = (entity.vh_version_number or 1) + 1
+        
+        db.commit()
+        db.refresh(entity)
+        return entity
+
+    # =================================================================
+    # HELPER METHOD FOR FILE ARCHIVING
+    # =================================================================
+    
+    async def _archive_old_file(self, old_file_path: str) -> None:
+        """Archive old file with version suffix instead of deleting"""
+        from pathlib import Path
+        from app.utils.file_storage import file_storage_service
+        
+        clean_path = old_file_path
+        if clean_path.startswith("/storage/"):
+            clean_path = clean_path[9:]
+        
+        path_obj = Path(clean_path)
+        file_dir = path_obj.parent
+        file_stem = path_obj.stem
+        file_ext = path_obj.suffix
+        
+        storage_dir = Path("app/storage") / file_dir
+        max_version = 0
+        
+        if storage_dir.exists():
+            for existing_file in storage_dir.glob("*_v*" + file_ext):
+                version_match = existing_file.stem.rsplit("_v", 1)
+                if len(version_match) == 2 and version_match[1].isdigit():
+                    version_num = int(version_match[1])
+                    max_version = max(max_version, version_num)
+        
+        next_version = max_version + 1
+        versioned_name = f"{file_stem}_v{next_version}{file_ext}"
+        versioned_relative_path = str(file_dir / versioned_name)
+        
+        try:
+            file_storage_service.rename_file(old_file_path, versioned_relative_path)
+        except Exception as e:
+            print(f"Warning: Could not rename old file {old_file_path}: {e}")
+
+    # =================================================================
+    # LEGACY METHODS (kept for backward compatibility)
+    # =================================================================
+
     def create_vihara(
         self, db: Session, *, payload: ViharaCreate | ViharaCreatePayload, actor_id: Optional[str]
     ) -> ViharaData:
-        # Convert camelCase payload to snake_case if it's ViharaCreatePayload
+        """Legacy create method - creates with S1_PENDING status"""
         if isinstance(payload, ViharaCreatePayload):
             payload_dict = {
                 "vh_vname": payload.temple_name,
@@ -70,7 +528,6 @@ class ViharaService:
         else:
             payload_dict = payload.model_dump(exclude_unset=True)
         
-        # Validate contact fields
         vh_mobile = payload_dict.get("vh_mobile")
         vh_whtapp = payload_dict.get("vh_whtapp")
         vh_email = payload_dict.get("vh_email")
@@ -89,18 +546,13 @@ class ViharaService:
         payload_dict.pop("vh_id", None)
         payload_dict.pop("vh_version_number", None)
         
-        # Keep nested data for repository to handle
-        temple_lands = payload_dict.get("temple_owned_land", [])
-        resident_bhikkhus = payload_dict.get("resident_bhikkhus", [])
-        
         payload_dict["vh_created_by"] = actor_id
         payload_dict["vh_updated_by"] = actor_id
         payload_dict.setdefault("vh_created_at", now)
         payload_dict.setdefault("vh_updated_at", now)
         payload_dict.setdefault("vh_is_deleted", False)
         payload_dict["vh_version_number"] = 1
-        # Set initial workflow status to PENDING (following bhikku_regist pattern)
-        payload_dict.setdefault("vh_workflow_status", "PENDING")
+        payload_dict.setdefault("vh_workflow_status", "S1_PENDING")
 
         self._validate_foreign_keys(db, payload_dict)
         enriched_payload = ViharaCreate(**payload_dict)
@@ -207,30 +659,14 @@ class ViharaService:
         search: Optional[str] = None,
     ) -> tuple[list[dict[str, Any]], int]:
         """Return simplified list of viharas with just vh_trn and vh_vname, with pagination."""
-        # Validate and sanitize inputs
-        limit = max(1, min(limit, 200))  # Clamp limit between 1 and 200
+        limit = max(1, min(limit, 200))
         skip = max(0, skip)
         
-        # Get paginated viharas
-        viharas = vihara_repo.list(
-            db,
-            skip=skip,
-            limit=limit,
-            search=search,
-        )
+        viharas = vihara_repo.list(db, skip=skip, limit=limit, search=search)
+        total_count = vihara_repo.count(db, search=search)
         
-        # Get total count for pagination
-        total_count = vihara_repo.count(
-            db,
-            search=search,
-        )
-        
-        # Build simplified response
         simplified_viharas = [
-            {
-                "vh_trn": vihara.vh_trn,
-                "vh_vname": vihara.vh_vname,
-            }
+            {"vh_trn": vihara.vh_trn, "vh_vname": vihara.vh_vname}
             for vihara in viharas
             if not vihara.vh_is_deleted
         ]
@@ -255,23 +691,17 @@ class ViharaService:
         if payload.vh_mobile and payload.vh_mobile != entity.vh_mobile:
             conflict = vihara_repo.get_by_mobile(db, payload.vh_mobile)
             if conflict and conflict.vh_id != entity.vh_id:
-                raise ValueError(
-                    f"vh_mobile '{payload.vh_mobile}' is already registered."
-                )
+                raise ValueError(f"vh_mobile '{payload.vh_mobile}' is already registered.")
 
         if payload.vh_whtapp and payload.vh_whtapp != entity.vh_whtapp:
             conflict = vihara_repo.get_by_whtapp(db, payload.vh_whtapp)
             if conflict and conflict.vh_id != entity.vh_id:
-                raise ValueError(
-                    f"vh_whtapp '{payload.vh_whtapp}' is already registered."
-                )
+                raise ValueError(f"vh_whtapp '{payload.vh_whtapp}' is already registered.")
 
         if payload.vh_email and payload.vh_email != entity.vh_email:
             conflict = vihara_repo.get_by_email(db, payload.vh_email)
             if conflict and conflict.vh_id != entity.vh_id:
-                raise ValueError(
-                    f"vh_email '{payload.vh_email}' is already registered."
-                )
+                raise ValueError(f"vh_email '{payload.vh_email}' is already registered.")
 
         update_data = payload.model_dump(exclude_unset=True)
         update_data.pop("vh_version_number", None)
@@ -295,148 +725,7 @@ class ViharaService:
         entity.vh_updated_at = datetime.utcnow()
         return vihara_repo.soft_delete(db, entity=entity)
 
-    # --------------------------------------------------------------------- #
-    # Stage-specific Methods (Multi-stage data entry)
-    # --------------------------------------------------------------------- #
-    def save_stage_one(
-        self, db: Session, *, payload_data: dict, actor_id: Optional[str], vh_id: Optional[int] = None
-    ) -> ViharaData:
-        """Save or create Stage 1: Basic Profile (steps 1–4)"""
-        from app.schemas.vihara import ViharaCreate
-        
-        now = datetime.utcnow()
-        
-        if vh_id:
-            # Update existing record - stage one fields only
-            entity = vihara_repo.get(db, vh_id)
-            if not entity:
-                raise ValueError("Vihara record not found.")
-            
-            # Only update stage one fields
-            for key, value in payload_data.items():
-                if hasattr(entity, key):
-                    setattr(entity, key, value)
-            
-            entity.vh_updated_by = actor_id
-            entity.vh_updated_at = now
-            db.commit()
-            db.refresh(entity)
-            return entity
-        else:
-            # Create new draft record
-            # Validate contact fields
-            vh_mobile = payload_data.get("vh_mobile")
-            vh_whtapp = payload_data.get("vh_whtapp")
-            vh_email = payload_data.get("vh_email")
-            
-            contact_fields = (
-                ("vh_mobile", vh_mobile, vihara_repo.get_by_mobile),
-                ("vh_whtapp", vh_whtapp, vihara_repo.get_by_whtapp),
-                ("vh_email", vh_email, vihara_repo.get_by_email),
-            )
-            for field_name, value, getter in contact_fields:
-                if value and getter(db, value):
-                    raise ValueError(f"{field_name} '{value}' is already registered.")
-            
-            payload_data["vh_created_by"] = actor_id
-            payload_data["vh_updated_by"] = actor_id
-            payload_data["vh_created_at"] = now
-            payload_data["vh_updated_at"] = now
-            payload_data["vh_is_deleted"] = False
-            payload_data["vh_version_number"] = 1
-            payload_data["vh_workflow_status"] = "PENDING"
-            payload_data.pop("vh_trn", None)
-            payload_data.pop("vh_id", None)
-            
-            # Set default values for required fields that are not in Stage 1
-            payload_data.setdefault("temple_owned_land", [])
-            payload_data.setdefault("resident_bhikkhus", [])
-            
-            self._validate_foreign_keys(db, payload_data)
-            enriched_payload = ViharaCreate(**payload_data)
-            return vihara_repo.create(db, data=enriched_payload)
-    
-    def save_stage_two(
-        self, db: Session, *, vh_id: int, payload_data: dict, actor_id: Optional[str]
-    ) -> ViharaData:
-        """Save Stage 2: Assets, Certification & Annex (steps 5–10) - requires vh_id from stage one"""
-        entity = vihara_repo.get(db, vh_id)
-        if not entity:
-            raise ValueError("Vihara record not found. Please save Stage 1 first.")
-        
-        now = datetime.utcnow()
-        
-        # Extract nested data
-        temple_lands = payload_data.pop("temple_owned_land", [])
-        resident_bhikkhus = payload_data.pop("resident_bhikkhus", [])
-        
-        # Update stage two fields
-        for key, value in payload_data.items():
-            if hasattr(entity, key):
-                setattr(entity, key, value)
-        
-        entity.vh_updated_by = actor_id
-        entity.vh_updated_at = now
-        
-        # Handle nested relationships - use ViharaLand (not TempleLand)
-        if temple_lands:
-            # Clear existing lands and add new ones
-            entity.vihara_lands = []
-            for land_data in temple_lands:
-                from app.models.vihara_land import ViharaLand
-                # Remove any ID fields and convert camelCase to snake_case
-                land_data.pop('id', None)
-                land_data.pop('vh_id', None)
-                
-                # Convert camelCase to snake_case
-                snake_case_land = {
-                    'serial_number': land_data.get('serialNumber', land_data.get('serial_number')),
-                    'land_name': land_data.get('landName', land_data.get('land_name')),
-                    'village': land_data.get('village'),
-                    'district': land_data.get('district'),
-                    'extent': land_data.get('extent'),
-                    'cultivation_description': land_data.get('cultivationDescription', land_data.get('cultivation_description')),
-                    'ownership_nature': land_data.get('ownershipNature', land_data.get('ownership_nature')),
-                    'deed_number': land_data.get('deedNumber', land_data.get('deed_number')),
-                    'title_registration_number': land_data.get('titleRegistrationNumber', land_data.get('title_registration_number')),
-                    'tax_details': land_data.get('taxDetails', land_data.get('tax_details')),
-                    'land_occupants': land_data.get('landOccupants', land_data.get('land_occupants')),
-                }
-                
-                # Remove None values to use model defaults
-                snake_case_land = {k: v for k, v in snake_case_land.items() if v is not None}
-                
-                land = ViharaLand(vh_id=vh_id, **snake_case_land)
-                entity.vihara_lands.append(land)
-        
-        if resident_bhikkhus:
-            # Clear existing residents and add new ones
-            entity.resident_bhikkhus = []
-            for bhikkhu_data in resident_bhikkhus:
-                from app.models.resident_bhikkhu import ResidentBhikkhu
-                # Remove any ID fields and convert camelCase to snake_case
-                bhikkhu_data.pop('id', None)
-                bhikkhu_data.pop('vh_id', None)
-                
-                snake_case_bhikkhu = {
-                    'serial_number': bhikkhu_data.get('serialNumber', bhikkhu_data.get('serial_number')),
-                    'bhikkhu_name': bhikkhu_data.get('bhikkhuName', bhikkhu_data.get('bhikkhu_name')),
-                    'registration_number': bhikkhu_data.get('registrationNumber', bhikkhu_data.get('registration_number')),
-                    'occupation_education': bhikkhu_data.get('occupationEducation', bhikkhu_data.get('occupation_education')),
-                }
-                
-                snake_case_bhikkhu = {k: v for k, v in snake_case_bhikkhu.items() if v is not None}
-                
-                bhikkhu = ResidentBhikkhu(vh_id=vh_id, **snake_case_bhikkhu)
-                entity.resident_bhikkhus.append(bhikkhu)
-        
-        db.commit()
-        db.refresh(entity)
-        return entity
-
-    # --------------------------------------------------------------------- #
-    # Workflow Methods (following bhikku_regist pattern)
-    # --------------------------------------------------------------------- #
+    # Legacy workflow methods
     def approve_vihara(
         self,
         db: Session,
@@ -444,31 +733,29 @@ class ViharaService:
         vh_id: int,
         actor_id: Optional[str],
     ) -> ViharaData:
-        """Approve a vihara registration - can approve after printed or scanned"""
+        """Legacy approve - routes to appropriate stage approval"""
         entity = vihara_repo.get(db, vh_id)
         if not entity:
             raise ValueError("Vihara record not found.")
         
-        # Check if either printed or scanned before allowing approval
-        if not entity.vh_printed_at and not entity.vh_scanned_at:
-            raise ValueError("Cannot approve vihara. The vihara must be either printed or scanned before approval.")
-        
-        # Allow approval from PRINTED or PEND-APPROVAL status
-        if entity.vh_workflow_status not in ["PRINTED", "PEND-APPROVAL"]:
-            raise ValueError(f"Cannot approve vihara with workflow status: {entity.vh_workflow_status}. Must be PRINTED or PEND-APPROVAL.")
-        
-        # Update workflow fields - goes to APPROVED then COMPLETED
-        entity.vh_workflow_status = "COMPLETED"
-        entity.vh_approval_status = "APPROVED"
-        entity.vh_approved_by = actor_id
-        entity.vh_approved_at = datetime.utcnow()
-        entity.vh_updated_by = actor_id
-        entity.vh_updated_at = datetime.utcnow()
-        entity.vh_version_number += 1
-        
-        db.commit()
-        db.refresh(entity)
-        return entity
+        if entity.vh_workflow_status == "S1_PEND_APPROVAL":
+            return self.approve_stage_one(db, vh_id=vh_id, actor_id=actor_id)
+        elif entity.vh_workflow_status == "S2_PEND_APPROVAL":
+            return self.approve_stage_two(db, vh_id=vh_id, actor_id=actor_id)
+        elif entity.vh_workflow_status in ["PRINTED", "PEND-APPROVAL"]:
+            # Old workflow compatibility
+            entity.vh_workflow_status = "COMPLETED"
+            entity.vh_approval_status = "APPROVED"
+            entity.vh_approved_by = actor_id
+            entity.vh_approved_at = datetime.utcnow()
+            entity.vh_updated_by = actor_id
+            entity.vh_updated_at = datetime.utcnow()
+            entity.vh_version_number += 1
+            db.commit()
+            db.refresh(entity)
+            return entity
+        else:
+            raise ValueError(f"Cannot approve vihara with workflow status: {entity.vh_workflow_status}")
 
     def reject_vihara(
         self,
@@ -478,27 +765,29 @@ class ViharaService:
         actor_id: Optional[str],
         rejection_reason: Optional[str] = None,
     ) -> ViharaData:
-        """Reject a vihara registration - transitions workflow from PEND-APPROVAL to REJECTED status"""
+        """Legacy reject - routes to appropriate stage rejection"""
         entity = vihara_repo.get(db, vh_id)
         if not entity:
             raise ValueError("Vihara record not found.")
         
-        if entity.vh_workflow_status != "PEND-APPROVAL":
-            raise ValueError(f"Cannot reject vihara with workflow status: {entity.vh_workflow_status}. Must be PEND-APPROVAL.")
-        
-        # Update workflow fields
-        entity.vh_workflow_status = "REJECTED"
-        entity.vh_approval_status = "REJECTED"
-        entity.vh_rejected_by = actor_id
-        entity.vh_rejected_at = datetime.utcnow()
-        entity.vh_rejection_reason = rejection_reason
-        entity.vh_updated_by = actor_id
-        entity.vh_updated_at = datetime.utcnow()
-        entity.vh_version_number += 1
-        
-        db.commit()
-        db.refresh(entity)
-        return entity
+        if entity.vh_workflow_status == "S1_PEND_APPROVAL":
+            return self.reject_stage_one(db, vh_id=vh_id, actor_id=actor_id, rejection_reason=rejection_reason)
+        elif entity.vh_workflow_status == "S2_PEND_APPROVAL":
+            return self.reject_stage_two(db, vh_id=vh_id, actor_id=actor_id, rejection_reason=rejection_reason)
+        elif entity.vh_workflow_status == "PEND-APPROVAL":
+            entity.vh_workflow_status = "REJECTED"
+            entity.vh_approval_status = "REJECTED"
+            entity.vh_rejected_by = actor_id
+            entity.vh_rejected_at = datetime.utcnow()
+            entity.vh_rejection_reason = rejection_reason
+            entity.vh_updated_by = actor_id
+            entity.vh_updated_at = datetime.utcnow()
+            entity.vh_version_number += 1
+            db.commit()
+            db.refresh(entity)
+            return entity
+        else:
+            raise ValueError(f"Cannot reject vihara with workflow status: {entity.vh_workflow_status}")
 
     def mark_printed(
         self,
@@ -507,25 +796,8 @@ class ViharaService:
         vh_id: int,
         actor_id: Optional[str],
     ) -> ViharaData:
-        """Mark vihara certificate as printed - transitions workflow from PENDING to PRINTED status"""
-        entity = vihara_repo.get(db, vh_id)
-        if not entity:
-            raise ValueError("Vihara record not found.")
-        
-        if entity.vh_workflow_status != "PENDING":
-            raise ValueError(f"Cannot mark as printed vihara with workflow status: {entity.vh_workflow_status}. Must be PENDING.")
-        
-        # Update workflow fields
-        entity.vh_workflow_status = "PRINTED"
-        entity.vh_printed_by = actor_id
-        entity.vh_printed_at = datetime.utcnow()
-        entity.vh_updated_by = actor_id
-        entity.vh_updated_at = datetime.utcnow()
-        entity.vh_version_number += 1
-        
-        db.commit()
-        db.refresh(entity)
-        return entity
+        """Legacy mark printed - routes to stage 1 printed"""
+        return self.mark_stage1_printed(db, vh_id=vh_id, actor_id=actor_id)
 
     def mark_scanned(
         self,
@@ -534,132 +806,73 @@ class ViharaService:
         vh_id: int,
         actor_id: Optional[str],
     ) -> ViharaData:
-        """Mark vihara certificate as scanned - transitions workflow from PRINTED to PEND-APPROVAL status"""
+        """Legacy mark scanned"""
         entity = vihara_repo.get(db, vh_id)
         if not entity:
             raise ValueError("Vihara record not found.")
         
-        if entity.vh_workflow_status != "PRINTED":
-            raise ValueError(f"Cannot mark as scanned vihara with workflow status: {entity.vh_workflow_status}. Must be PRINTED.")
-        
-        # Update workflow fields
-        entity.vh_workflow_status = "PEND-APPROVAL"
-        entity.vh_scanned_by = actor_id
-        entity.vh_scanned_at = datetime.utcnow()
-        entity.vh_updated_by = actor_id
-        entity.vh_updated_at = datetime.utcnow()
-        entity.vh_version_number += 1
-        
-        db.commit()
-        db.refresh(entity)
-        return entity
+        if entity.vh_workflow_status in ["PRINTED", "S1_PRINTING"]:
+            entity.vh_workflow_status = "S1_PEND_APPROVAL" if entity.vh_workflow_status == "S1_PRINTING" else "PEND-APPROVAL"
+            entity.vh_scanned_by = actor_id
+            entity.vh_scanned_at = datetime.utcnow()
+            entity.vh_updated_by = actor_id
+            entity.vh_updated_at = datetime.utcnow()
+            entity.vh_version_number += 1
+            db.commit()
+            db.refresh(entity)
+            return entity
+        else:
+            raise ValueError(f"Cannot mark as scanned with workflow status: {entity.vh_workflow_status}")
 
     async def upload_scanned_document(
         self,
         db: Session,
         *,
         vh_id: int,
-        file,  # UploadFile
+        file,
         actor_id: Optional[str],
     ) -> ViharaData:
-        """
-        Upload a scanned document for a Vihara record.
-        
-        When uploading a new document, the old file is renamed with a version suffix (v1, v2, etc.)
-        instead of being deleted, preserving the file history.
-        
-        Args:
-            db: Database session
-            vh_id: Vihara ID
-            file: Uploaded file (PDF, JPG, PNG - max 5MB)
-            actor_id: User ID performing the upload
-            
-        Returns:
-            Updated ViharaData instance with file path stored
-            
-        Raises:
-            ValueError: If vihara not found or file upload fails
-        """
-        import os
-        from pathlib import Path
+        """Legacy upload - routes to appropriate stage upload"""
         from app.utils.file_storage import file_storage_service
         
-        # Get the vihara record
         entity = vihara_repo.get(db, vh_id)
         if not entity:
             raise ValueError(f"Vihara with ID '{vh_id}' not found.")
         
-        # Archive old file with version suffix instead of deleting it
-        if entity.vh_scanned_document_path:
-            old_file_path = entity.vh_scanned_document_path
+        # Route to appropriate stage upload based on status
+        if entity.vh_workflow_status in ["S1_PRINTING", "PRINTED"]:
+            return await self.upload_stage1_document(db, vh_id=vh_id, file=file, actor_id=actor_id)
+        elif entity.vh_workflow_status == "S2_PENDING":
+            return await self.upload_stage2_document(db, vh_id=vh_id, file=file, actor_id=actor_id)
+        else:
+            # Fallback to old behavior
+            if entity.vh_scanned_document_path:
+                await self._archive_old_file(entity.vh_scanned_document_path)
             
-            # Remove leading /storage/ if present for path parsing
-            clean_path = old_file_path
-            if clean_path.startswith("/storage/"):
-                clean_path = clean_path[9:]  # Remove "/storage/"
+            relative_path, _ = await file_storage_service.save_file(
+                file,
+                entity.vh_trn,
+                "scanned_document",
+                subdirectory="vihara_data"
+            )
             
-            # Parse the old file path to add version suffix
-            path_obj = Path(clean_path)
-            file_dir = path_obj.parent
-            file_name = path_obj.name  # full filename with extension
-            file_stem = path_obj.stem  # filename without extension
-            file_ext = path_obj.suffix  # extension with dot
+            entity.vh_scanned_document_path = relative_path
+            entity.vh_updated_by = actor_id
+            entity.vh_updated_at = datetime.utcnow()
+            entity.vh_version_number = (entity.vh_version_number or 0) + 1
             
-            # Determine the next version number by scanning the directory for ALL versioned files
-            # Find the highest version number that exists
-            storage_dir = Path("app/storage") / file_dir
-            max_version = 0
+            if entity.vh_workflow_status == "PRINTED":
+                entity.vh_workflow_status = "PEND-APPROVAL"
+                entity.vh_scanned_by = actor_id
+                entity.vh_scanned_at = datetime.utcnow()
             
-            if storage_dir.exists():
-                for existing_file in storage_dir.glob("*_v*" + file_ext):
-                    # Extract version number from filename like "filename_v2.png"
-                    version_match = existing_file.stem.rsplit("_v", 1)
-                    if len(version_match) == 2 and version_match[1].isdigit():
-                        version_num = int(version_match[1])
-                        max_version = max(max_version, version_num)
-            
-            # Use next version number
-            next_version = max_version + 1
-            versioned_name = f"{file_stem}_v{next_version}{file_ext}"
-            versioned_relative_path = str(file_dir / versioned_name)
-            
-            # Rename the old file to versioned name
-            try:
-                file_storage_service.rename_file(
-                    old_file_path, 
-                    versioned_relative_path
-                )
-            except Exception as e:
-                # If renaming fails, log it but continue with upload
-                print(f"Warning: Could not rename old file {old_file_path}: {e}")
-        
-        # Save new file using the file storage service
-        # File will be stored at: app/storage/vihara_data/<year>/<month>/<day>/<vh_trn>/scanned_document_*.*
-        relative_path, _ = await file_storage_service.save_file(
-            file,
-            entity.vh_trn,
-            "scanned_document",
-            subdirectory="vihara_data"
-        )
-        
-        # Update the vihara record with the file path
-        entity.vh_scanned_document_path = relative_path
-        entity.vh_updated_by = actor_id
-        entity.vh_updated_at = datetime.utcnow()
-        # Increment version number when new document is uploaded
-        entity.vh_version_number = (entity.vh_version_number or 0) + 1
-        
-        # Auto-transition workflow status to PEND-APPROVAL when document is uploaded
-        # Only transition if currently in PRINTED status
-        if entity.vh_workflow_status == "PRINTED":
-            entity.vh_workflow_status = "PEND-APPROVAL"
-            entity.vh_scanned_by = actor_id
-            entity.vh_scanned_at = datetime.utcnow()
-        
-        db.commit()
-        db.refresh(entity)
-        
-        return entity
+            db.commit()
+            db.refresh(entity)
+            return entity
+
+    # =================================================================
+    # VALIDATION METHODS
+    # =================================================================
 
     def _validate_foreign_keys(self, db: Session, values: Dict[str, Any]) -> None:
         try:
@@ -686,7 +899,6 @@ class ViharaService:
 
             target = fk_targets.get(field)
             if not target:
-                # Skip validation if no foreign key metadata exists (e.g., for audit fields)
                 continue
 
             schema, table_name, column_name = target
@@ -709,12 +921,7 @@ class ViharaService:
     def _build_fk_validation_payload(
         self, entity: ViharaData, update_values: Dict[str, Any]
     ) -> Dict[str, Any]:
-        fk_fields = [
-            "vh_gndiv",
-            "vh_ownercd",
-            "vh_parshawa",
-            "vh_ssbmcode",
-        ]
+        fk_fields = ["vh_gndiv", "vh_ownercd", "vh_parshawa", "vh_ssbmcode"]
         payload: Dict[str, Any] = {}
         for field in fk_fields:
             if field in update_values:

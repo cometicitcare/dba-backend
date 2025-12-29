@@ -18,14 +18,22 @@ class CRUDAction(str, Enum):
     READ_ALL = "READ_ALL"
     UPDATE = "UPDATE"
     DELETE = "DELETE"
+    # Stage One Actions
+    SAVE_STAGE_ONE = "SAVE_STAGE_ONE"
+    UPDATE_STAGE_ONE = "UPDATE_STAGE_ONE"
+    MARK_S1_PRINTED = "MARK_S1_PRINTED"
+    APPROVE_STAGE_ONE = "APPROVE_STAGE_ONE"
+    REJECT_STAGE_ONE = "REJECT_STAGE_ONE"
+    # Stage Two Actions
+    SAVE_STAGE_TWO = "SAVE_STAGE_TWO"
+    UPDATE_STAGE_TWO = "UPDATE_STAGE_TWO"
+    APPROVE_STAGE_TWO = "APPROVE_STAGE_TWO"
+    REJECT_STAGE_TWO = "REJECT_STAGE_TWO"
+    # Legacy actions (kept for backward compatibility)
     APPROVE = "APPROVE"
     REJECT = "REJECT"
     MARK_PRINTED = "MARK_PRINTED"
     MARK_SCANNED = "MARK_SCANNED"
-    SAVE_STAGE_ONE = "SAVE_STAGE_ONE"
-    SAVE_STAGE_TWO = "SAVE_STAGE_TWO"
-    UPDATE_STAGE_ONE = "UPDATE_STAGE_ONE"
-    UPDATE_STAGE_TWO = "UPDATE_STAGE_TWO"
 
 
 class ViharaBase(BaseModel):
@@ -88,11 +96,34 @@ class ViharaBase(BaseModel):
     
     # Document Storage
     vh_scanned_document_path: Annotated[Optional[str], Field(default=None, max_length=500)] = None
+    vh_stage2_document_path: Annotated[Optional[str], Field(default=None, max_length=500)] = None
     vh_form_id: Annotated[Optional[str], Field(default=None, max_length=50)] = None
     
-    # Workflow Fields
-    vh_workflow_status: Annotated[Optional[str], Field(default="PENDING", max_length=20)] = "PENDING"
+    # Workflow Fields - Staged workflow
+    vh_workflow_status: Annotated[Optional[str], Field(default="S1_PENDING", max_length=25)] = "S1_PENDING"
     vh_approval_status: Annotated[Optional[str], Field(default=None, max_length=20)] = None
+    
+    # Stage 1 workflow fields
+    vh_s1_printed_at: Optional[datetime] = None
+    vh_s1_printed_by: Annotated[Optional[str], Field(default=None, max_length=25)] = None
+    vh_s1_scanned_at: Optional[datetime] = None
+    vh_s1_scanned_by: Annotated[Optional[str], Field(default=None, max_length=25)] = None
+    vh_s1_approved_by: Annotated[Optional[str], Field(default=None, max_length=25)] = None
+    vh_s1_approved_at: Optional[datetime] = None
+    vh_s1_rejected_by: Annotated[Optional[str], Field(default=None, max_length=25)] = None
+    vh_s1_rejected_at: Optional[datetime] = None
+    vh_s1_rejection_reason: Annotated[Optional[str], Field(default=None, max_length=500)] = None
+    
+    # Stage 2 workflow fields
+    vh_s2_scanned_at: Optional[datetime] = None
+    vh_s2_scanned_by: Annotated[Optional[str], Field(default=None, max_length=25)] = None
+    vh_s2_approved_by: Annotated[Optional[str], Field(default=None, max_length=25)] = None
+    vh_s2_approved_at: Optional[datetime] = None
+    vh_s2_rejected_by: Annotated[Optional[str], Field(default=None, max_length=25)] = None
+    vh_s2_rejected_at: Optional[datetime] = None
+    vh_s2_rejection_reason: Annotated[Optional[str], Field(default=None, max_length=500)] = None
+    
+    # Legacy fields (kept for backward compatibility)
     vh_approved_by: Annotated[Optional[str], Field(default=None, max_length=25)] = None
     vh_approved_at: Optional[datetime] = None
     vh_rejected_by: Annotated[Optional[str], Field(default=None, max_length=25)] = None
@@ -290,10 +321,33 @@ class ViharaUpdate(BaseModel):
     
     # Document Storage
     vh_scanned_document_path: Annotated[Optional[str], Field(default=None, max_length=500)] = None
+    vh_stage2_document_path: Annotated[Optional[str], Field(default=None, max_length=500)] = None
     
-    # Workflow Fields
-    vh_workflow_status: Annotated[Optional[str], Field(default=None, max_length=20)] = None
+    # Workflow Fields - Staged workflow
+    vh_workflow_status: Annotated[Optional[str], Field(default=None, max_length=25)] = None
     vh_approval_status: Annotated[Optional[str], Field(default=None, max_length=20)] = None
+    
+    # Stage 1 workflow fields
+    vh_s1_printed_at: Optional[datetime] = None
+    vh_s1_printed_by: Annotated[Optional[str], Field(default=None, max_length=25)] = None
+    vh_s1_scanned_at: Optional[datetime] = None
+    vh_s1_scanned_by: Annotated[Optional[str], Field(default=None, max_length=25)] = None
+    vh_s1_approved_by: Annotated[Optional[str], Field(default=None, max_length=25)] = None
+    vh_s1_approved_at: Optional[datetime] = None
+    vh_s1_rejected_by: Annotated[Optional[str], Field(default=None, max_length=25)] = None
+    vh_s1_rejected_at: Optional[datetime] = None
+    vh_s1_rejection_reason: Annotated[Optional[str], Field(default=None, max_length=500)] = None
+    
+    # Stage 2 workflow fields
+    vh_s2_scanned_at: Optional[datetime] = None
+    vh_s2_scanned_by: Annotated[Optional[str], Field(default=None, max_length=25)] = None
+    vh_s2_approved_by: Annotated[Optional[str], Field(default=None, max_length=25)] = None
+    vh_s2_approved_at: Optional[datetime] = None
+    vh_s2_rejected_by: Annotated[Optional[str], Field(default=None, max_length=25)] = None
+    vh_s2_rejected_at: Optional[datetime] = None
+    vh_s2_rejection_reason: Annotated[Optional[str], Field(default=None, max_length=500)] = None
+    
+    # Legacy fields (kept for backward compatibility)
     vh_approved_by: Annotated[Optional[str], Field(default=None, max_length=25)] = None
     vh_approved_at: Optional[datetime] = None
     vh_rejected_by: Annotated[Optional[str], Field(default=None, max_length=25)] = None

@@ -120,6 +120,7 @@ def manage_objections(
             sil_regn=payload.sil_regn,
             dbh_regn=payload.dbh_regn,
             status=payload.obj_status,
+            search=payload.search,
         )
 
         objections_out = [ObjectionOut.model_validate(obj) for obj in objections]

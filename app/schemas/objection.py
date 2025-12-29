@@ -130,6 +130,9 @@ class ObjectionRequestPayload(BaseModel):
     dbh_regn: Optional[str] = Field(None, max_length=20, description="Filter by high bhikku registration")
     obj_status: Optional[ObjectionStatus] = None
     
+    # Global search
+    search: Optional[str] = Field(None, max_length=200, description="Search across TRN/REGN, reason, requester name, and form ID")
+    
     # Pagination
     page: Optional[int] = Field(default=1, ge=1)
     limit: Optional[int] = Field(default=10, ge=1, le=100)
