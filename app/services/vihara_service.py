@@ -248,16 +248,17 @@ class ViharaService:
     ) -> ViharaData:
         """
         Save Stage 2: Assets, Certification & Annex (steps 5–10)
-        Requires vh_id from stage one. Must be in S1_APPROVED status.
+        Requires vh_id from stage one. Can be done in parallel with stage 1 approval.
         """
         entity = vihara_repo.get(db, vh_id)
         if not entity:
             raise ValueError("Vihara record not found. Please save Stage 1 first.")
         
-        # Only allow stage 2 after stage 1 is approved (or in S2 statuses for updates)
-        allowed_statuses = ["S1_APPROVED", "S2_PENDING", "S2_PEND_APPROVAL"]
+        # Allow stage 2 data entry while stage 1 is pending/in progress
+        # Only block if stage 1 was explicitly rejected
+        allowed_statuses = ["S1_PENDING", "S1_PRINTING", "S1_PEND_APPROVAL", "S1_APPROVED", "S2_PENDING", "S2_PEND_APPROVAL"]
         if entity.vh_workflow_status not in allowed_statuses:
-            raise ValueError(f"Cannot save Stage 2. Current status: {entity.vh_workflow_status}. Stage 1 must be approved first.")
+            raise ValueError(f"Cannot save Stage 2. Current status: {entity.vh_workflow_status}. Stage 1 must not be rejected.")
         
         now = datetime.utcnow()
         
@@ -330,7 +331,8 @@ class ViharaService:
     ) -> ViharaData:
         """
         Upload scanned Stage 2 document.
-        Workflow: S2_PENDING → S2_PEND_APPROVAL
+        Can be uploaded even when stage 1 is pending.
+        Workflow: S1_PENDING/S1_PRINTING/S1_PEND_APPROVAL/S1_APPROVED/S2_PENDING → S2_PEND_APPROVAL
         """
         from app.utils.file_storage import file_storage_service
         
@@ -338,8 +340,10 @@ class ViharaService:
         if not entity:
             raise ValueError(f"Vihara with ID '{vh_id}' not found.")
         
-        if entity.vh_workflow_status != "S2_PENDING":
-            raise ValueError(f"Cannot upload Stage 2 document. Current status: {entity.vh_workflow_status}. Must be S2_PENDING.")
+        # Allow stage 2 document upload even when stage 1 is still pending
+        allowed_statuses = ["S1_PENDING", "S1_PRINTING", "S1_PEND_APPROVAL", "S1_APPROVED", "S2_PENDING"]
+        if entity.vh_workflow_status not in allowed_statuses:
+            raise ValueError(f"Cannot upload Stage 2 document. Current status: {entity.vh_workflow_status}. Must be in stage 1 or stage 2 pending/approved status.")
         
         # Archive old stage2 file if exists
         if entity.vh_stage2_document_path:
