@@ -42,16 +42,18 @@ def manage_vihara_records(
     3. Upload document via `/upload-stage1-document` → status: S1_PEND_APPROVAL
     4. **APPROVE_STAGE_ONE** or **REJECT_STAGE_ONE** → status: S1_APPROVED or S1_REJECTED
     
-    ### Stage 2 Flow (only after Stage 1 approved):
+    ### Stage 2 Flow (can work in parallel with Stage 1):
     1. **SAVE_STAGE_TWO** - Save assets & certification → status: S2_PENDING
-    2. Upload document via `/upload-stage2-document` → status: S2_PEND_APPROVAL
-    3. **APPROVE_STAGE_TWO** or **REJECT_STAGE_TWO** → status: COMPLETED or REJECTED
+    2. **MARK_S2_PRINTED** - Mark Stage 2 form as printed → status: S2_PRINTING (✨ NEW)
+    3. Upload document via `/upload-stage2-document` → status: S2_PEND_APPROVAL
+    4. **APPROVE_STAGE_TWO** or **REJECT_STAGE_TWO** → status: COMPLETED or REJECTED
     
     ## Supported Actions:
     - SAVE_STAGE_ONE, UPDATE_STAGE_ONE
     - MARK_S1_PRINTED
     - APPROVE_STAGE_ONE, REJECT_STAGE_ONE
     - SAVE_STAGE_TWO, UPDATE_STAGE_TWO
+    - MARK_S2_PRINTED (✨ NEW - can be done even when Stage 1 is pending)
     - APPROVE_STAGE_TWO, REJECT_STAGE_TWO
     - CREATE, READ_ONE, READ_ALL, UPDATE, DELETE (legacy)
     """
@@ -223,6 +225,29 @@ def manage_vihara_records(
             )
         except ValueError as exc:
             raise validation_error([(None, str(exc))]) from exc
+
+    if action == CRUDAction.MARK_S2_PRINTED:
+        if payload.vh_id is None:
+            raise validation_error(
+                [("payload.vh_id", "vh_id is required for MARK_S2_PRINTED action")]
+            )
+        
+        try:
+            result = vihara_service.mark_stage2_printed(
+                db, vh_id=payload.vh_id, actor_id=user_id
+            )
+            return ViharaManagementResponse(
+                status="success",
+                message="Stage 2 form marked as printed. Status: S2_PRINTING. Next: Upload scanned document.",
+                data=result,
+            )
+        except ValueError as exc:
+            message = str(exc)
+            if "not found" in message.lower():
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND, detail=message
+                ) from exc
+            raise validation_error([(None, message)]) from exc
 
     if action == CRUDAction.APPROVE_STAGE_TWO:
         if payload.vh_id is None:

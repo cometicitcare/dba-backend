@@ -179,6 +179,37 @@ class ViharaService:
         db.refresh(entity)
         return entity
 
+    def mark_stage2_printed(
+        self,
+        db: Session,
+        *,
+        vh_id: int,
+        actor_id: Optional[str],
+    ) -> ViharaData:
+        """
+        Mark Stage 2 form as printed.
+        Can be done even when Stage 1 is pending.
+        Workflow: S2_PENDING → S2_PRINTING
+        """
+        entity = vihara_repo.get(db, vh_id)
+        if not entity:
+            raise ValueError("Vihara record not found.")
+        
+        # Allow marking stage 2 as printed even when stage 1 is pending
+        if entity.vh_workflow_status != "S2_PENDING":
+            raise ValueError(f"Cannot mark Stage 2 as printed. Current status: {entity.vh_workflow_status}. Must be S2_PENDING.")
+        
+        entity.vh_workflow_status = "S2_PRINTING"
+        entity.vh_s2_printed_by = actor_id
+        entity.vh_s2_printed_at = datetime.utcnow()
+        entity.vh_updated_by = actor_id
+        entity.vh_updated_at = datetime.utcnow()
+        entity.vh_version_number = (entity.vh_version_number or 1) + 1
+        
+        db.commit()
+        db.refresh(entity)
+        return entity
+
     def approve_stage_one(
         self,
         db: Session,
@@ -341,9 +372,9 @@ class ViharaService:
             raise ValueError(f"Vihara with ID '{vh_id}' not found.")
         
         # Allow stage 2 document upload even when stage 1 is still pending
-        allowed_statuses = ["S1_PENDING", "S1_PRINTING", "S1_PEND_APPROVAL", "S1_APPROVED", "S2_PENDING"]
+        allowed_statuses = ["S1_PENDING", "S1_PRINTING", "S1_PEND_APPROVAL", "S1_APPROVED", "S2_PENDING", "S2_PRINTING"]
         if entity.vh_workflow_status not in allowed_statuses:
-            raise ValueError(f"Cannot upload Stage 2 document. Current status: {entity.vh_workflow_status}. Must be in stage 1 or stage 2 pending/approved status.")
+            raise ValueError(f"Cannot upload Stage 2 document. Current status: {entity.vh_workflow_status}. Must be in stage 1 or stage 2 pending/printing/approved status.")
         
         # Archive old stage2 file if exists
         if entity.vh_stage2_document_path:
