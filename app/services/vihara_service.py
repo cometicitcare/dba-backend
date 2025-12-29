@@ -240,13 +240,21 @@ class ViharaService:
         entity.vh_s1_approved_by = actor_id
         entity.vh_s1_approved_at = datetime.utcnow()
         
-        # If both stages are approved, go to COMPLETED, otherwise S1_APPROVED
+        # Determine status based on Stage 2 progress
+        current_status = entity.vh_workflow_status
+        
+        # If both stages are approved, go to COMPLETED
         if stage2_approved:
             entity.vh_workflow_status = "COMPLETED"
             entity.vh_approval_status = "APPROVED"
             entity.vh_approved_by = actor_id  # Legacy field
             entity.vh_approved_at = datetime.utcnow()  # Legacy field
+        # If Stage 2 is in progress (S2_PENDING, S2_PRINTING, S2_PEND_APPROVAL), preserve it
+        elif current_status in ["S2_PENDING", "S2_PRINTING", "S2_PEND_APPROVAL"]:
+            # Keep Stage 2 status - don't override it
+            pass  # entity.vh_workflow_status stays as is
         else:
+            # Stage 2 not started yet, set to S1_APPROVED
             entity.vh_workflow_status = "S1_APPROVED"
         
         entity.vh_updated_by = actor_id
@@ -452,13 +460,21 @@ class ViharaService:
         entity.vh_s2_approved_by = actor_id
         entity.vh_s2_approved_at = datetime.utcnow()
         
-        # If both stages are approved, go to COMPLETED, otherwise S2_APPROVED
+        # Determine status based on Stage 1 progress
+        current_status = entity.vh_workflow_status
+        
+        # If both stages are approved, go to COMPLETED
         if stage1_approved:
             entity.vh_workflow_status = "COMPLETED"
             entity.vh_approval_status = "APPROVED"
             entity.vh_approved_by = actor_id  # Legacy field
             entity.vh_approved_at = datetime.utcnow()  # Legacy field
+        # If Stage 1 is in progress (S1_PENDING, S1_PRINTING, S1_PEND_APPROVAL), preserve it
+        elif current_status in ["S1_PENDING", "S1_PRINTING", "S1_PEND_APPROVAL"]:
+            # Keep Stage 1 status - don't override it
+            pass  # entity.vh_workflow_status stays as is
         else:
+            # Stage 1 already approved or Stage 2 is current, set to S2_APPROVED
             entity.vh_workflow_status = "S2_APPROVED"
         
         entity.vh_updated_by = actor_id
