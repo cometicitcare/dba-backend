@@ -1,53 +1,51 @@
 # app/api/v1/router.py
 from fastapi import APIRouter
 
-from app.api.v1.routes import (
-    arama_data,
-    audit_log,
-    auth,
-    bank_branches,
-    banks,
-    beneficiary_data,
-    bhikku_category,
-    bhikku_certification,
-    bhikku_high,
-    bhikku_id_card,
-    bhikku_nikaya_data,
-    bhikku_parshawa_data,
-    bhikkus,
-    qr_search,
-    bhikku_summary,
-    certificate_changes,
-    certificates,
-    city,
-    dashboard,
-    debug,
-    devala_data,
-    direct_bhikku_high,
-    district,
-    divisional_secretariat,
-    gramasewaka,
-    health,
-    location_hierarchy,
-    nilame,
-    objections,
-    objection_types,
-    payment_methods,
-    province,
-    reprint,
-    reprint_search,
-    rbac_admin,
-    religion,
-    roles,
-    sangha_nayaka_contacts,
-    status,
-    silmatha_id,
-    silmatha_id_card,
-    silmatha_regist,
-    temporary_bhikku,
-    temporary_vihara,
-    vihara_data,
-)
+from app.api.v1.routes import arama_data
+from app.api.v1.routes import audit_log
+from app.api.v1.routes import auth
+from app.api.v1.routes import bank_branches
+from app.api.v1.routes import banks
+from app.api.v1.routes import beneficiary_data
+from app.api.v1.routes import bhikku_category
+from app.api.v1.routes import bhikku_certification
+from app.api.v1.routes import bhikku_high
+from app.api.v1.routes import bhikku_id_card
+from app.api.v1.routes import bhikku_nikaya_data
+from app.api.v1.routes import bhikku_parshawa_data
+from app.api.v1.routes import bhikkus
+from app.api.v1.routes import qr_search
+from app.api.v1.routes import bhikku_summary
+from app.api.v1.routes import certificate_changes
+from app.api.v1.routes import certificates
+from app.api.v1.routes import city
+from app.api.v1.routes import dashboard
+from app.api.v1.routes import debug
+from app.api.v1.routes import devala_data
+from app.api.v1.routes import direct_bhikku_high
+from app.api.v1.routes import district
+from app.api.v1.routes import divisional_secretariat
+from app.api.v1.routes import gramasewaka
+from app.api.v1.routes import health
+from app.api.v1.routes import location_hierarchy
+from app.api.v1.routes import nilame
+from app.api.v1.routes import objections
+from app.api.v1.routes import objection_types
+from app.api.v1.routes import payment_methods
+from app.api.v1.routes import province
+from app.api.v1.routes import reprint
+from app.api.v1.routes import reprint_search
+from app.api.v1.routes import rbac_admin
+from app.api.v1.routes import religion
+from app.api.v1.routes import roles
+from app.api.v1.routes import sangha_nayaka_contacts
+from app.api.v1.routes import status
+from app.api.v1.routes import silmatha_id
+from app.api.v1.routes import silmatha_id_card
+from app.api.v1.routes import silmatha_regist
+from app.api.v1.routes import temporary_bhikku
+from app.api.v1.routes import temporary_vihara
+from app.api.v1.routes import vihara_data
 from app.api.v1 import auth_sms_test
 
 api_router = APIRouter()
