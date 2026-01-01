@@ -920,12 +920,14 @@ def manage_bhikku_records(
         
         # Convert temporary bhikkus to Bhikku-compatible format
         for temp_bhikku in temp_bhikkus:
+            # Truncate mobile to 10 chars if needed (br_mobile max is 10)
+            mobile = temp_bhikku.tb_contact_number[:10] if temp_bhikku.tb_contact_number and len(temp_bhikku.tb_contact_number) > 10 else temp_bhikku.tb_contact_number
             temp_bhikku_dict = {
                 "br_regn": f"TEMP-{temp_bhikku.tb_id}",  # Use TEMP prefix for identification
                 "br_reqstdate": temp_bhikku.tb_created_at.date() if temp_bhikku.tb_created_at else date.today(),
                 "br_mahananame": temp_bhikku.tb_name,
                 "br_gihiname": temp_bhikku.tb_samanera_name,
-                "br_mobile": temp_bhikku.tb_contact_number,
+                "br_mobile": mobile,
                 "br_fathrsaddrs": temp_bhikku.tb_address,
                 "br_mahanatemple": temp_bhikku.tb_living_temple,
                 "br_currstat": "TEMPORARY",  # Mark as temporary status
