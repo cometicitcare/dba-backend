@@ -221,11 +221,14 @@ class BhikkuService:
         self._validate_contact_formats(payload_dict)
 
         # Handle temporary bhikku references - these can't be stored as FK references
-        # Clear fields that reference temporary bhikkus (TEMP-* format)
+        # Clear fields that reference temporary bhikkus:
+        # - TEMP-* format (from READ_ALL response)
+        # - Pure numeric strings (tb_id from temporary_bhikku table, since real br_regn starts with "BH")
         for field in ["br_viharadhipathi", "br_mahanaacharyacd"]:
             value = payload_dict.get(field)
-            if value and isinstance(value, str) and value.startswith("TEMP-"):
-                payload_dict[field] = None
+            if value and isinstance(value, str):
+                if value.startswith("TEMP-") or value.isdigit():
+                    payload_dict[field] = None
 
         # Auto-populate location from current user (location-based access control)
         if current_user and current_user.ua_location_type == "DISTRICT_BRANCH" and current_user.ua_district_branch_id:
@@ -780,11 +783,14 @@ class BhikkuService:
         self._validate_contact_formats(update_data)
 
         # Handle temporary bhikku references - these can't be stored as FK references
-        # Clear fields that reference temporary bhikkus (TEMP-* format)
+        # Clear fields that reference temporary bhikkus:
+        # - TEMP-* format (from READ_ALL response)
+        # - Pure numeric strings (tb_id from temporary_bhikku table, since real br_regn starts with "BH")
         for field in ["br_viharadhipathi", "br_mahanaacharyacd"]:
             value = update_data.get(field)
-            if value and isinstance(value, str) and value.startswith("TEMP-"):
-                update_data[field] = None
+            if value and isinstance(value, str):
+                if value.startswith("TEMP-") or value.isdigit():
+                    update_data[field] = None
 
         if "br_regn" in update_data and update_data["br_regn"]:
             new_regn = update_data["br_regn"]
