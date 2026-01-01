@@ -192,10 +192,9 @@ def manage_reprint(
             }
 
         if action == schemas.ReprintAction.READ_ALL:
-            # READ_ALL should only show COMPLETED workflow records
             records, total = reprint_service.list_requests(
                 db,
-                flow_status=schemas.ReprintFlowStatus.COMPLETED,
+                flow_status=request.flow_status,
                 request_type=request.request_type,
                 regn=request.regn,
                 page=request.page,

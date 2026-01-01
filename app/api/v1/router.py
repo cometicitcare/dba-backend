@@ -39,11 +39,13 @@ from app.api.v1.routes import (
     rbac_admin,
     religion,
     roles,
+    sangha_nayaka_contacts,
     status,
     silmatha_id,
     silmatha_id_card,
     silmatha_regist,
     temporary_bhikku,
+    temporary_vihara,
     vihara_data,
 )
 from app.api.v1 import auth_sms_test
@@ -119,6 +121,15 @@ api_router.include_router(
     temporary_bhikku.router,
     prefix="/temporary-bhikku",
     tags=["👤 DBA-HRMS: Temporary Bhikku"]
+)
+
+# ============================================================================
+# DBA-HRMS: TEMPORARY VIHARA
+# ============================================================================
+api_router.include_router(
+    temporary_vihara.router,
+    prefix="/temporary-vihara",
+    tags=["🏛️ DBA-HRMS: Temporary Vihara"]
 )
 
 # ============================================================================
@@ -203,6 +214,11 @@ api_router.include_router(
 api_router.include_router(
     bhikku_nikaya_data.router,
     prefix="/bhikku-nikaya-data",
+    tags=["🏛️ Vihara & Religious Data"]
+)
+api_router.include_router(
+    sangha_nayaka_contacts.router,
+    prefix="/sangha-nayaka-contacts",
     tags=["🏛️ Vihara & Religious Data"]
 )
 api_router.include_router(
