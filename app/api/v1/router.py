@@ -38,7 +38,6 @@ import app.api.v1.routes.reprint_search as reprint_search
 import app.api.v1.routes.rbac_admin as rbac_admin
 import app.api.v1.routes.religion as religion
 import app.api.v1.routes.roles as roles
-import app.api.v1.routes.sangha_nayaka_contacts as sangha_nayaka_contacts
 import app.api.v1.routes.status as status
 import app.api.v1.routes.silmatha_id as silmatha_id
 import app.api.v1.routes.silmatha_id_card as silmatha_id_card
@@ -213,11 +212,6 @@ api_router.include_router(
 api_router.include_router(
     bhikku_nikaya_data.router,
     prefix="/bhikku-nikaya-data",
-    tags=["🏛️ Vihara & Religious Data"]
-)
-api_router.include_router(
-    sangha_nayaka_contacts.router,
-    prefix="/sangha-nayaka-contacts",
     tags=["🏛️ Vihara & Religious Data"]
 )
 api_router.include_router(
