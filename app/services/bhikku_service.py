@@ -224,11 +224,30 @@ class BhikkuService:
         # Clear fields that reference temporary bhikkus:
         # - TEMP-* format (from READ_ALL response)
         # - Pure numeric strings (tb_id from temporary_bhikku table, since real br_regn starts with "BH")
+        # Store the temp bhikku reference in remarks for later retrieval
+        temp_refs = []
         for field in ["br_viharadhipathi", "br_mahanaacharyacd"]:
             value = payload_dict.get(field)
             if value and isinstance(value, str):
-                if value.startswith("TEMP-") or value.isdigit():
+                # Extract temp bhikku ID from either "TEMP-17" or "17" format
+                temp_id = None
+                if value.startswith("TEMP-"):
+                    temp_id = value[5:]  # Remove "TEMP-" prefix
+                elif value.isdigit():
+                    temp_id = value
+                
+                if temp_id:
+                    temp_refs.append(f"[TEMP_{field.upper()}:{temp_id}]")
                     payload_dict[field] = None
+        
+        # Append temp references to remarks if any
+        if temp_refs:
+            existing_remarks = payload_dict.get("br_remarks") or ""
+            # Remove any existing temp references from remarks first
+            import re
+            existing_remarks = re.sub(r'\[TEMP_BR_[A-Z_]+:\d+\]', '', existing_remarks).strip()
+            temp_refs_str = " ".join(temp_refs)
+            payload_dict["br_remarks"] = f"{existing_remarks} {temp_refs_str}".strip() if existing_remarks else temp_refs_str
 
         # Auto-populate location from current user (location-based access control)
         if current_user and current_user.ua_location_type == "DISTRICT_BRANCH" and current_user.ua_district_branch_id:
@@ -632,6 +651,55 @@ class BhikkuService:
     def enrich_bhikku_dict(self, bhikku: Bhikku, db: Session = None) -> dict:
         """Transform Bhikku model to dictionary with resolved foreign key names as nested objects"""
         
+        # Parse temporary bhikku references from remarks
+        import re
+        temp_viharadhipathi_id = None
+        temp_mahanaacharyacd_id = None
+        remarks_display = bhikku.br_remarks or ""
+        
+        if remarks_display:
+            # Extract temp viharadhipathi reference
+            viharadhipathi_match = re.search(r'\[TEMP_BR_VIHARADHIPATHI:(\d+)\]', remarks_display)
+            if viharadhipathi_match:
+                temp_viharadhipathi_id = int(viharadhipathi_match.group(1))
+            
+            # Extract temp mahanaacharyacd reference
+            mahanaacharyacd_match = re.search(r'\[TEMP_BR_MAHANAACHARYACD:(\d+)\]', remarks_display)
+            if mahanaacharyacd_match:
+                temp_mahanaacharyacd_id = int(mahanaacharyacd_match.group(1))
+            
+            # Remove temp references from display remarks
+            remarks_display = re.sub(r'\[TEMP_BR_[A-Z_]+:\d+\]', '', remarks_display).strip()
+        
+        # Fetch temporary bhikku details if needed
+        temp_viharadhipathi_data = None
+        temp_mahanaacharyacd_data = None
+        
+        if db and (temp_viharadhipathi_id or temp_mahanaacharyacd_id):
+            from app.models.temporary_bhikku import TemporaryBhikku
+            
+            if temp_viharadhipathi_id:
+                temp_bhikku = db.query(TemporaryBhikku).filter(
+                    TemporaryBhikku.tb_id == temp_viharadhipathi_id
+                ).first()
+                if temp_bhikku:
+                    temp_viharadhipathi_data = {
+                        "br_regn": f"TEMP-{temp_bhikku.tb_id}",
+                        "br_mahananame": temp_bhikku.tb_name or "",
+                        "br_upasampadaname": ""
+                    }
+            
+            if temp_mahanaacharyacd_id:
+                temp_bhikku = db.query(TemporaryBhikku).filter(
+                    TemporaryBhikku.tb_id == temp_mahanaacharyacd_id
+                ).first()
+                if temp_bhikku:
+                    temp_mahanaacharyacd_data = {
+                        "br_regn": f"TEMP-{temp_bhikku.tb_id}",
+                        "br_mahananame": temp_bhikku.tb_name or "",
+                        "br_upasampadaname": ""
+                    }
+        
         # Handle multi_mahanaacharyacd - split and resolve names
         multi_mahanaacharyacd_value = bhikku.br_multi_mahanaacharyacd
         if bhikku.br_multi_mahanaacharyacd and db:
@@ -676,7 +744,7 @@ class BhikkuService:
             "br_gihiname": bhikku.br_gihiname,
             "br_dofb": bhikku.br_dofb,
             "br_fathrname": bhikku.br_fathrname,
-            "br_remarks": bhikku.br_remarks,
+            "br_remarks": remarks_display or None,  # Use cleaned remarks without temp references
             "br_currstat": {
                 "st_statcd": bhikku.status_rel.st_statcd,
                 "st_descr": bhikku.status_rel.st_descr
@@ -694,11 +762,11 @@ class BhikkuService:
                 "vh_trn": bhikku.mahanatemple_rel.vh_trn,
                 "vh_vname": bhikku.mahanatemple_rel.vh_vname
             } if bhikku.mahanatemple_rel else bhikku.br_mahanatemple,
-            "br_mahanaacharyacd": {
+            "br_mahanaacharyacd": temp_mahanaacharyacd_data if temp_mahanaacharyacd_data else ({
                 "br_regn": bhikku.mahanaacharyacd_rel.br_regn,
                 "br_mahananame": bhikku.mahanaacharyacd_rel.br_mahananame or "",
                 "br_upasampadaname": ""
-            } if bhikku.mahanaacharyacd_rel else bhikku.br_mahanaacharyacd,
+            } if bhikku.mahanaacharyacd_rel else bhikku.br_mahanaacharyacd),
             "br_multi_mahanaacharyacd": multi_mahanaacharyacd_value,
             "br_mahananame": bhikku.br_mahananame,
             "br_mahanadate": bhikku.br_mahanadate,
@@ -706,11 +774,11 @@ class BhikkuService:
                 "cc_code": bhikku.category_rel.cc_code,
                 "cc_catogry": bhikku.category_rel.cc_catogry
             } if bhikku.category_rel else bhikku.br_cat,
-            "br_viharadhipathi": {
+            "br_viharadhipathi": temp_viharadhipathi_data if temp_viharadhipathi_data else ({
                 "br_regn": bhikku.viharadhipathi_rel.br_regn,
                 "br_mahananame": bhikku.viharadhipathi_rel.br_mahananame or "",
                 "br_upasampadaname": ""
-            } if bhikku.viharadhipathi_rel else bhikku.br_viharadhipathi,
+            } if bhikku.viharadhipathi_rel else bhikku.br_viharadhipathi),
             "br_nikaya": {
                 "code": bhikku.nikaya_rel.nk_nkn,
                 "name": bhikku.nikaya_rel.nk_nname
@@ -786,11 +854,30 @@ class BhikkuService:
         # Clear fields that reference temporary bhikkus:
         # - TEMP-* format (from READ_ALL response)
         # - Pure numeric strings (tb_id from temporary_bhikku table, since real br_regn starts with "BH")
+        # Store the temp bhikku reference in remarks for later retrieval
+        temp_refs = []
         for field in ["br_viharadhipathi", "br_mahanaacharyacd"]:
             value = update_data.get(field)
             if value and isinstance(value, str):
-                if value.startswith("TEMP-") or value.isdigit():
+                # Extract temp bhikku ID from either "TEMP-17" or "17" format
+                temp_id = None
+                if value.startswith("TEMP-"):
+                    temp_id = value[5:]  # Remove "TEMP-" prefix
+                elif value.isdigit():
+                    temp_id = value
+                
+                if temp_id:
+                    temp_refs.append(f"[TEMP_{field.upper()}:{temp_id}]")
                     update_data[field] = None
+        
+        # Append temp references to remarks if any
+        if temp_refs:
+            existing_remarks = update_data.get("br_remarks") or entity.br_remarks or ""
+            # Remove any existing temp references from remarks first
+            import re
+            existing_remarks = re.sub(r'\[TEMP_BR_[A-Z_]+:\d+\]', '', existing_remarks).strip()
+            temp_refs_str = " ".join(temp_refs)
+            update_data["br_remarks"] = f"{existing_remarks} {temp_refs_str}".strip() if existing_remarks else temp_refs_str
 
         if "br_regn" in update_data and update_data["br_regn"]:
             new_regn = update_data["br_regn"]
