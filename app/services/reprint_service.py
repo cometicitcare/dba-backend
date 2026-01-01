@@ -183,7 +183,17 @@ class ReprintService:
                 )
         if search_key:
             pattern = f"%{search_key.strip()}%"
-            query = query.filter(
+            query = query.outerjoin(
+                Bhikku, ReprintRequest.bhikku_regn == Bhikku.br_regn
+            ).outerjoin(
+                SilmathaRegist, ReprintRequest.silmatha_regn == SilmathaRegist.sil_regn
+            ).outerjoin(
+                BhikkuHighRegist, 
+                or_(
+                    ReprintRequest.bhikku_high_regn == BhikkuHighRegist.bhr_regn,
+                    ReprintRequest.upasampada_regn == BhikkuHighRegist.bhr_regn
+                )
+            ).filter(
                 or_(
                     ReprintRequest.form_no.ilike(pattern),
                     ReprintRequest.request_reason.ilike(pattern),
@@ -192,6 +202,11 @@ class ReprintService:
                     ReprintRequest.silmatha_regn.ilike(pattern),
                     ReprintRequest.bhikku_high_regn.ilike(pattern),
                     ReprintRequest.upasampada_regn.ilike(pattern),
+                    Bhikku.br_mahananame.ilike(pattern),
+                    Bhikku.br_gihiname.ilike(pattern),
+                    SilmathaRegist.sil_mahananame.ilike(pattern),
+                    SilmathaRegist.sil_gihiname.ilike(pattern),
+                    BhikkuHighRegist.bhr_assumed_name.ilike(pattern),
                 )
             )
 
