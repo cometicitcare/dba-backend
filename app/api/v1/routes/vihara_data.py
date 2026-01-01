@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File, Query
 from pydantic import BaseModel, ValidationError
 from sqlalchemy.orm import Session
+from datetime import date
 
 from app.api.auth_middleware import get_current_user
 from app.api.auth_dependencies import has_permission, has_any_permission
@@ -16,6 +17,7 @@ from app.schemas.vihara import (
     ViharaUpdate,
 )
 from app.services.vihara_service import vihara_service
+from app.services.temporary_vihara_service import temporary_vihara_service
 from app.utils.http_exceptions import validation_error
 
 router = APIRouter()  # Tags defined in router.py
@@ -398,11 +400,61 @@ def manage_vihara_records(
         records = vihara_service.list_viharas(db, **filters)
         total = vihara_service.count_viharas(db, **{k: v for k, v in filters.items() if k not in ["skip", "limit", "current_user"]})
         
+        # Convert records to list of dicts for modification
+        records_list = list(records)
+        
+        # Also fetch temporary viharas and include them in results
+        # Only apply search filter for temporary viharas (other filters don't apply to them)
+        temp_viharas = temporary_vihara_service.list_temporary_viharas(
+            db,
+            skip=0,  # Get all matching temp viharas
+            limit=200,  # Max allowed
+            search=search
+        )
+        
+        # Convert temporary viharas to Vihara-compatible format
+        for temp_vihara in temp_viharas:
+            # Truncate mobile to 10 chars if needed
+            mobile = temp_vihara.tv_contact_number[:10] if temp_vihara.tv_contact_number and len(temp_vihara.tv_contact_number) > 10 else (temp_vihara.tv_contact_number or "0000000000")
+            if not mobile or len(mobile) < 10:
+                mobile = "0000000000"  # Default placeholder for required field
+            
+            temp_vihara_dict = {
+                "vh_id": -temp_vihara.tv_id,  # Negative ID to distinguish from real records
+                "vh_trn": f"TEMP-{temp_vihara.tv_id}",  # Use TEMP prefix for identification
+                "vh_vname": temp_vihara.tv_name,
+                "vh_addrs": temp_vihara.tv_address,
+                "vh_mobile": mobile,
+                "vh_whtapp": mobile,
+                "vh_email": f"temp{temp_vihara.tv_id}@temporary.local",  # Placeholder email
+                "vh_typ": "TEMP",  # Mark as temporary type
+                "vh_gndiv": "TEMP",  # Placeholder
+                "vh_ownercd": "TEMP",  # Placeholder
+                "vh_parshawa": "TEMP",  # Placeholder
+                "vh_province": temp_vihara.tv_province,
+                "vh_district": temp_vihara.tv_district,
+                "vh_viharadhipathi_name": temp_vihara.tv_viharadhipathi_name,
+                "vh_workflow_status": "TEMPORARY",  # Mark workflow as temporary
+                "vh_created_at": temp_vihara.tv_created_at,
+                "vh_created_by": temp_vihara.tv_created_by,
+                "vh_updated_at": temp_vihara.tv_updated_at,
+                "vh_updated_by": temp_vihara.tv_updated_by,
+                "vh_is_deleted": False,
+                "vh_version_number": 1,
+                "temple_lands": [],
+                "resident_bhikkhus": [],
+            }
+            records_list.append(temp_vihara_dict)
+        
+        # Update total count to include temporary viharas
+        temp_count = temporary_vihara_service.count_temporary_viharas(db, search=search)
+        total_with_temp = total + temp_count
+        
         return ViharaManagementResponse(
             status="success",
             message="Vihara records retrieved successfully.",
-            data=records,
-            totalRecords=total,
+            data=records_list,
+            totalRecords=total_with_temp,
             page=page,
             limit=limit,
         )
