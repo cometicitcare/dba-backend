@@ -18,6 +18,7 @@ from app.schemas.arama import (
 )
 from app.services.arama_service import arama_service
 from app.services.silmatha_regist_service import silmatha_regist_service
+from app.services.temporary_arama_service import temporary_arama_service
 from app.repositories.silmatha_regist_repo import silmatha_regist_repo
 from app.utils.http_exceptions import validation_error
 
@@ -137,11 +138,59 @@ def manage_arama_records(
         records = arama_service.list_aramas(db, **filters)
         total = arama_service.count_aramas(db, **{k: v for k, v in filters.items() if k not in ["skip", "limit", "current_user"]})
         
+        # Convert records to list of dicts for modification
+        records_list = list(records)
+        
+        # Also fetch temporary aramas and include them in results
+        # Only apply search filter for temporary aramas (other filters don't apply to them)
+        temp_aramas = temporary_arama_service.list_temporary_aramas(
+            db,
+            skip=0,  # Get all matching temp aramas
+            limit=200,  # Max allowed
+            search=search
+        )
+        
+        # Convert temporary aramas to Arama-compatible format
+        for temp_arama in temp_aramas:
+            # Truncate mobile to 10 chars if needed
+            mobile = temp_arama.ta_contact_number[:10] if temp_arama.ta_contact_number and len(temp_arama.ta_contact_number) > 10 else (temp_arama.ta_contact_number or "0000000000")
+            if not mobile or len(mobile) < 10:
+                mobile = "0000000000"  # Default placeholder for required field
+            
+            temp_arama_dict = {
+                "ar_id": -temp_arama.ta_id,  # Negative ID to distinguish from real records
+                "ar_trn": f"TEMP-{temp_arama.ta_id}",  # Use TEMP prefix for identification
+                "ar_aname": temp_arama.ta_name,
+                "ar_addrs": temp_arama.ta_address,
+                "ar_mobile": mobile,
+                "ar_whtapp": mobile,
+                "ar_email": f"temp{temp_arama.ta_id}@temporary.local",  # Placeholder email
+                "ar_typ": "TEMP",  # Mark as temporary type
+                "ar_gndiv": "TEMP",  # Placeholder
+                "ar_ownercd": "TEMP",  # Placeholder
+                "ar_parshawa": "TEMP",  # Placeholder
+                "ar_province": temp_arama.ta_province,
+                "ar_district": temp_arama.ta_district,
+                "ar_aramadhipathi_name": temp_arama.ta_aramadhipathi_name,
+                "ar_workflow_status": "TEMPORARY",  # Mark workflow as temporary
+                "ar_created_at": temp_arama.ta_created_at,
+                "ar_created_by": temp_arama.ta_created_by,
+                "ar_updated_at": temp_arama.ta_updated_at,
+                "ar_updated_by": temp_arama.ta_updated_by,
+                "ar_is_deleted": False,
+                "ar_version_number": 1,
+            }
+            records_list.append(temp_arama_dict)
+        
+        # Update total count to include temporary aramas
+        temp_count = temporary_arama_service.count_temporary_aramas(db, search=search)
+        total_with_temp = total + temp_count
+        
         return AramaManagementResponse(
             status="success",
             message="Arama records retrieved successfully.",
-            data=records,
-            totalRecords=total,
+            data=records_list,
+            totalRecords=total_with_temp,
             page=page,
             limit=limit,
         )

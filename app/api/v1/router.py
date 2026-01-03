@@ -42,7 +42,10 @@ import app.api.v1.routes.status as status
 import app.api.v1.routes.silmatha_id as silmatha_id
 import app.api.v1.routes.silmatha_id_card as silmatha_id_card
 import app.api.v1.routes.silmatha_regist as silmatha_regist
+import app.api.v1.routes.temporary_arama as temporary_arama
 import app.api.v1.routes.temporary_bhikku as temporary_bhikku
+import app.api.v1.routes.temporary_devala as temporary_devala
+import app.api.v1.routes.temporary_silmatha as temporary_silmatha
 import app.api.v1.routes.temporary_vihara as temporary_vihara
 import app.api.v1.routes.vihara_data as vihara_data
 from app.api.v1 import auth_sms_test
@@ -128,6 +131,33 @@ api_router.include_router(
     temporary_vihara.router,
     prefix="/temporary-vihara",
     tags=["🏛️ DBA-HRMS: Temporary Vihara"]
+)
+
+# ============================================================================
+# DBA-HRMS: TEMPORARY ARAMA
+# ============================================================================
+api_router.include_router(
+    temporary_arama.router,
+    prefix="/temporary-arama",
+    tags=["🏛️ DBA-HRMS: Temporary Arama"]
+)
+
+# ============================================================================
+# DBA-HRMS: TEMPORARY DEVALA
+# ============================================================================
+api_router.include_router(
+    temporary_devala.router,
+    prefix="/temporary-devala",
+    tags=["🏛️ DBA-HRMS: Temporary Devala"]
+)
+
+# ============================================================================
+# DBA-HRMS: TEMPORARY SILMATHA
+# ============================================================================
+api_router.include_router(
+    temporary_silmatha.router,
+    prefix="/temporary-silmatha",
+    tags=["👩 DBA-HRMS: Temporary Silmatha"]
 )
 
 # ============================================================================
