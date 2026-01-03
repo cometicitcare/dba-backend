@@ -9,6 +9,7 @@ from app.models.user import UserAccount
 from app.schemas import silmatha_regist as schemas
 from app.services.silmatha_regist_service import silmatha_regist_service
 from app.services.arama_service import arama_service
+from app.services.temporary_silmatha_service import temporary_silmatha_service
 from app.repositories.silmatha_regist_repo import silmatha_regist_repo
 from app.utils.http_exceptions import validation_error
 from pydantic import ValidationError
@@ -165,11 +166,54 @@ def manage_silmatha_records(
         # Enrich each record with nested FK objects
         silmatha_enriched = [silmatha_regist_service.enrich_silmatha_dict(record, db) for record in silmatha_records]
         
+        # Also fetch temporary silmathas and include them in results
+        # Only apply search filter for temporary silmathas (other filters don't apply to them)
+        temp_silmathas = temporary_silmatha_service.list_temporary_silmathas(
+            db,
+            skip=0,  # Get all matching temp silmathas
+            limit=200,  # Max allowed
+            search=search_key
+        )
+        
+        # Convert temporary silmathas to Silmatha-compatible format
+        for temp_silmatha in temp_silmathas:
+            # Truncate mobile to 10 chars if needed
+            mobile = temp_silmatha.ts_contact_number[:10] if temp_silmatha.ts_contact_number and len(temp_silmatha.ts_contact_number) > 10 else (temp_silmatha.ts_contact_number or "0000000000")
+            if not mobile or len(mobile) < 10:
+                mobile = "0000000000"  # Default placeholder for required field
+            
+            temp_silmatha_dict = {
+                "sil_id": -temp_silmatha.ts_id,  # Negative ID to distinguish from real records
+                "sil_regn": f"TEMP-{temp_silmatha.ts_id}",  # Use TEMP prefix for identification
+                "sil_mname": temp_silmatha.ts_name,
+                "sil_nic": temp_silmatha.ts_nic,
+                "sil_addrs": temp_silmatha.ts_address,
+                "sil_mobile": mobile,
+                "sil_whtapp": mobile,
+                "sil_email": f"temp{temp_silmatha.ts_id}@temporary.local",  # Placeholder email
+                "sil_arama_name": temp_silmatha.ts_arama_name,
+                "sil_province": temp_silmatha.ts_province,
+                "sil_district": temp_silmatha.ts_district,
+                "sil_ordained_date": temp_silmatha.ts_ordained_date,
+                "sil_workflow_status": "TEMPORARY",  # Mark workflow as temporary
+                "sil_created_at": temp_silmatha.ts_created_at,
+                "sil_created_by": temp_silmatha.ts_created_by,
+                "sil_updated_at": temp_silmatha.ts_updated_at,
+                "sil_updated_by": temp_silmatha.ts_updated_by,
+                "sil_is_deleted": False,
+                "sil_version_number": 1,
+            }
+            silmatha_enriched.append(temp_silmatha_dict)
+        
+        # Update total count to include temporary silmathas
+        temp_count = temporary_silmatha_service.count_temporary_silmathas(db, search=search_key)
+        total_with_temp = total_count + temp_count
+        
         return schemas.SilmathaRegistManagementResponse(
             status="success",
             message="Silmatha records retrieved successfully.",
             data=silmatha_enriched,
-            totalRecords=total_count,
+            totalRecords=total_with_temp,
             page=page,
             limit=limit,
         )

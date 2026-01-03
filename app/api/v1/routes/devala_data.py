@@ -15,6 +15,7 @@ from app.schemas.devala import (
     DevalaUpdate,
 )
 from app.services.devala_service import devala_service
+from app.services.temporary_devala_service import temporary_devala_service
 from app.utils.http_exceptions import validation_error
 
 router = APIRouter()  # Tags defined in router.py
@@ -106,11 +107,59 @@ def manage_devala_records(
         records = devala_service.list_devalas(db, **filters)
         total = devala_service.count_devalas(db, **{k: v for k, v in filters.items() if k not in ["skip", "limit", "current_user"]})
         
+        # Convert records to list of dicts for modification
+        records_list = list(records)
+        
+        # Also fetch temporary devalas and include them in results
+        # Only apply search filter for temporary devalas (other filters don't apply to them)
+        temp_devalas = temporary_devala_service.list_temporary_devalas(
+            db,
+            skip=0,  # Get all matching temp devalas
+            limit=200,  # Max allowed
+            search=search
+        )
+        
+        # Convert temporary devalas to Devala-compatible format
+        for temp_devala in temp_devalas:
+            # Truncate mobile to 10 chars if needed
+            mobile = temp_devala.td_contact_number[:10] if temp_devala.td_contact_number and len(temp_devala.td_contact_number) > 10 else (temp_devala.td_contact_number or "0000000000")
+            if not mobile or len(mobile) < 10:
+                mobile = "0000000000"  # Default placeholder for required field
+            
+            temp_devala_dict = {
+                "dv_id": -temp_devala.td_id,  # Negative ID to distinguish from real records
+                "dv_trn": f"TEMP-{temp_devala.td_id}",  # Use TEMP prefix for identification
+                "dv_dname": temp_devala.td_name,
+                "dv_addrs": temp_devala.td_address,
+                "dv_mobile": mobile,
+                "dv_whtapp": mobile,
+                "dv_email": f"temp{temp_devala.td_id}@temporary.local",  # Placeholder email
+                "dv_typ": "TEMP",  # Mark as temporary type
+                "dv_gndiv": "TEMP",  # Placeholder
+                "dv_ownercd": "TEMP",  # Placeholder
+                "dv_parshawa": "TEMP",  # Placeholder
+                "dv_province": temp_devala.td_province,
+                "dv_district": temp_devala.td_district,
+                "dv_basnayake_nilame_name": temp_devala.td_basnayake_nilame_name,
+                "dv_workflow_status": "TEMPORARY",  # Mark workflow as temporary
+                "dv_created_at": temp_devala.td_created_at,
+                "dv_created_by": temp_devala.td_created_by,
+                "dv_updated_at": temp_devala.td_updated_at,
+                "dv_updated_by": temp_devala.td_updated_by,
+                "dv_is_deleted": False,
+                "dv_version_number": 1,
+            }
+            records_list.append(temp_devala_dict)
+        
+        # Update total count to include temporary devalas
+        temp_count = temporary_devala_service.count_temporary_devalas(db, search=search)
+        total_with_temp = total + temp_count
+        
         return DevalaManagementResponse(
             status="success",
             message="Devala records retrieved successfully.",
-            data=records,
-            totalRecords=total,
+            data=records_list,
+            totalRecords=total_with_temp,
             page=page,
             limit=limit,
         )
