@@ -371,7 +371,7 @@ class BhikkuNikayaListResponse(BaseModel):
 
 
 class BhikkuNikayaHierarchyBhikku(BaseModel):
-    regn: str
+    regn: Optional[str] = None
     gihiname: Optional[str] = None
     mahananame: Optional[str] = None
     current_status: Optional[str] = None
