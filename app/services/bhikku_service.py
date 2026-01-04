@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import csv
+import os
 import re
 from collections import defaultdict
 from datetime import datetime, date
@@ -458,122 +460,86 @@ class BhikkuService:
 
     def list_nikaya_hierarchy(self, db: Session) -> list[dict[str, Any]]:
         """
-        Return nikaya records enriched with their main bhikku and related parshawayas.
+        Return nikaya records from CSV file with their main bhikku and related parshawayas.
+        Data is read from official_backup_data/nikaya_hierarchy.csv
         """
-        nikaya_rows = (
-            db.query(NikayaData)
-            .filter(NikayaData.nk_is_deleted.is_(False))
-            .order_by(NikayaData.nk_nkn)
-            .all()
+        csv_path = os.path.join(
+            os.path.dirname(os.path.dirname(os.path.dirname(__file__))),
+            "official_backup_data",
+            "nikaya_hierarchy.csv"
         )
-
-        if not nikaya_rows:
+        
+        if not os.path.exists(csv_path):
             return []
-
-        parshawa_rows = (
-            db.query(ParshawaData)
-            .filter(ParshawaData.pr_is_deleted.is_(False))
-            .all()
-        )
-
-        parshawa_by_nikaya: dict[str, list[ParshawaData]] = defaultdict(list)
-        for parshawa in parshawa_rows:
-            if parshawa.pr_nikayacd:
-                parshawa_by_nikaya[parshawa.pr_nikayacd].append(parshawa)
-
-        main_regns = {row.nk_nahimicd for row in nikaya_rows if row.nk_nahimicd}
-        parshawa_regns = {row.pr_nayakahimi for row in parshawa_rows if row.pr_nayakahimi}
-        wanted_regns = {regn for regn in main_regns.union(parshawa_regns) if regn}
-
-        bhikku_map: dict[str, Bhikku] = {}
-        vihara_map: dict[str, ViharaData] = {}
-        if wanted_regns:
-            bhikku_rows = (
-                db.query(Bhikku)
-                .filter(
-                    Bhikku.br_regn.in_(wanted_regns),
-                    Bhikku.br_is_deleted.is_(False),
-                )
-                .all()
-            )
-            bhikku_map = {row.br_regn: row for row in bhikku_rows}
-
-            vihara_codes = {
-                row.br_livtemple for row in bhikku_rows if row.br_livtemple
-            }
-            if vihara_codes:
-                vihara_rows = (
-                    db.query(ViharaData)
-                    .filter(
-                        ViharaData.vh_trn.in_(vihara_codes),
-                        ViharaData.vh_is_deleted.is_(False),
-                    )
-                    .all()
-                )
-                vihara_map = {row.vh_trn: row for row in vihara_rows}
-
-        def serialize_bhikku(entity: Optional[Bhikku]) -> Optional[dict[str, Any]]:
-            if not entity:
-                return None
-            vihara = (
-                vihara_map.get(entity.br_livtemple)
-                if entity.br_livtemple
-                else None
-            )
-            address = (
-                (vihara.vh_addrs if vihara and vihara.vh_addrs else None)
-                or entity.br_fathrsaddrs
-                or self._build_address_string(
-                    entity.br_vilage,
-                    entity.br_division,
-                    entity.br_district,
-                    entity.br_province,
-                )
-            )
-            return {
-                "regn": entity.br_regn,
-                "gihiname": entity.br_gihiname,
-                "mahananame": entity.br_mahananame,
-                "current_status": entity.br_currstat,
-                "parshawaya": entity.br_parshawaya,
-                "livtemple": entity.br_livtemple,
-                "mahanatemple": entity.br_mahanatemple,
-                "address": address,
-            }
-
-        hierarchy: list[dict[str, Any]] = []
-        for nikaya in nikaya_rows:
-            parshawa_items: list[dict[str, Any]] = []
-            for parshawa in sorted(
-                parshawa_by_nikaya.get(nikaya.nk_nkn, []),
-                key=lambda item: ((item.pr_pname or "").lower(), item.pr_prn or ""),
-            ):
-                parshawa_items.append(
-                    {
-                        "code": parshawa.pr_prn,
-                        "name": parshawa.pr_pname,
-                        "remarks": parshawa.pr_rmrks,
-                        "start_date": parshawa.pr_startdate,
-                        "nayaka_regn": parshawa.pr_nayakahimi,
-                        "nayaka": serialize_bhikku(
-                            bhikku_map.get(parshawa.pr_nayakahimi)
-                        ),
-                    }
-                )
-
-            hierarchy.append(
-                {
-                    "nikaya": {
-                        "code": nikaya.nk_nkn,
-                        "name": nikaya.nk_nname,
-                    },
-                    "main_bhikku": serialize_bhikku(
-                        bhikku_map.get(nikaya.nk_nahimicd)
-                    ),
-                    "parshawayas": parshawa_items,
-                }
-            )
-
+        
+        # Read CSV file
+        hierarchy_by_nikaya: dict[str, dict[str, Any]] = {}
+        
+        try:
+            with open(csv_path, 'r', encoding='utf-8') as csvfile:
+                reader = csv.DictReader(csvfile)
+                for row in reader:
+                    nikaya_name = row.get('නිකාය (Nikaya)', '').strip()
+                    parshawa_name = row.get('පාර්ශ්වය (Parshawa)', '').strip()
+                    bhikku_name = row.get('මහානායක ස්වාමින් වහන්සේගේ නම', '').strip()
+                    address = row.get('ලිපිනය', '').strip()
+                    
+                    if not nikaya_name:
+                        continue
+                    
+                    # Initialize nikaya entry if not exists
+                    if nikaya_name not in hierarchy_by_nikaya:
+                        hierarchy_by_nikaya[nikaya_name] = {
+                            "nikaya": {
+                                "code": None,
+                                "name": nikaya_name,
+                            },
+                            "main_bhikku": None,
+                            "parshawayas": []
+                        }
+                    
+                    # If parshawa is present, add it to parshawayas list
+                    if parshawa_name:
+                        parshawa_item = {
+                            "code": None,
+                            "name": parshawa_name,
+                            "remarks": None,
+                            "start_date": None,
+                            "nayaka_regn": None,
+                            "nayaka": {
+                                "regn": None,
+                                "gihiname": None,
+                                "mahananame": bhikku_name if bhikku_name else None,
+                                "current_status": None,
+                                "parshawaya": None,
+                                "livtemple": None,
+                                "mahanatemple": None,
+                                "address": address if address else None,
+                            } if bhikku_name else None
+                        }
+                        hierarchy_by_nikaya[nikaya_name]["parshawayas"].append(parshawa_item)
+                    else:
+                        # If no parshawa, this is the main bhikku for the nikaya
+                        if bhikku_name:
+                            hierarchy_by_nikaya[nikaya_name]["main_bhikku"] = {
+                                "regn": None,
+                                "gihiname": None,
+                                "mahananame": bhikku_name,
+                                "current_status": None,
+                                "parshawaya": None,
+                                "livtemple": None,
+                                "mahanatemple": None,
+                                "address": address if address else None,
+                            }
+        
+        except Exception as e:
+            # Log error but return empty list to maintain API consistency
+            print(f"Error reading nikaya hierarchy CSV: {e}")
+            return []
+        
+        # Convert to list and maintain order
+        hierarchy = list(hierarchy_by_nikaya.values())
+        
         return hierarchy
 
     def list_parshawa_view(self, db: Session) -> list[dict[str, Any]]:
