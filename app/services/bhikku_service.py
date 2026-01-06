@@ -240,6 +240,18 @@ class BhikkuService:
                     temp_refs.append(f"[TEMP_{field.upper()}:{temp_id}]")
                     payload_dict[field] = None
         
+        # Handle temporary vihara references - these can't be stored as FK references
+        # Clear fields that reference temporary viharas (TEMP-* format from READ_ALL response)
+        # br_robing_tutor_residence and br_robing_after_residence_temple have FK to vihaddata
+        for field in ["br_robing_tutor_residence", "br_robing_after_residence_temple"]:
+            value = payload_dict.get(field)
+            if value and isinstance(value, str):
+                # Extract temp vihara ID from "TEMP-11" format
+                if value.startswith("TEMP-"):
+                    temp_id = value[5:]  # Remove "TEMP-" prefix
+                    temp_refs.append(f"[TEMP_{field.upper()}:{temp_id}]")
+                    payload_dict[field] = None
+        
         # Append temp references to remarks if any
         if temp_refs:
             existing_remarks = payload_dict.get("br_remarks") or ""
@@ -632,6 +644,8 @@ class BhikkuService:
         import re
         temp_viharadhipathi_id = None
         temp_mahanaacharyacd_id = None
+        temp_robing_tutor_residence_id = None
+        temp_robing_after_residence_temple_id = None
         remarks_display = bhikku.br_remarks or ""
         
         if remarks_display:
@@ -644,6 +658,16 @@ class BhikkuService:
             mahanaacharyacd_match = re.search(r'\[TEMP_BR_MAHANAACHARYACD:(\d+)\]', remarks_display)
             if mahanaacharyacd_match:
                 temp_mahanaacharyacd_id = int(mahanaacharyacd_match.group(1))
+            
+            # Extract temp robing_tutor_residence reference (temporary vihara)
+            robing_tutor_match = re.search(r'\[TEMP_BR_ROBING_TUTOR_RESIDENCE:(\d+)\]', remarks_display)
+            if robing_tutor_match:
+                temp_robing_tutor_residence_id = int(robing_tutor_match.group(1))
+            
+            # Extract temp robing_after_residence_temple reference (temporary vihara)
+            robing_after_match = re.search(r'\[TEMP_BR_ROBING_AFTER_RESIDENCE_TEMPLE:(\d+)\]', remarks_display)
+            if robing_after_match:
+                temp_robing_after_residence_temple_id = int(robing_after_match.group(1))
             
             # Remove temp references from display remarks
             remarks_display = re.sub(r'\[TEMP_BR_[A-Z_]+:\d+\]', '', remarks_display).strip()
@@ -675,6 +699,33 @@ class BhikkuService:
                         "br_regn": f"TEMP-{temp_bhikku.tb_id}",
                         "br_mahananame": temp_bhikku.tb_name or "",
                         "br_upasampadaname": ""
+                    }
+        
+        # Fetch temporary vihara details if needed
+        temp_robing_tutor_residence_data = None
+        temp_robing_after_residence_temple_data = None
+        
+        if db and (temp_robing_tutor_residence_id or temp_robing_after_residence_temple_id):
+            from app.models.temporary_vihara import TemporaryVihara
+            
+            if temp_robing_tutor_residence_id:
+                temp_vihara = db.query(TemporaryVihara).filter(
+                    TemporaryVihara.tv_id == temp_robing_tutor_residence_id
+                ).first()
+                if temp_vihara:
+                    temp_robing_tutor_residence_data = {
+                        "vh_trn": f"TEMP-{temp_vihara.tv_id}",
+                        "vh_vname": temp_vihara.tv_name or ""
+                    }
+            
+            if temp_robing_after_residence_temple_id:
+                temp_vihara = db.query(TemporaryVihara).filter(
+                    TemporaryVihara.tv_id == temp_robing_after_residence_temple_id
+                ).first()
+                if temp_vihara:
+                    temp_robing_after_residence_temple_data = {
+                        "vh_trn": f"TEMP-{temp_vihara.tv_id}",
+                        "vh_vname": temp_vihara.tv_name or ""
                     }
         
         # Handle multi_mahanaacharyacd - split and resolve names
@@ -764,14 +815,14 @@ class BhikkuService:
             "br_mahanayaka_address": bhikku.br_mahanayaka_address,
             "br_residence_at_declaration": bhikku.br_residence_at_declaration,
             "br_declaration_date": bhikku.br_declaration_date,
-            "br_robing_tutor_residence": {
+            "br_robing_tutor_residence": temp_robing_tutor_residence_data if temp_robing_tutor_residence_data else ({
                 "vh_trn": bhikku.robing_tutor_residence_rel.vh_trn,
                 "vh_vname": bhikku.robing_tutor_residence_rel.vh_vname
-            } if bhikku.robing_tutor_residence_rel else bhikku.br_robing_tutor_residence,
-            "br_robing_after_residence_temple": {
+            } if bhikku.robing_tutor_residence_rel else bhikku.br_robing_tutor_residence),
+            "br_robing_after_residence_temple": temp_robing_after_residence_temple_data if temp_robing_after_residence_temple_data else ({
                 "vh_trn": bhikku.robing_after_residence_temple_rel.vh_trn,
                 "vh_vname": bhikku.robing_after_residence_temple_rel.vh_vname
-            } if bhikku.robing_after_residence_temple_rel else bhikku.br_robing_after_residence_temple,
+            } if bhikku.robing_after_residence_temple_rel else bhikku.br_robing_after_residence_temple),
             "br_mobile": bhikku.br_mobile,
             "br_email": bhikku.br_email,
             "br_fathrsaddrs": bhikku.br_fathrsaddrs,
@@ -844,6 +895,18 @@ class BhikkuService:
                     temp_id = value
                 
                 if temp_id:
+                    temp_refs.append(f"[TEMP_{field.upper()}:{temp_id}]")
+                    update_data[field] = None
+        
+        # Handle temporary vihara references - these can't be stored as FK references
+        # Clear fields that reference temporary viharas (TEMP-* format from READ_ALL response)
+        # br_robing_tutor_residence and br_robing_after_residence_temple have FK to vihaddata
+        for field in ["br_robing_tutor_residence", "br_robing_after_residence_temple"]:
+            value = update_data.get(field)
+            if value and isinstance(value, str):
+                # Extract temp vihara ID from "TEMP-11" format
+                if value.startswith("TEMP-"):
+                    temp_id = value[5:]  # Remove "TEMP-" prefix
                     temp_refs.append(f"[TEMP_{field.upper()}:{temp_id}]")
                     update_data[field] = None
         
