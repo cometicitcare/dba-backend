@@ -25,7 +25,7 @@ class Bhikku(Base):
     br_gihiname = Column(String(50))
     br_dofb = Column(Date)
     br_fathrname = Column(String(50))
-    br_remarks = Column(String(100))
+    br_remarks = Column(String(500))  # Increased from 100 to accommodate temp references
     
     # Status Information
     br_currstat = Column(String(5), nullable=False)
