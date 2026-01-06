@@ -28,7 +28,7 @@ class SilmathaRegist(Base):
     sil_pattu = Column(String(50))
     sil_division = Column(String(50), ForeignKey('cmm_dvsec.dv_dvcode'))
     sil_vilage = Column(String(50))
-    sil_gndiv = Column(String(10), ForeignKey('cmm_gndata.gn_gnc'), nullable=False)
+    sil_gndiv = Column(String(10), ForeignKey('cmm_gndata.gn_gnc'))
     
     # Temple/Religious Information
     sil_viharadhipathi = Column(String(20), ForeignKey('bhikku_regist.br_regn'))
