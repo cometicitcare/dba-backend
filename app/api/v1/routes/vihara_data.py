@@ -400,8 +400,15 @@ def manage_vihara_records(
         records = vihara_service.list_viharas(db, **filters)
         total = vihara_service.count_viharas(db, **{k: v for k, v in filters.items() if k not in ["skip", "limit", "current_user"]})
         
-        # Convert records to list of dicts for modification
-        records_list = list(records)
+        # Convert records to list of dicts for modification (serialize SQLAlchemy models)
+        records_list = []
+        for record in records:
+            if hasattr(record, '__dict__'):
+                # Convert SQLAlchemy model to dict, excluding internal attributes
+                record_dict = {k: v for k, v in record.__dict__.items() if not k.startswith('_')}
+                records_list.append(record_dict)
+            else:
+                records_list.append(record)
         
         # Also fetch temporary viharas and include them in results
         # Only apply search filter for temporary viharas (other filters don't apply to them)

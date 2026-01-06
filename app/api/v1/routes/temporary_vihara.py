@@ -98,12 +98,21 @@ def manage_temporary_vihara_records(
             db, skip=skip, limit=limit, search=search
         )
         total = temporary_vihara_service.count_temporary_viharas(db, search=search)
+        
+        # Convert SQLAlchemy models to dicts for serialization
+        records_list = []
+        for record in records:
+            if hasattr(record, '__dict__'):
+                record_dict = {k: v for k, v in record.__dict__.items() if not k.startswith('_')}
+                records_list.append(record_dict)
+            else:
+                records_list.append(record)
 
         return TemporaryViharaManagementResponse(
             status="success",
-            message=f"Retrieved {len(records)} temporary vihara records.",
+            message=f"Retrieved {len(records_list)} temporary vihara records.",
             data={
-                "records": records,
+                "records": records_list,
                 "total": total,
                 "skip": skip,
                 "limit": limit,
