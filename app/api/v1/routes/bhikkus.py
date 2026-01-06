@@ -13,6 +13,7 @@ from app.schemas.vihara import BhikkuViharaListResponse, BhikkuViharaManagementR
 from app.services.bhikku_service import bhikku_service
 from app.services.vihara_service import vihara_service
 from app.services.temporary_bhikku_service import temporary_bhikku_service
+from app.services.temporary_vihara_service import temporary_vihara_service
 from app.utils.http_exceptions import validation_error
 from pydantic import ValidationError
 
@@ -645,6 +646,27 @@ def get_vihara_for_bhikkus(
             for vihara in viharas
         ]
         
+        # Also fetch temporary viharas and include them in results
+        temp_viharas = temporary_vihara_service.list_temporary_viharas(
+            db,
+            skip=0,
+            limit=200,
+            search=search_key
+        )
+        
+        # Add temporary viharas to the list
+        for temp_vihara in temp_viharas:
+            temp_vihara_item = {
+                "vh_trn": f"TEMP-{temp_vihara.tv_id}",
+                "vh_vname": temp_vihara.tv_name,
+                "vh_addrs": temp_vihara.tv_address,
+            }
+            vihara_items.append(temp_vihara_item)
+        
+        # Update total count to include temporary viharas
+        temp_count = temporary_vihara_service.count_temporary_viharas(db, search=search_key)
+        total_with_temp = total_count + temp_count
+        
         # Determine the page number
         response_page = page if page else (skip // limit) + 1
         
@@ -652,7 +674,7 @@ def get_vihara_for_bhikkus(
             "status": "success",
             "message": "Viharas retrieved successfully.",
             "data": vihara_items,
-            "totalRecords": total_count,
+            "totalRecords": total_with_temp,
             "page": response_page,
             "limit": limit,
         }
