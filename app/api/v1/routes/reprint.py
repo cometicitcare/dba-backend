@@ -258,11 +258,6 @@ def manage_reprint(
             }
 
         if action == schemas.ReprintAction.MARK_PRINTED:
-            if not is_admin:
-                raise HTTPException(
-                    status_code=403,
-                    detail="Only District Admins can mark reprints as printed.",
-                )
             if not request.request_id:
                 raise HTTPException(status_code=400, detail="request_id is required for MARK_PRINTED")
             try:
