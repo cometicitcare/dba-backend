@@ -509,7 +509,7 @@ class BhikkuService:
             return {
                 "regn": entity.br_regn,
                 "gihiname": entity.br_gihiname,
-                "mahananame": entity.br_mahananame,
+                "mahananame": entity.br_mahanayaka_name or entity.br_mahananame,
                 "current_status": entity.br_currstat,
                 "parshawaya": entity.br_parshawaya,
                 "livtemple": entity.br_livtemple,
