@@ -111,7 +111,7 @@ class SilmathaRegistBase(BaseModel):
     sil_pattu: Optional[str] = None
     sil_division: Optional[str] = None
     sil_vilage: Optional[str] = None
-    sil_gndiv: str
+    sil_gndiv: Optional[str] = None
     sil_created_by_district: Optional[str] = None
     
     # Temple/Religious Information
@@ -209,7 +209,7 @@ class Silmatha(SilmathaRegistBase):
     sil_province: Optional[Union[ProvinceResponse, str]] = None
     sil_district: Optional[Union[DistrictResponse, str]] = None
     sil_division: Optional[Union[DivisionResponse, str]] = None
-    sil_gndiv: Union[GNDivisionResponse, str]
+    sil_gndiv: Optional[Union[GNDivisionResponse, str]] = None
     sil_currstat: Union[StatusResponse, str]
     sil_cat: Optional[Union[CategoryResponse, str]] = None
     sil_viharadhipathi: Optional[Union[SilmathaRefResponse, str]] = None
