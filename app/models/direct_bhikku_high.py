@@ -33,7 +33,7 @@ class DirectBhikkuHigh(Base):
     dbh_gihiname = Column(String(50))
     dbh_dofb = Column(Date)
     dbh_fathrname = Column(String(50))
-    dbh_remarks = Column(String(100))
+    dbh_remarks = Column(String(500))  # Increased to 500 for temp references
     
     # Status Information
     dbh_currstat = Column(String(5), nullable=False)
