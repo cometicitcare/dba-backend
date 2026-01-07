@@ -213,6 +213,8 @@ class DirectBhikkuHighRepository:
         self, db: Session, *, payload: DirectBhikkuHighCreate, actor_id: str, current_user=None
     ) -> DirectBhikkuHigh:
         """Create a new direct high bhikku record"""
+        import re
+        
         # Convert payload to dict
         data = payload.model_dump(exclude_unset=True, exclude_none=False)
         
@@ -231,6 +233,43 @@ class DirectBhikkuHighRepository:
             user_district = current_user.ua_district
             if user_district:
                 data["dbh_created_by_district"] = user_district
+
+        # Handle temporary bhikku references (TEMP-*)
+        temp_remarks = []
+        bhikku_fk_fields = [
+            "dbh_karmacharya_name",
+            "dbh_upaddhyaya_name", 
+            "dbh_tutors_tutor_regn",
+            "dbh_presiding_bhikshu_regn",
+            "dbh_samanera_serial_no",
+        ]
+        for field in bhikku_fk_fields:
+            if field in data and data[field]:
+                value = str(data[field])
+                if value.startswith("TEMP-"):
+                    temp_id = value.replace("TEMP-", "")
+                    temp_remarks.append(f"[TEMP_DBH_{field.upper().replace('DBH_', '')}:{temp_id}]")
+                    data[field] = None
+        
+        # Handle temporary vihara references (TEMP-*)
+        vihara_fk_fields = [
+            "dbh_livtemple",
+            "dbh_residence_higher_ordination_trn",
+            "dbh_residence_permanent_trn",
+            "dbh_higher_ordination_place",
+        ]
+        for field in vihara_fk_fields:
+            if field in data and data[field]:
+                value = str(data[field])
+                if value.startswith("TEMP-"):
+                    temp_id = value.replace("TEMP-", "")
+                    temp_remarks.append(f"[TEMP_DBH_{field.upper().replace('DBH_', '')}:{temp_id}]")
+                    data[field] = None
+        
+        # Append temp references to remarks
+        if temp_remarks:
+            existing_remarks = data.get("dbh_remarks") or ""
+            data["dbh_remarks"] = (existing_remarks + " " + " ".join(temp_remarks)).strip()
 
         entity = DirectBhikkuHigh(**data)
 
@@ -258,6 +297,7 @@ class DirectBhikkuHighRepository:
 
         raise RuntimeError("Failed to create record after maximum retries")
 
+
     def update(
         self,
         db: Session,
@@ -267,6 +307,8 @@ class DirectBhikkuHighRepository:
         actor_id: str,
     ) -> DirectBhikkuHigh:
         """Update an existing direct high bhikku record"""
+        import re
+        
         update_data = payload.model_dump(exclude_unset=True, exclude_none=False)
         
         # Remove fields that shouldn't be updated directly
@@ -277,6 +319,55 @@ class DirectBhikkuHighRepository:
         
         # Set audit fields
         update_data["dbh_updated_by"] = actor_id
+
+        # Handle temporary bhikku references (TEMP-*)
+        temp_remarks = []
+        current_remarks = entity.dbh_remarks or ""
+        
+        # Remove old temp references from remarks before adding new ones
+        current_remarks = re.sub(r'\[TEMP_DBH_[A-Z_]+:\d+\]', '', current_remarks).strip()
+        
+        bhikku_fk_fields = [
+            "dbh_karmacharya_name",
+            "dbh_upaddhyaya_name",
+            "dbh_tutors_tutor_regn",
+            "dbh_presiding_bhikshu_regn",
+            "dbh_samanera_serial_no",
+        ]
+        for field in bhikku_fk_fields:
+            if field in update_data and update_data[field] is not None:
+                value = str(update_data[field])
+                if value.startswith("TEMP-"):
+                    temp_id = value.replace("TEMP-", "")
+                    temp_remarks.append(f"[TEMP_DBH_{field.upper().replace('DBH_', '')}:{temp_id}]")
+                    update_data[field] = None
+        
+        # Handle temporary vihara references (TEMP-*)
+        vihara_fk_fields = [
+            "dbh_livtemple",
+            "dbh_residence_higher_ordination_trn",
+            "dbh_residence_permanent_trn",
+            "dbh_higher_ordination_place",
+        ]
+        for field in vihara_fk_fields:
+            if field in update_data and update_data[field] is not None:
+                value = str(update_data[field])
+                if value.startswith("TEMP-"):
+                    temp_id = value.replace("TEMP-", "")
+                    temp_remarks.append(f"[TEMP_DBH_{field.upper().replace('DBH_', '')}:{temp_id}]")
+                    update_data[field] = None
+        
+        # Update remarks with temp references
+        if temp_remarks:
+            # If remarks are being updated in payload, use that as base
+            if "dbh_remarks" in update_data and update_data["dbh_remarks"]:
+                base_remarks = update_data["dbh_remarks"]
+                # Clean temp refs from new remarks too
+                base_remarks = re.sub(r'\[TEMP_DBH_[A-Z_]+:\d+\]', '', base_remarks).strip()
+            else:
+                base_remarks = current_remarks
+            update_data["dbh_remarks"] = (base_remarks + " " + " ".join(temp_remarks)).strip()
+
 
         for field, value in update_data.items():
             setattr(entity, field, value)

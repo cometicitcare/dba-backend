@@ -13,7 +13,7 @@ class BhikkuHighRegist(Base):
     bhr_regn = Column(String(12), nullable=False, index=True)
     bhr_samanera_serial_no = Column(String(20))
     bhr_reqstdate = Column(Date)
-    bhr_remarks = Column(String(100))
+    bhr_remarks = Column(String(500))  # Increased to 500 for temp references
     bhr_currstat = Column(String(5))
     bhr_parshawaya = Column(String(10))
     bhr_livtemple = Column(String(10))

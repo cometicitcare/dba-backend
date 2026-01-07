@@ -36,6 +36,36 @@ class BhikkuHighService:
         if not self._has_meaningful_value(payload_dict.get("bhr_samanera_serial_no")):
             payload_dict["bhr_samanera_serial_no"] = None
 
+        # Handle temporary bhikku references - these can't be stored as FK references
+        # Store the temp references in remarks for later retrieval
+        import re
+        temp_refs = []
+        for field in ["bhr_candidate_regn", "bhr_karmacharya_name", "bhr_upaddhyaya_name", 
+                      "bhr_tutors_tutor_regn", "bhr_presiding_bhikshu_regn", "bhr_samanera_serial_no"]:
+            value = payload_dict.get(field)
+            if value and isinstance(value, str):
+                if value.startswith("TEMP-"):
+                    temp_id = value[5:]  # Remove "TEMP-" prefix
+                    temp_refs.append(f"[TEMP_{field.upper()}:{temp_id}]")
+                    payload_dict[field] = None
+        
+        # Handle temporary vihara references
+        for field in ["bhr_livtemple", "bhr_residence_higher_ordination_trn", 
+                      "bhr_residence_permanent_trn", "bhr_higher_ordination_place"]:
+            value = payload_dict.get(field)
+            if value and isinstance(value, str):
+                if value.startswith("TEMP-"):
+                    temp_id = value[5:]  # Remove "TEMP-" prefix
+                    temp_refs.append(f"[TEMP_{field.upper()}:{temp_id}]")
+                    payload_dict[field] = None
+        
+        # Append temp references to remarks if any
+        if temp_refs:
+            existing_remarks = payload_dict.get("bhr_remarks") or ""
+            existing_remarks = re.sub(r'\[TEMP_BHR_[A-Z_]+:\d+\]', '', existing_remarks).strip()
+            temp_refs_str = " ".join(temp_refs)
+            payload_dict["bhr_remarks"] = f"{existing_remarks} {temp_refs_str}".strip() if existing_remarks else temp_refs_str
+
         # Auto-populate location from current user (location-based access control)
         if current_user and current_user.ua_location_type == "DISTRICT_BRANCH" and current_user.ua_district_branch_id:
             from app.models.district_branch import DistrictBranch
@@ -157,7 +187,59 @@ class BhikkuHighService:
 
     def enrich_bhikku_high_dict(self, bhikku_high: BhikkuHighRegist) -> dict:
         """Transform BhikkuHighRegist model to dictionary with resolved nested objects"""
+        import re
         from sqlalchemy.orm import joinedload
+        
+        # Parse temporary references from remarks
+        temp_candidate_regn_id = None
+        temp_karmacharya_id = None
+        temp_upaddhyaya_id = None
+        temp_tutors_tutor_id = None
+        temp_presiding_bhikshu_id = None
+        temp_samanera_serial_id = None
+        temp_livtemple_id = None
+        temp_residence_higher_id = None
+        temp_residence_permanent_id = None
+        temp_higher_ordination_place_id = None
+        remarks_display = bhikku_high.bhr_remarks or ""
+        
+        if remarks_display:
+            # Extract temp bhikku references
+            match = re.search(r'\[TEMP_BHR_CANDIDATE_REGN:(\d+)\]', remarks_display)
+            if match:
+                temp_candidate_regn_id = int(match.group(1))
+            match = re.search(r'\[TEMP_BHR_KARMACHARYA_NAME:(\d+)\]', remarks_display)
+            if match:
+                temp_karmacharya_id = int(match.group(1))
+            match = re.search(r'\[TEMP_BHR_UPADDHYAYA_NAME:(\d+)\]', remarks_display)
+            if match:
+                temp_upaddhyaya_id = int(match.group(1))
+            match = re.search(r'\[TEMP_BHR_TUTORS_TUTOR_REGN:(\d+)\]', remarks_display)
+            if match:
+                temp_tutors_tutor_id = int(match.group(1))
+            match = re.search(r'\[TEMP_BHR_PRESIDING_BHIKSHU_REGN:(\d+)\]', remarks_display)
+            if match:
+                temp_presiding_bhikshu_id = int(match.group(1))
+            match = re.search(r'\[TEMP_BHR_SAMANERA_SERIAL_NO:(\d+)\]', remarks_display)
+            if match:
+                temp_samanera_serial_id = int(match.group(1))
+            
+            # Extract temp vihara references
+            match = re.search(r'\[TEMP_BHR_LIVTEMPLE:(\d+)\]', remarks_display)
+            if match:
+                temp_livtemple_id = int(match.group(1))
+            match = re.search(r'\[TEMP_BHR_RESIDENCE_HIGHER_ORDINATION_TRN:(\d+)\]', remarks_display)
+            if match:
+                temp_residence_higher_id = int(match.group(1))
+            match = re.search(r'\[TEMP_BHR_RESIDENCE_PERMANENT_TRN:(\d+)\]', remarks_display)
+            if match:
+                temp_residence_permanent_id = int(match.group(1))
+            match = re.search(r'\[TEMP_BHR_HIGHER_ORDINATION_PLACE:(\d+)\]', remarks_display)
+            if match:
+                temp_higher_ordination_place_id = int(match.group(1))
+            
+            # Remove temp references from display remarks
+            remarks_display = re.sub(r'\[TEMP_BHR_[A-Z_]+:\d+\]', '', remarks_display).strip()
         
         # Manually fetch related data with explicit queries to avoid N+1
         candidate = None
@@ -168,9 +250,84 @@ class BhikkuHighService:
         residence_permanent_obj = None
         tutor_obj = None
         presiding_obj = None
+        karmacharya_obj = None
+        upaddhyaya_obj = None
+        samanera_obj = None
+        higher_ordination_place_obj = None
+        
+        # Temp data objects
+        temp_candidate_data = None
+        temp_karmacharya_data = None
+        temp_upaddhyaya_data = None
+        temp_tutors_tutor_data = None
+        temp_presiding_bhikshu_data = None
+        temp_samanera_data = None
+        temp_livtemple_data = None
+        temp_residence_higher_data = None
+        temp_residence_permanent_data = None
+        temp_higher_ordination_place_data = None
         
         db = bhikku_high._sa_instance_state.session
         if db:
+            # Fetch temp bhikku data
+            if temp_candidate_regn_id or temp_karmacharya_id or temp_upaddhyaya_id or temp_tutors_tutor_id or temp_presiding_bhikshu_id or temp_samanera_serial_id:
+                from app.models.temporary_bhikku import TemporaryBhikku
+                
+                if temp_candidate_regn_id:
+                    temp_bhikku = db.query(TemporaryBhikku).filter(TemporaryBhikku.tb_id == temp_candidate_regn_id).first()
+                    if temp_bhikku:
+                        temp_candidate_data = {"br_regn": f"TEMP-{temp_bhikku.tb_id}", "br_mahananame": temp_bhikku.tb_name or "", "br_upasampadaname": ""}
+                
+                if temp_karmacharya_id:
+                    temp_bhikku = db.query(TemporaryBhikku).filter(TemporaryBhikku.tb_id == temp_karmacharya_id).first()
+                    if temp_bhikku:
+                        temp_karmacharya_data = {"br_regn": f"TEMP-{temp_bhikku.tb_id}", "br_mahananame": temp_bhikku.tb_name or "", "br_upasampadaname": ""}
+                
+                if temp_upaddhyaya_id:
+                    temp_bhikku = db.query(TemporaryBhikku).filter(TemporaryBhikku.tb_id == temp_upaddhyaya_id).first()
+                    if temp_bhikku:
+                        temp_upaddhyaya_data = {"br_regn": f"TEMP-{temp_bhikku.tb_id}", "br_mahananame": temp_bhikku.tb_name or "", "br_upasampadaname": ""}
+                
+                if temp_tutors_tutor_id:
+                    temp_bhikku = db.query(TemporaryBhikku).filter(TemporaryBhikku.tb_id == temp_tutors_tutor_id).first()
+                    if temp_bhikku:
+                        temp_tutors_tutor_data = {"br_regn": f"TEMP-{temp_bhikku.tb_id}", "br_mahananame": temp_bhikku.tb_name or "", "br_upasampadaname": ""}
+                
+                if temp_presiding_bhikshu_id:
+                    temp_bhikku = db.query(TemporaryBhikku).filter(TemporaryBhikku.tb_id == temp_presiding_bhikshu_id).first()
+                    if temp_bhikku:
+                        temp_presiding_bhikshu_data = {"br_regn": f"TEMP-{temp_bhikku.tb_id}", "br_mahananame": temp_bhikku.tb_name or "", "br_upasampadaname": ""}
+                
+                if temp_samanera_serial_id:
+                    temp_bhikku = db.query(TemporaryBhikku).filter(TemporaryBhikku.tb_id == temp_samanera_serial_id).first()
+                    if temp_bhikku:
+                        temp_samanera_data = {"br_regn": f"TEMP-{temp_bhikku.tb_id}", "br_mahananame": temp_bhikku.tb_name or "", "br_upasampadaname": ""}
+            
+            # Fetch temp vihara data
+            if temp_livtemple_id or temp_residence_higher_id or temp_residence_permanent_id or temp_higher_ordination_place_id:
+                from app.models.temporary_vihara import TemporaryVihara
+                
+                if temp_livtemple_id:
+                    temp_vihara = db.query(TemporaryVihara).filter(TemporaryVihara.tv_id == temp_livtemple_id).first()
+                    if temp_vihara:
+                        temp_livtemple_data = {"vh_trn": f"TEMP-{temp_vihara.tv_id}", "vh_vname": temp_vihara.tv_name or ""}
+                
+                if temp_residence_higher_id:
+                    temp_vihara = db.query(TemporaryVihara).filter(TemporaryVihara.tv_id == temp_residence_higher_id).first()
+                    if temp_vihara:
+                        temp_residence_higher_data = {"vh_trn": f"TEMP-{temp_vihara.tv_id}", "vh_vname": temp_vihara.tv_name or ""}
+                
+                if temp_residence_permanent_id:
+                    temp_vihara = db.query(TemporaryVihara).filter(TemporaryVihara.tv_id == temp_residence_permanent_id).first()
+                    if temp_vihara:
+                        temp_residence_permanent_data = {"vh_trn": f"TEMP-{temp_vihara.tv_id}", "vh_vname": temp_vihara.tv_name or ""}
+                
+                if temp_higher_ordination_place_id:
+                    temp_vihara = db.query(TemporaryVihara).filter(TemporaryVihara.tv_id == temp_higher_ordination_place_id).first()
+                    if temp_vihara:
+                        temp_higher_ordination_place_data = {"vh_trn": f"TEMP-{temp_vihara.tv_id}", "vh_vname": temp_vihara.tv_name or ""}
+            
+            # Fetch regular related data
             if bhikku_high.bhr_candidate_regn:
                 from app.models.bhikku import Bhikku
                 candidate = db.query(Bhikku).filter(Bhikku.br_regn == bhikku_high.bhr_candidate_regn).first()
@@ -202,13 +359,31 @@ class BhikkuHighService:
             if bhikku_high.bhr_presiding_bhikshu_regn:
                 from app.models.bhikku import Bhikku
                 presiding_obj = db.query(Bhikku).filter(Bhikku.br_regn == bhikku_high.bhr_presiding_bhikshu_regn).first()
+            
+            if bhikku_high.bhr_karmacharya_name:
+                from app.models.bhikku import Bhikku
+                karmacharya_obj = db.query(Bhikku).filter(Bhikku.br_regn == bhikku_high.bhr_karmacharya_name).first()
+            
+            if bhikku_high.bhr_upaddhyaya_name:
+                from app.models.bhikku import Bhikku
+                upaddhyaya_obj = db.query(Bhikku).filter(Bhikku.br_regn == bhikku_high.bhr_upaddhyaya_name).first()
+            
+            if bhikku_high.bhr_samanera_serial_no:
+                from app.models.bhikku import Bhikku
+                samanera_obj = db.query(Bhikku).filter(Bhikku.br_regn == bhikku_high.bhr_samanera_serial_no).first()
+            
+            if bhikku_high.bhr_higher_ordination_place:
+                from app.models.vihara import ViharaData
+                higher_ordination_place_obj = db.query(ViharaData).filter(ViharaData.vh_trn == bhikku_high.bhr_higher_ordination_place).first()
         
         bhikku_high_dict = {
             "bhr_id": bhikku_high.bhr_id,
             "bhr_regn": bhikku_high.bhr_regn,
             "bhr_reqstdate": bhikku_high.bhr_reqstdate,
-            "bhr_samanera_serial_no": bhikku_high.bhr_samanera_serial_no,
-            "bhr_remarks": bhikku_high.bhr_remarks,
+            "bhr_samanera_serial_no": temp_samanera_data if temp_samanera_data else (
+                {"br_regn": samanera_obj.br_regn, "br_mahananame": samanera_obj.br_mahananame or "", "br_upasampadaname": ""} if samanera_obj else bhikku_high.bhr_samanera_serial_no
+            ),
+            "bhr_remarks": remarks_display or None,
             
             "bhr_currstat": {
                 "st_statcd": status_obj.st_statcd,
@@ -220,42 +395,43 @@ class BhikkuHighService:
                 "name": parshawaya_obj.pr_pname
             } if parshawaya_obj else bhikku_high.bhr_parshawaya,
             
-            "bhr_livtemple": {
-                "vh_trn": livtemple_obj.vh_trn,
-                "vh_vname": livtemple_obj.vh_vname
-            } if livtemple_obj else bhikku_high.bhr_livtemple,
+            "bhr_livtemple": temp_livtemple_data if temp_livtemple_data else (
+                {"vh_trn": livtemple_obj.vh_trn, "vh_vname": livtemple_obj.vh_vname} if livtemple_obj else bhikku_high.bhr_livtemple
+            ),
             
             "bhr_cc_code": bhikku_high.bhr_cc_code,
-            "bhr_candidate_regn": bhikku_high.bhr_candidate_regn,
-            "bhr_higher_ordination_place": bhikku_high.bhr_higher_ordination_place,
+            "bhr_candidate_regn": temp_candidate_data if temp_candidate_data else (
+                {"br_regn": candidate.br_regn, "br_mahananame": candidate.br_mahananame or "", "br_upasampadaname": ""} if candidate else bhikku_high.bhr_candidate_regn
+            ),
+            "bhr_higher_ordination_place": temp_higher_ordination_place_data if temp_higher_ordination_place_data else (
+                {"vh_trn": higher_ordination_place_obj.vh_trn, "vh_vname": higher_ordination_place_obj.vh_vname} if higher_ordination_place_obj else bhikku_high.bhr_higher_ordination_place
+            ),
             "bhr_higher_ordination_date": bhikku_high.bhr_higher_ordination_date,
-            "bhr_karmacharya_name": bhikku_high.bhr_karmacharya_name,
-            "bhr_upaddhyaya_name": bhikku_high.bhr_upaddhyaya_name,
+            "bhr_karmacharya_name": temp_karmacharya_data if temp_karmacharya_data else (
+                {"br_regn": karmacharya_obj.br_regn, "br_mahananame": karmacharya_obj.br_mahananame or "", "br_upasampadaname": ""} if karmacharya_obj else bhikku_high.bhr_karmacharya_name
+            ),
+            "bhr_upaddhyaya_name": temp_upaddhyaya_data if temp_upaddhyaya_data else (
+                {"br_regn": upaddhyaya_obj.br_regn, "br_mahananame": upaddhyaya_obj.br_mahananame or "", "br_upasampadaname": ""} if upaddhyaya_obj else bhikku_high.bhr_upaddhyaya_name
+            ),
             "bhr_assumed_name": bhikku_high.bhr_assumed_name,
             
-            "bhr_residence_higher_ordination_trn": {
-                "vh_trn": residence_higher_obj.vh_trn,
-                "vh_vname": residence_higher_obj.vh_vname
-            } if residence_higher_obj else bhikku_high.bhr_residence_higher_ordination_trn,
+            "bhr_residence_higher_ordination_trn": temp_residence_higher_data if temp_residence_higher_data else (
+                {"vh_trn": residence_higher_obj.vh_trn, "vh_vname": residence_higher_obj.vh_vname} if residence_higher_obj else bhikku_high.bhr_residence_higher_ordination_trn
+            ),
             
-            "bhr_residence_permanent_trn": {
-                "vh_trn": residence_permanent_obj.vh_trn,
-                "vh_vname": residence_permanent_obj.vh_vname
-            } if residence_permanent_obj else bhikku_high.bhr_residence_permanent_trn,
+            "bhr_residence_permanent_trn": temp_residence_permanent_data if temp_residence_permanent_data else (
+                {"vh_trn": residence_permanent_obj.vh_trn, "vh_vname": residence_permanent_obj.vh_vname} if residence_permanent_obj else bhikku_high.bhr_residence_permanent_trn
+            ),
             
             "bhr_declaration_residence_address": bhikku_high.bhr_declaration_residence_address,
             
-            "bhr_tutors_tutor_regn": {
-                "br_regn": tutor_obj.br_regn,
-                "br_mahananame": tutor_obj.br_mahananame or "",
-                "br_upasampadaname": ""
-            } if tutor_obj else bhikku_high.bhr_tutors_tutor_regn,
+            "bhr_tutors_tutor_regn": temp_tutors_tutor_data if temp_tutors_tutor_data else (
+                {"br_regn": tutor_obj.br_regn, "br_mahananame": tutor_obj.br_mahananame or "", "br_upasampadaname": ""} if tutor_obj else bhikku_high.bhr_tutors_tutor_regn
+            ),
             
-            "bhr_presiding_bhikshu_regn": {
-                "br_regn": presiding_obj.br_regn,
-                "br_mahananame": presiding_obj.br_mahananame or "",
-                "br_upasampadaname": ""
-            } if presiding_obj else bhikku_high.bhr_presiding_bhikshu_regn,
+            "bhr_presiding_bhikshu_regn": temp_presiding_bhikshu_data if temp_presiding_bhikshu_data else (
+                {"br_regn": presiding_obj.br_regn, "br_mahananame": presiding_obj.br_mahananame or "", "br_upasampadaname": ""} if presiding_obj else bhikku_high.bhr_presiding_bhikshu_regn
+            ),
             
             "bhr_declaration_date": bhikku_high.bhr_declaration_date,
             "bhr_form_id": bhikku_high.bhr_form_id,
@@ -291,9 +467,122 @@ class BhikkuHighService:
         Convert DirectBhikkuHigh model to bhikku_high format dictionary.
         Maps direct_bhikku_high fields to bhikku_high equivalent fields.
         """
+        import re
         from app.models.status import StatusData
         from app.models.parshawadata import ParshawaData
         from app.models.vihara import ViharaData
+        from app.models.bhikku import Bhikku
+        
+        # Parse temporary references from remarks
+        temp_karmacharya_id = None
+        temp_upaddhyaya_id = None
+        temp_tutors_tutor_id = None
+        temp_presiding_bhikshu_id = None
+        temp_samanera_serial_id = None
+        temp_livtemple_id = None
+        temp_residence_higher_id = None
+        temp_residence_permanent_id = None
+        temp_higher_ordination_place_id = None
+        remarks_display = direct_bhikku_high.dbh_remarks or ""
+        
+        if remarks_display:
+            # Extract temp bhikku references (using DBH prefix for direct bhikku high)
+            match = re.search(r'\[TEMP_DBH_KARMACHARYA_NAME:(\d+)\]', remarks_display)
+            if match:
+                temp_karmacharya_id = int(match.group(1))
+            match = re.search(r'\[TEMP_DBH_UPADDHYAYA_NAME:(\d+)\]', remarks_display)
+            if match:
+                temp_upaddhyaya_id = int(match.group(1))
+            match = re.search(r'\[TEMP_DBH_TUTORS_TUTOR_REGN:(\d+)\]', remarks_display)
+            if match:
+                temp_tutors_tutor_id = int(match.group(1))
+            match = re.search(r'\[TEMP_DBH_PRESIDING_BHIKSHU_REGN:(\d+)\]', remarks_display)
+            if match:
+                temp_presiding_bhikshu_id = int(match.group(1))
+            match = re.search(r'\[TEMP_DBH_SAMANERA_SERIAL_NO:(\d+)\]', remarks_display)
+            if match:
+                temp_samanera_serial_id = int(match.group(1))
+            
+            # Extract temp vihara references
+            match = re.search(r'\[TEMP_DBH_LIVTEMPLE:(\d+)\]', remarks_display)
+            if match:
+                temp_livtemple_id = int(match.group(1))
+            match = re.search(r'\[TEMP_DBH_RESIDENCE_HIGHER_ORDINATION_TRN:(\d+)\]', remarks_display)
+            if match:
+                temp_residence_higher_id = int(match.group(1))
+            match = re.search(r'\[TEMP_DBH_RESIDENCE_PERMANENT_TRN:(\d+)\]', remarks_display)
+            if match:
+                temp_residence_permanent_id = int(match.group(1))
+            match = re.search(r'\[TEMP_DBH_HIGHER_ORDINATION_PLACE:(\d+)\]', remarks_display)
+            if match:
+                temp_higher_ordination_place_id = int(match.group(1))
+            
+            # Remove temp references from display remarks
+            remarks_display = re.sub(r'\[TEMP_DBH_[A-Z_]+:\d+\]', '', remarks_display).strip()
+        
+        # Temp data objects
+        temp_karmacharya_data = None
+        temp_upaddhyaya_data = None
+        temp_tutors_tutor_data = None
+        temp_presiding_bhikshu_data = None
+        temp_samanera_data = None
+        temp_livtemple_data = None
+        temp_residence_higher_data = None
+        temp_residence_permanent_data = None
+        temp_higher_ordination_place_data = None
+        
+        # Fetch temp bhikku data
+        if temp_karmacharya_id or temp_upaddhyaya_id or temp_tutors_tutor_id or temp_presiding_bhikshu_id or temp_samanera_serial_id:
+            from app.models.temporary_bhikku import TemporaryBhikku
+            
+            if temp_karmacharya_id:
+                temp_bhikku = db.query(TemporaryBhikku).filter(TemporaryBhikku.tb_id == temp_karmacharya_id).first()
+                if temp_bhikku:
+                    temp_karmacharya_data = {"br_regn": f"TEMP-{temp_bhikku.tb_id}", "br_mahananame": temp_bhikku.tb_name or "", "br_upasampadaname": ""}
+            
+            if temp_upaddhyaya_id:
+                temp_bhikku = db.query(TemporaryBhikku).filter(TemporaryBhikku.tb_id == temp_upaddhyaya_id).first()
+                if temp_bhikku:
+                    temp_upaddhyaya_data = {"br_regn": f"TEMP-{temp_bhikku.tb_id}", "br_mahananame": temp_bhikku.tb_name or "", "br_upasampadaname": ""}
+            
+            if temp_tutors_tutor_id:
+                temp_bhikku = db.query(TemporaryBhikku).filter(TemporaryBhikku.tb_id == temp_tutors_tutor_id).first()
+                if temp_bhikku:
+                    temp_tutors_tutor_data = {"br_regn": f"TEMP-{temp_bhikku.tb_id}", "br_mahananame": temp_bhikku.tb_name or "", "br_upasampadaname": ""}
+            
+            if temp_presiding_bhikshu_id:
+                temp_bhikku = db.query(TemporaryBhikku).filter(TemporaryBhikku.tb_id == temp_presiding_bhikshu_id).first()
+                if temp_bhikku:
+                    temp_presiding_bhikshu_data = {"br_regn": f"TEMP-{temp_bhikku.tb_id}", "br_mahananame": temp_bhikku.tb_name or "", "br_upasampadaname": ""}
+            
+            if temp_samanera_serial_id:
+                temp_bhikku = db.query(TemporaryBhikku).filter(TemporaryBhikku.tb_id == temp_samanera_serial_id).first()
+                if temp_bhikku:
+                    temp_samanera_data = {"br_regn": f"TEMP-{temp_bhikku.tb_id}", "br_mahananame": temp_bhikku.tb_name or "", "br_upasampadaname": ""}
+        
+        # Fetch temp vihara data
+        if temp_livtemple_id or temp_residence_higher_id or temp_residence_permanent_id or temp_higher_ordination_place_id:
+            from app.models.temporary_vihara import TemporaryVihara
+            
+            if temp_livtemple_id:
+                temp_vihara = db.query(TemporaryVihara).filter(TemporaryVihara.tv_id == temp_livtemple_id).first()
+                if temp_vihara:
+                    temp_livtemple_data = {"vh_trn": f"TEMP-{temp_vihara.tv_id}", "vh_vname": temp_vihara.tv_name or ""}
+            
+            if temp_residence_higher_id:
+                temp_vihara = db.query(TemporaryVihara).filter(TemporaryVihara.tv_id == temp_residence_higher_id).first()
+                if temp_vihara:
+                    temp_residence_higher_data = {"vh_trn": f"TEMP-{temp_vihara.tv_id}", "vh_vname": temp_vihara.tv_name or ""}
+            
+            if temp_residence_permanent_id:
+                temp_vihara = db.query(TemporaryVihara).filter(TemporaryVihara.tv_id == temp_residence_permanent_id).first()
+                if temp_vihara:
+                    temp_residence_permanent_data = {"vh_trn": f"TEMP-{temp_vihara.tv_id}", "vh_vname": temp_vihara.tv_name or ""}
+            
+            if temp_higher_ordination_place_id:
+                temp_vihara = db.query(TemporaryVihara).filter(TemporaryVihara.tv_id == temp_higher_ordination_place_id).first()
+                if temp_vihara:
+                    temp_higher_ordination_place_data = {"vh_trn": f"TEMP-{temp_vihara.tv_id}", "vh_vname": temp_vihara.tv_name or ""}
         
         # Fetch related objects
         status_obj = None
@@ -301,6 +590,12 @@ class BhikkuHighService:
         livtemple_obj = None
         residence_higher_obj = None
         residence_permanent_obj = None
+        tutor_obj = None
+        presiding_obj = None
+        karmacharya_obj = None
+        upaddhyaya_obj = None
+        samanera_obj = None
+        higher_ordination_place_obj = None
         
         if direct_bhikku_high.dbh_currstat:
             status_obj = db.query(StatusData).filter(StatusData.st_statcd == direct_bhikku_high.dbh_currstat).first()
@@ -317,14 +612,34 @@ class BhikkuHighService:
         if direct_bhikku_high.dbh_residence_permanent_trn:
             residence_permanent_obj = db.query(ViharaData).filter(ViharaData.vh_trn == direct_bhikku_high.dbh_residence_permanent_trn).first()
         
+        if direct_bhikku_high.dbh_tutors_tutor_regn:
+            tutor_obj = db.query(Bhikku).filter(Bhikku.br_regn == direct_bhikku_high.dbh_tutors_tutor_regn).first()
+        
+        if direct_bhikku_high.dbh_presiding_bhikshu_regn:
+            presiding_obj = db.query(Bhikku).filter(Bhikku.br_regn == direct_bhikku_high.dbh_presiding_bhikshu_regn).first()
+        
+        if direct_bhikku_high.dbh_karmacharya_name:
+            karmacharya_obj = db.query(Bhikku).filter(Bhikku.br_regn == direct_bhikku_high.dbh_karmacharya_name).first()
+        
+        if direct_bhikku_high.dbh_upaddhyaya_name:
+            upaddhyaya_obj = db.query(Bhikku).filter(Bhikku.br_regn == direct_bhikku_high.dbh_upaddhyaya_name).first()
+        
+        if direct_bhikku_high.dbh_samanera_serial_no:
+            samanera_obj = db.query(Bhikku).filter(Bhikku.br_regn == direct_bhikku_high.dbh_samanera_serial_no).first()
+        
+        if direct_bhikku_high.dbh_higher_ordination_place:
+            higher_ordination_place_obj = db.query(ViharaData).filter(ViharaData.vh_trn == direct_bhikku_high.dbh_higher_ordination_place).first()
+        
         # Create the converted dictionary with bhikku_high field names
         converted_dict = {
             # Map direct bhikku high ID to bhikku high format
             "bhr_id": direct_bhikku_high.dbh_id,
             "bhr_regn": direct_bhikku_high.dbh_regn,
             "bhr_reqstdate": direct_bhikku_high.dbh_reqstdate,
-            "bhr_samanera_serial_no": direct_bhikku_high.dbh_samanera_serial_no,
-            "bhr_remarks": direct_bhikku_high.dbh_remarks,
+            "bhr_samanera_serial_no": temp_samanera_data if temp_samanera_data else (
+                {"br_regn": samanera_obj.br_regn, "br_mahananame": samanera_obj.br_mahananame or "", "br_upasampadaname": ""} if samanera_obj else direct_bhikku_high.dbh_samanera_serial_no
+            ),
+            "bhr_remarks": remarks_display or None,
             
             "bhr_currstat": {
                 "st_statcd": status_obj.st_statcd,
@@ -336,32 +651,39 @@ class BhikkuHighService:
                 "name": parshawaya_obj.pr_pname
             } if parshawaya_obj else direct_bhikku_high.dbh_parshawaya,
             
-            "bhr_livtemple": {
-                "vh_trn": livtemple_obj.vh_trn,
-                "vh_vname": livtemple_obj.vh_vname
-            } if livtemple_obj else direct_bhikku_high.dbh_livtemple,
+            "bhr_livtemple": temp_livtemple_data if temp_livtemple_data else (
+                {"vh_trn": livtemple_obj.vh_trn, "vh_vname": livtemple_obj.vh_vname} if livtemple_obj else direct_bhikku_high.dbh_livtemple
+            ),
             
             "bhr_cc_code": direct_bhikku_high.dbh_cc_code,
             "bhr_candidate_regn": None,  # Direct high bhikku doesn't have candidate_regn
-            "bhr_higher_ordination_place": direct_bhikku_high.dbh_higher_ordination_place,
+            "bhr_higher_ordination_place": temp_higher_ordination_place_data if temp_higher_ordination_place_data else (
+                {"vh_trn": higher_ordination_place_obj.vh_trn, "vh_vname": higher_ordination_place_obj.vh_vname} if higher_ordination_place_obj else direct_bhikku_high.dbh_higher_ordination_place
+            ),
             "bhr_higher_ordination_date": direct_bhikku_high.dbh_higher_ordination_date,
-            "bhr_karmacharya_name": direct_bhikku_high.dbh_karmacharya_name,
-            "bhr_upaddhyaya_name": direct_bhikku_high.dbh_upaddhyaya_name,
+            "bhr_karmacharya_name": temp_karmacharya_data if temp_karmacharya_data else (
+                {"br_regn": karmacharya_obj.br_regn, "br_mahananame": karmacharya_obj.br_mahananame or "", "br_upasampadaname": ""} if karmacharya_obj else direct_bhikku_high.dbh_karmacharya_name
+            ),
+            "bhr_upaddhyaya_name": temp_upaddhyaya_data if temp_upaddhyaya_data else (
+                {"br_regn": upaddhyaya_obj.br_regn, "br_mahananame": upaddhyaya_obj.br_mahananame or "", "br_upasampadaname": ""} if upaddhyaya_obj else direct_bhikku_high.dbh_upaddhyaya_name
+            ),
             "bhr_assumed_name": direct_bhikku_high.dbh_assumed_name,
             
-            "bhr_residence_higher_ordination_trn": {
-                "vh_trn": residence_higher_obj.vh_trn,
-                "vh_vname": residence_higher_obj.vh_vname
-            } if residence_higher_obj else direct_bhikku_high.dbh_residence_higher_ordination_trn,
+            "bhr_residence_higher_ordination_trn": temp_residence_higher_data if temp_residence_higher_data else (
+                {"vh_trn": residence_higher_obj.vh_trn, "vh_vname": residence_higher_obj.vh_vname} if residence_higher_obj else direct_bhikku_high.dbh_residence_higher_ordination_trn
+            ),
             
-            "bhr_residence_permanent_trn": {
-                "vh_trn": residence_permanent_obj.vh_trn,
-                "vh_vname": residence_permanent_obj.vh_vname
-            } if residence_permanent_obj else direct_bhikku_high.dbh_residence_permanent_trn,
+            "bhr_residence_permanent_trn": temp_residence_permanent_data if temp_residence_permanent_data else (
+                {"vh_trn": residence_permanent_obj.vh_trn, "vh_vname": residence_permanent_obj.vh_vname} if residence_permanent_obj else direct_bhikku_high.dbh_residence_permanent_trn
+            ),
             
             "bhr_declaration_residence_address": direct_bhikku_high.dbh_declaration_residence_address,
-            "bhr_tutors_tutor_regn": direct_bhikku_high.dbh_tutors_tutor_regn,
-            "bhr_presiding_bhikshu_regn": direct_bhikku_high.dbh_presiding_bhikshu_regn,
+            "bhr_tutors_tutor_regn": temp_tutors_tutor_data if temp_tutors_tutor_data else (
+                {"br_regn": tutor_obj.br_regn, "br_mahananame": tutor_obj.br_mahananame or "", "br_upasampadaname": ""} if tutor_obj else direct_bhikku_high.dbh_tutors_tutor_regn
+            ),
+            "bhr_presiding_bhikshu_regn": temp_presiding_bhikshu_data if temp_presiding_bhikshu_data else (
+                {"br_regn": presiding_obj.br_regn, "br_mahananame": presiding_obj.br_mahananame or "", "br_upasampadaname": ""} if presiding_obj else direct_bhikku_high.dbh_presiding_bhikshu_regn
+            ),
             "bhr_declaration_date": direct_bhikku_high.dbh_declaration_date,
             "bhr_form_id": None,  # Direct high bhikku doesn't use form_id
             "bhr_workflow_status": direct_bhikku_high.dbh_workflow_status,
@@ -538,6 +860,35 @@ class BhikkuHighService:
         update_data = self._strip_strings(update_data)
         if not self._has_meaningful_value(update_data.get("bhr_samanera_serial_no")):
             update_data["bhr_samanera_serial_no"] = None
+
+        # Handle temporary bhikku references - these can't be stored as FK references
+        import re
+        temp_refs = []
+        for field in ["bhr_candidate_regn", "bhr_karmacharya_name", "bhr_upaddhyaya_name", 
+                      "bhr_tutors_tutor_regn", "bhr_presiding_bhikshu_regn", "bhr_samanera_serial_no"]:
+            value = update_data.get(field)
+            if value and isinstance(value, str):
+                if value.startswith("TEMP-"):
+                    temp_id = value[5:]  # Remove "TEMP-" prefix
+                    temp_refs.append(f"[TEMP_{field.upper()}:{temp_id}]")
+                    update_data[field] = None
+        
+        # Handle temporary vihara references
+        for field in ["bhr_livtemple", "bhr_residence_higher_ordination_trn", 
+                      "bhr_residence_permanent_trn", "bhr_higher_ordination_place"]:
+            value = update_data.get(field)
+            if value and isinstance(value, str):
+                if value.startswith("TEMP-"):
+                    temp_id = value[5:]  # Remove "TEMP-" prefix
+                    temp_refs.append(f"[TEMP_{field.upper()}:{temp_id}]")
+                    update_data[field] = None
+        
+        # Append temp references to remarks if any
+        if temp_refs:
+            existing_remarks = update_data.get("bhr_remarks") or entity.bhr_remarks or ""
+            existing_remarks = re.sub(r'\[TEMP_BHR_[A-Z_]+:\d+\]', '', existing_remarks).strip()
+            temp_refs_str = " ".join(temp_refs)
+            update_data["bhr_remarks"] = f"{existing_remarks} {temp_refs_str}".strip() if existing_remarks else temp_refs_str
 
         if "bhr_regn" in update_data and update_data["bhr_regn"]:
             new_regn = update_data["bhr_regn"]
