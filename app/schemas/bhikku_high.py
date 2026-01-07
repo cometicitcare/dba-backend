@@ -74,7 +74,7 @@ class BhikkuHighBase(BaseModel):
     bhr_livtemple: Optional[str] = Field(default=None, max_length=10)
 
     bhr_samanera_serial_no: Optional[str] = Field(default=None, max_length=20)
-    bhr_remarks: Optional[str] = Field(default=None, max_length=100)
+    bhr_remarks: Optional[str] = Field(default=None, max_length=500)
     bhr_cc_code: Optional[str] = Field(default=None, max_length=5)
     bhr_candidate_regn: Optional[str] = Field(default=None, max_length=12)
     bhr_higher_ordination_place: Optional[str] = Field(default=None, max_length=50)
@@ -106,7 +106,7 @@ class BhikkuHighUpdate(BaseModel):
     bhr_livtemple: Optional[str] = Field(default=None, max_length=10)
 
     bhr_samanera_serial_no: Optional[str] = Field(default=None, max_length=20)
-    bhr_remarks: Optional[str] = Field(default=None, max_length=100)
+    bhr_remarks: Optional[str] = Field(default=None, max_length=500)
     bhr_cc_code: Optional[str] = Field(default=None, max_length=5)
     bhr_candidate_regn: Optional[str] = Field(default=None, max_length=12)
     bhr_higher_ordination_place: Optional[str] = Field(default=None, max_length=50)
