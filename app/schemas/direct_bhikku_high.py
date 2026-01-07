@@ -46,7 +46,7 @@ class DirectBhikkuHighBase(BaseModel):
     dbh_gihiname: Optional[str] = Field(default=None, max_length=50)
     dbh_dofb: Optional[date] = None
     dbh_fathrname: Optional[str] = Field(default=None, max_length=50)
-    dbh_remarks: Optional[str] = Field(default=None, max_length=100)
+    dbh_remarks: Optional[str] = Field(default=None, max_length=500)
     
     # Status Information
     dbh_currstat: Optional[str] = Field(default=None, max_length=5)
