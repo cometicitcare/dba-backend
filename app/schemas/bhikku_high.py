@@ -210,28 +210,42 @@ class BhikkuHighFrontendUpdate(BaseModel):
     remarks: Optional[str] = Field(default=None, max_length=100)
     
     def to_bhikku_high_update(self) -> BhikkuHighUpdate:
-        """Convert frontend payload to internal BhikkuHighUpdate schema"""
-        return BhikkuHighUpdate(
-            bhr_regn=self.candidate_regn,
-            bhr_reqstdate=self.declaration_date,
-            bhr_parshawaya=self.residence_permanent_trn,
-            bhr_livtemple=self.residence_higher_ordination_trn,
-            bhr_samanera_serial_no=self.samanera_serial,
-            bhr_remarks=self.remarks,
-            bhr_cc_code=self.cc_code,
-            bhr_candidate_regn=self.candidate_regn,
-            bhr_higher_ordination_place=self.higher_ordination_place,
-            bhr_higher_ordination_date=self.higher_ordination_date,
-            bhr_karmacharya_name=self.karmacharya_name,
-            bhr_upaddhyaya_name=self.upaddhyaya_name,
-            bhr_assumed_name=self.assumed_name,
-            bhr_residence_higher_ordination_trn=self.residence_higher_ordination_trn,
-            bhr_residence_permanent_trn=self.residence_permanent_trn,
-            bhr_declaration_residence_address=self.declaration_residence_address,
-            bhr_tutors_tutor_regn=self.tutors_tutor_regn,
-            bhr_presiding_bhikshu_regn=self.presiding_bhikshu_regn,
-            bhr_declaration_date=self.declaration_date,
-        )
+        """Convert frontend payload to internal BhikkuHighUpdate schema.
+        
+        Only includes fields that were actually set in the request to prevent
+        overwriting existing data with None values.
+        """
+        # Get only fields that were explicitly set in the request
+        set_fields = self.model_fields_set
+        
+        # Map frontend field names to backend field names
+        field_mapping = {
+            "candidate_regn": ["bhr_regn", "bhr_candidate_regn"],
+            "declaration_date": ["bhr_reqstdate", "bhr_declaration_date"],
+            "residence_permanent_trn": ["bhr_parshawaya", "bhr_residence_permanent_trn"],
+            "residence_higher_ordination_trn": ["bhr_livtemple", "bhr_residence_higher_ordination_trn"],
+            "samanera_serial": ["bhr_samanera_serial_no"],
+            "remarks": ["bhr_remarks"],
+            "cc_code": ["bhr_cc_code"],
+            "higher_ordination_place": ["bhr_higher_ordination_place"],
+            "higher_ordination_date": ["bhr_higher_ordination_date"],
+            "karmacharya_name": ["bhr_karmacharya_name"],
+            "upaddhyaya_name": ["bhr_upaddhyaya_name"],
+            "assumed_name": ["bhr_assumed_name"],
+            "declaration_residence_address": ["bhr_declaration_residence_address"],
+            "tutors_tutor_regn": ["bhr_tutors_tutor_regn"],
+            "presiding_bhikshu_regn": ["bhr_presiding_bhikshu_regn"],
+        }
+        
+        # Build update data with only set fields
+        update_data = {}
+        for frontend_field, backend_fields in field_mapping.items():
+            if frontend_field in set_fields:
+                value = getattr(self, frontend_field)
+                for backend_field in backend_fields:
+                    update_data[backend_field] = value
+        
+        return BhikkuHighUpdate(**update_data)
 
 
 class BhikkuHighRequestPayload(BaseModel):

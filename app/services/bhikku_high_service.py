@@ -858,7 +858,9 @@ class BhikkuHighService:
 
         update_data = payload.model_dump(exclude_unset=True)
         update_data = self._strip_strings(update_data)
-        if not self._has_meaningful_value(update_data.get("bhr_samanera_serial_no")):
+        
+        # Only handle bhr_samanera_serial_no if it was explicitly provided in the update
+        if "bhr_samanera_serial_no" in update_data and not self._has_meaningful_value(update_data.get("bhr_samanera_serial_no")):
             update_data["bhr_samanera_serial_no"] = None
 
         # Handle temporary bhikku references - these can't be stored as FK references
@@ -866,6 +868,9 @@ class BhikkuHighService:
         temp_refs = []
         for field in ["bhr_candidate_regn", "bhr_karmacharya_name", "bhr_upaddhyaya_name", 
                       "bhr_tutors_tutor_regn", "bhr_presiding_bhikshu_regn", "bhr_samanera_serial_no"]:
+            # Only process fields that were explicitly included in the update
+            if field not in update_data:
+                continue
             value = update_data.get(field)
             if value and isinstance(value, str):
                 if value.startswith("TEMP-"):
@@ -876,6 +881,9 @@ class BhikkuHighService:
         # Handle temporary vihara references
         for field in ["bhr_livtemple", "bhr_residence_higher_ordination_trn", 
                       "bhr_residence_permanent_trn", "bhr_higher_ordination_place"]:
+            # Only process fields that were explicitly included in the update
+            if field not in update_data:
+                continue
             value = update_data.get(field)
             if value and isinstance(value, str):
                 if value.startswith("TEMP-"):
