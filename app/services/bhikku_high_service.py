@@ -94,6 +94,13 @@ class BhikkuHighService:
             bhr_email=payload_dict.get("bhr_email"),
             current_regn=None,
         )
+        
+        # Validate no duplicate candidate and check candidate's gihiname + mobile
+        self._validate_no_duplicate_candidate(
+            db,
+            bhr_candidate_regn=payload_dict.get("bhr_candidate_regn"),
+            current_regn=None,
+        )
 
         enriched_payload = BhikkuHighCreate(**payload_dict)
         return bhikku_high_repo.create(db, data=enriched_payload, actor_id=actor_id)
@@ -1154,6 +1161,56 @@ class BhikkuHighService:
     # ------------------------------------------------------------------ #
     # Helpers
     # ------------------------------------------------------------------ #
+    def _validate_no_duplicate_candidate(
+        self,
+        db: Session,
+        *,
+        bhr_candidate_regn: Optional[str],
+        current_regn: Optional[str],
+    ) -> None:
+        """
+        Check for duplicate higher bhikku records for the same candidate.
+        Also validates that the candidate bhikku's gihiname + mobile combination
+        doesn't exist in other high bhikku records or direct_bhikku_high records.
+        """
+        if not self._has_meaningful_value(bhr_candidate_regn):
+            return
+        
+        # Check if this candidate already has a higher bhikku record
+        existing = db.query(BhikkuHighRegist).filter(
+            BhikkuHighRegist.bhr_candidate_regn == bhr_candidate_regn,
+            BhikkuHighRegist.bhr_is_deleted.is_(False),
+        ).first()
+        
+        if existing and existing.bhr_regn != current_regn:
+            raise ValueError(
+                f"Candidate '{bhr_candidate_regn}' already has a higher bhikku record (Regn: {existing.bhr_regn})."
+            )
+        
+        # Get the candidate bhikku's details
+        from app.models.bhikku import Bhikku
+        candidate = db.query(Bhikku).filter(
+            Bhikku.br_regn == bhr_candidate_regn,
+            Bhikku.br_is_deleted.is_(False),
+        ).first()
+        
+        if not candidate:
+            return  # Candidate validation will be handled by FK validation
+        
+        # Check if same gihiname + mobile exists in direct_bhikku_high
+        if candidate.br_gihiname and candidate.br_mobile:
+            from app.models.direct_bhikku_high import DirectBhikkuHigh
+            existing_dbh = db.query(DirectBhikkuHigh).filter(
+                DirectBhikkuHigh.dbh_gihiname == candidate.br_gihiname,
+                DirectBhikkuHigh.dbh_mobile == candidate.br_mobile,
+                DirectBhikkuHigh.dbh_is_deleted.is_(False),
+            ).first()
+            
+            if existing_dbh:
+                raise ValueError(
+                    f"A record with the same gihiname '{candidate.br_gihiname}' and mobile '{candidate.br_mobile}' already exists (Direct High Bhikku Regn: {existing_dbh.dbh_regn})."
+                )
+
     def _validate_unique_contact_fields(
         self,
         db: Session,

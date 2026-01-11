@@ -17,6 +17,54 @@ from app.schemas.direct_bhikku_high import DirectBhikkuHighCreate, DirectBhikkuH
 class DirectBhikkuHighService:
     """Business logic layer for direct high bhikku registration."""
 
+    def _has_meaningful_value(self, value) -> bool:
+        """Check if a value is non-empty and non-whitespace."""
+        if value is None:
+            return False
+        if isinstance(value, str):
+            return value.strip() != ""
+        return True
+
+    def _validate_no_duplicate_gihiname_mobile(
+        self,
+        db: Session,
+        *,
+        dbh_gihiname: Optional[str],
+        dbh_mobile: Optional[str],
+        current_regn: Optional[str],
+    ) -> None:
+        """
+        Check for duplicate records with same gihiname AND mobile combination.
+        Only validates if both gihiname and mobile are provided.
+        """
+        if not self._has_meaningful_value(dbh_gihiname) or not self._has_meaningful_value(dbh_mobile):
+            return
+        
+        # Check in direct_bhikku_high table
+        existing = db.query(DirectBhikkuHigh).filter(
+            DirectBhikkuHigh.dbh_gihiname == dbh_gihiname,
+            DirectBhikkuHigh.dbh_mobile == dbh_mobile,
+            DirectBhikkuHigh.dbh_is_deleted.is_(False),
+        ).first()
+        
+        if existing and existing.dbh_regn != current_regn:
+            raise ValueError(
+                f"A record with the same gihiname '{dbh_gihiname}' and mobile '{dbh_mobile}' already exists (Direct High Bhikku Regn: {existing.dbh_regn})."
+            )
+        
+        # Also check in bhikku_regist table
+        from app.models.bhikku import Bhikku
+        existing_bhikku = db.query(Bhikku).filter(
+            Bhikku.br_gihiname == dbh_gihiname,
+            Bhikku.br_mobile == dbh_mobile,
+            Bhikku.br_is_deleted.is_(False),
+        ).first()
+        
+        if existing_bhikku:
+            raise ValueError(
+                f"A record with the same gihiname '{dbh_gihiname}' and mobile '{dbh_mobile}' already exists (Bhikku Regn: {existing_bhikku.br_regn})."
+            )
+
     def create_direct_bhikku_high(
         self,
         db: Session,
@@ -26,6 +74,15 @@ class DirectBhikkuHighService:
         current_user=None,
     ) -> DirectBhikkuHigh:
         """Create a new direct high bhikku record"""
+        # Validate no duplicate gihiname + mobile combination
+        payload_dict = payload.model_dump()
+        self._validate_no_duplicate_gihiname_mobile(
+            db,
+            dbh_gihiname=payload_dict.get("dbh_gihiname"),
+            dbh_mobile=payload_dict.get("dbh_mobile"),
+            current_regn=None,
+        )
+        
         # Create the record with district tracking
         entity = direct_bhikku_high_repo.create(
             db, payload=payload, actor_id=actor_id, current_user=current_user

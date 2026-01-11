@@ -288,6 +288,14 @@ class BhikkuService:
             br_fathrsmobile=payload_dict.get("br_fathrsmobile"),
             current_regn=None,
         )
+        
+        # Validate no duplicate gihiname + mobile combination
+        self._validate_no_duplicate_gihiname_mobile(
+            db,
+            br_gihiname=payload_dict.get("br_gihiname"),
+            br_mobile=payload_dict.get("br_mobile"),
+            current_regn=None,
+        )
 
         # Create the enriched payload WITHOUT workflow_status (it will be set by the repository/model default to PENDING)
         enriched_payload = BhikkuCreate(**payload_dict)
@@ -1323,6 +1331,46 @@ class BhikkuService:
     # --------------------------------------------------------------------- #
     # Helpers
     # --------------------------------------------------------------------- #
+    def _validate_no_duplicate_gihiname_mobile(
+        self,
+        db: Session,
+        *,
+        br_gihiname: Optional[str],
+        br_mobile: Optional[str],
+        current_regn: Optional[str],
+    ) -> None:
+        """
+        Check for duplicate records with same gihiname AND mobile combination.
+        Only validates if both gihiname and mobile are provided.
+        """
+        if not self._has_meaningful_value(br_gihiname) or not self._has_meaningful_value(br_mobile):
+            return
+        
+        # Check in bhikku_regist table
+        existing = db.query(Bhikku).filter(
+            Bhikku.br_gihiname == br_gihiname,
+            Bhikku.br_mobile == br_mobile,
+            Bhikku.br_is_deleted.is_(False),
+        ).first()
+        
+        if existing and existing.br_regn != current_regn:
+            raise ValueError(
+                f"A record with the same gihiname '{br_gihiname}' and mobile '{br_mobile}' already exists (Regn: {existing.br_regn})."
+            )
+        
+        # Also check in direct_bhikku_high table
+        from app.models.direct_bhikku_high import DirectBhikkuHigh
+        existing_dbh = db.query(DirectBhikkuHigh).filter(
+            DirectBhikkuHigh.dbh_gihiname == br_gihiname,
+            DirectBhikkuHigh.dbh_mobile == br_mobile,
+            DirectBhikkuHigh.dbh_is_deleted.is_(False),
+        ).first()
+        
+        if existing_dbh:
+            raise ValueError(
+                f"A record with the same gihiname '{br_gihiname}' and mobile '{br_mobile}' already exists (Direct High Bhikku Regn: {existing_dbh.dbh_regn})."
+            )
+
     def _validate_unique_contact_fields(
         self,
         db: Session,
