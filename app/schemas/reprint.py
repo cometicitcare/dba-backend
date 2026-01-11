@@ -134,6 +134,7 @@ class ReprintUrlItem(BaseModel):
     regn: str
     request_type: ReprintType
     scanned_document_path: Optional[str] = None
+    base64_data: Optional[str] = None
 
 
 class ReprintUrlResponse(BaseModel):

@@ -476,8 +476,12 @@ class ReprintService:
         regn: str,
     ) -> dict:
         """
-        Return scanned document path for a given registration number, auto-detecting type.
+        Return scanned document path and base64 data for a given registration number, auto-detecting type.
         """
+        import base64
+        import os
+        from pathlib import Path
+        
         regn_clean = (regn or "").strip().upper()
         if not regn_clean:
             raise ValueError("regn is required")
@@ -521,10 +525,37 @@ class ReprintService:
         else:
             raise ValueError(f"Unsupported type for regn: {regn_clean}")
 
+        # Read file and encode to base64
+        base64_data = None
+        if path:
+            try:
+                # Handle both absolute and relative paths
+                if os.path.isabs(path):
+                    file_path = Path(path)
+                else:
+                    # Assume relative to storage directory or project root
+                    file_path = Path(path)
+                    if not file_path.exists():
+                        # Try prepending storage directory
+                        from app.core.config import settings
+                        storage_path = Path(settings.STORAGE_DIR) / path
+                        if storage_path.exists():
+                            file_path = storage_path
+                
+                if file_path.exists():
+                    with open(file_path, "rb") as f:
+                        file_content = f.read()
+                        base64_data = base64.b64encode(file_content).decode("utf-8")
+            except Exception as e:
+                # Log the error but don't fail the request
+                # The path will still be returned even if base64 encoding fails
+                print(f"Warning: Failed to encode file to base64: {e}")
+
         return {
             "regn": regn_clean,
             "request_type": req_type,
             "scanned_document_path": path,
+            "base64_data": base64_data,
         }
 
     def _attach_qr_details(self, db: Session, records: List[ReprintRequest]) -> None:
