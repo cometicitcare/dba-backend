@@ -529,27 +529,36 @@ class ReprintService:
         base64_data = None
         if path:
             try:
-                # Handle both absolute and relative paths
-                if os.path.isabs(path):
-                    file_path = Path(path)
-                else:
-                    # Assume relative to storage directory or project root
-                    file_path = Path(path)
-                    if not file_path.exists():
-                        # Try prepending storage directory
-                        from app.core.config import settings
-                        storage_path = Path(settings.STORAGE_DIR) / path
-                        if storage_path.exists():
-                            file_path = storage_path
+                # Import settings
+                from app.core.config import settings
+                import logging
                 
-                if file_path.exists():
+                logger = logging.getLogger(__name__)
+                
+                # Remove leading /storage/ prefix if present (paths are stored as /storage/relative/path)
+                relative_path = path
+                if relative_path.startswith("/storage/"):
+                    relative_path = relative_path[9:]  # Remove "/storage/" prefix
+                
+                # Construct full file path using the base storage directory
+                file_path = Path(settings.STORAGE_DIR) / relative_path
+                
+                logger.info(f"Attempting to read file from: {file_path}")
+                
+                if file_path.exists() and file_path.is_file():
                     with open(file_path, "rb") as f:
                         file_content = f.read()
                         base64_data = base64.b64encode(file_content).decode("utf-8")
+                    logger.info(f"Successfully encoded file to base64, size: {len(base64_data)} chars")
+                else:
+                    # Log for debugging but don't fail
+                    logger.warning(f"File not found at {file_path}. File may be on production server.")
             except Exception as e:
                 # Log the error but don't fail the request
                 # The path will still be returned even if base64 encoding fails
-                print(f"Warning: Failed to encode file to base64: {e}")
+                import logging
+                logger = logging.getLogger(__name__)
+                logger.error(f"Failed to encode file to base64: {e}", exc_info=True)
 
         return {
             "regn": regn_clean,
