@@ -919,6 +919,9 @@ class BhikkuService:
         # Store the temp bhikku reference in remarks for later retrieval
         temp_refs = []
         for field in ["br_viharadhipathi", "br_mahanaacharyacd"]:
+            # Only process fields that were explicitly included in the update
+            if field not in update_data:
+                continue
             value = update_data.get(field)
             if value and isinstance(value, str):
                 # Extract temp bhikku ID from either "TEMP-17" or "17" format
@@ -936,6 +939,9 @@ class BhikkuService:
         # Clear fields that reference temporary viharas (TEMP-* format from READ_ALL response)
         # All these fields have FK to vihaddata table
         for field in ["br_livtemple", "br_mahanatemple", "br_robing_tutor_residence", "br_robing_after_residence_temple"]:
+            # Only process fields that were explicitly included in the update
+            if field not in update_data:
+                continue
             value = update_data.get(field)
             if value and isinstance(value, str):
                 # Extract temp vihara ID from "TEMP-11" format
