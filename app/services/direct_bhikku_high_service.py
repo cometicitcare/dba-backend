@@ -25,44 +25,52 @@ class DirectBhikkuHighService:
             return value.strip() != ""
         return True
 
-    def _validate_no_duplicate_gihiname_mobile(
+    def _validate_no_duplicate_gihiname_dob(
         self,
         db: Session,
         *,
         dbh_gihiname: Optional[str],
-        dbh_mobile: Optional[str],
+        dbh_dofb,
         current_regn: Optional[str],
     ) -> None:
         """
-        Check for duplicate records with same gihiname AND mobile combination.
-        Only validates if both gihiname and mobile are provided.
+        Check for duplicate records with same gihiname AND date of birth combination.
+        Only validates if both gihiname and date of birth are provided.
         """
-        if not self._has_meaningful_value(dbh_gihiname) or not self._has_meaningful_value(dbh_mobile):
+        if not self._has_meaningful_value(dbh_gihiname) or not dbh_dofb:
             return
+        
+        # Convert dbh_dofb to date object if it's a string
+        from datetime import date as date_type
+        if isinstance(dbh_dofb, str):
+            try:
+                dbh_dofb = date_type.fromisoformat(dbh_dofb)
+            except ValueError:
+                return  # Invalid date format, skip validation
         
         # Check in direct_bhikku_high table
         existing = db.query(DirectBhikkuHigh).filter(
             DirectBhikkuHigh.dbh_gihiname == dbh_gihiname,
-            DirectBhikkuHigh.dbh_mobile == dbh_mobile,
+            DirectBhikkuHigh.dbh_dofb == dbh_dofb,
             DirectBhikkuHigh.dbh_is_deleted.is_(False),
         ).first()
         
         if existing and existing.dbh_regn != current_regn:
             raise ValueError(
-                f"A record with the same gihiname '{dbh_gihiname}' and mobile '{dbh_mobile}' already exists (Direct High Bhikku Regn: {existing.dbh_regn})."
+                f"A record with the same gihiname '{dbh_gihiname}' and date of birth '{dbh_dofb}' already exists (Direct High Bhikku Regn: {existing.dbh_regn})."
             )
         
         # Also check in bhikku_regist table
         from app.models.bhikku import Bhikku
         existing_bhikku = db.query(Bhikku).filter(
             Bhikku.br_gihiname == dbh_gihiname,
-            Bhikku.br_mobile == dbh_mobile,
+            Bhikku.br_dofb == dbh_dofb,
             Bhikku.br_is_deleted.is_(False),
         ).first()
         
         if existing_bhikku:
             raise ValueError(
-                f"A record with the same gihiname '{dbh_gihiname}' and mobile '{dbh_mobile}' already exists (Bhikku Regn: {existing_bhikku.br_regn})."
+                f"A record with the same gihiname '{dbh_gihiname}' and date of birth '{dbh_dofb}' already exists (Bhikku Regn: {existing_bhikku.br_regn})."
             )
 
     def create_direct_bhikku_high(
@@ -74,12 +82,12 @@ class DirectBhikkuHighService:
         current_user=None,
     ) -> DirectBhikkuHigh:
         """Create a new direct high bhikku record"""
-        # Validate no duplicate gihiname + mobile combination
+        # Validate no duplicate gihiname + date of birth combination
         payload_dict = payload.model_dump()
-        self._validate_no_duplicate_gihiname_mobile(
+        self._validate_no_duplicate_gihiname_dob(
             db,
             dbh_gihiname=payload_dict.get("dbh_gihiname"),
-            dbh_mobile=payload_dict.get("dbh_mobile"),
+            dbh_dofb=payload_dict.get("dbh_dofb"),
             current_regn=None,
         )
         
