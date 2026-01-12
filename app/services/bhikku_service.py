@@ -289,11 +289,11 @@ class BhikkuService:
             current_regn=None,
         )
         
-        # Validate no duplicate gihiname + mobile combination
-        self._validate_no_duplicate_gihiname_mobile(
+        # Validate no duplicate gihiname + date of birth combination
+        self._validate_no_duplicate_gihiname_dob(
             db,
             br_gihiname=payload_dict.get("br_gihiname"),
-            br_mobile=payload_dict.get("br_mobile"),
+            br_dofb=payload_dict.get("br_dofb"),
             current_regn=None,
         )
 
@@ -1331,44 +1331,52 @@ class BhikkuService:
     # --------------------------------------------------------------------- #
     # Helpers
     # --------------------------------------------------------------------- #
-    def _validate_no_duplicate_gihiname_mobile(
+    def _validate_no_duplicate_gihiname_dob(
         self,
         db: Session,
         *,
         br_gihiname: Optional[str],
-        br_mobile: Optional[str],
+        br_dofb,
         current_regn: Optional[str],
     ) -> None:
         """
-        Check for duplicate records with same gihiname AND mobile combination.
-        Only validates if both gihiname and mobile are provided.
+        Check for duplicate records with same gihiname AND date of birth combination.
+        Only validates if both gihiname and date of birth are provided.
         """
-        if not self._has_meaningful_value(br_gihiname) or not self._has_meaningful_value(br_mobile):
+        if not self._has_meaningful_value(br_gihiname) or not br_dofb:
             return
+        
+        # Convert br_dofb to date object if it's a string
+        from datetime import date as date_type
+        if isinstance(br_dofb, str):
+            try:
+                br_dofb = date_type.fromisoformat(br_dofb)
+            except ValueError:
+                return  # Invalid date format, skip validation
         
         # Check in bhikku_regist table
         existing = db.query(Bhikku).filter(
             Bhikku.br_gihiname == br_gihiname,
-            Bhikku.br_mobile == br_mobile,
+            Bhikku.br_dofb == br_dofb,
             Bhikku.br_is_deleted.is_(False),
         ).first()
         
         if existing and existing.br_regn != current_regn:
             raise ValueError(
-                f"A record with the same gihiname '{br_gihiname}' and mobile '{br_mobile}' already exists (Regn: {existing.br_regn})."
+                f"A record with the same gihiname '{br_gihiname}' and date of birth '{br_dofb}' already exists (Regn: {existing.br_regn})."
             )
         
         # Also check in direct_bhikku_high table
         from app.models.direct_bhikku_high import DirectBhikkuHigh
         existing_dbh = db.query(DirectBhikkuHigh).filter(
             DirectBhikkuHigh.dbh_gihiname == br_gihiname,
-            DirectBhikkuHigh.dbh_mobile == br_mobile,
+            DirectBhikkuHigh.dbh_dofb == br_dofb,
             DirectBhikkuHigh.dbh_is_deleted.is_(False),
         ).first()
         
         if existing_dbh:
             raise ValueError(
-                f"A record with the same gihiname '{br_gihiname}' and mobile '{br_mobile}' already exists (Direct High Bhikku Regn: {existing_dbh.dbh_regn})."
+                f"A record with the same gihiname '{br_gihiname}' and date of birth '{br_dofb}' already exists (Direct High Bhikku Regn: {existing_dbh.dbh_regn})."
             )
 
     def _validate_unique_contact_fields(
