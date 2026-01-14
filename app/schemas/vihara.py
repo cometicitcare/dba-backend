@@ -481,11 +481,50 @@ class ViharaStageTwoData(BaseModel):
 
 
 class ViharaOut(ViharaBase):
-    model_config = ConfigDict(from_attributes=True)
+    """Output schema for Vihara data - more lenient validation for reading existing data."""
+    model_config = ConfigDict(from_attributes=True, validate_assignment=False)
 
     vh_id: int
+    
+    # Override required fields from ViharaBase to make them optional for output
+    # (existing data may have empty/null values)
+    vh_trn: Optional[str] = None
+    vh_mobile: Optional[str] = None
+    vh_whtapp: Optional[str] = None
+    vh_email: Optional[str] = None
+    vh_typ: Optional[str] = None
+    vh_gndiv: Optional[str] = None
+    vh_ownercd: Optional[str] = None
+    vh_parshawa: Optional[str] = None
+    
     temple_lands: List[TempleLandInDB] = Field(default_factory=list)
     resident_bhikkhus: List[ResidentBhikkhuInDB] = Field(default_factory=list)
+    
+    # Override validators to allow None/empty for output - these run AFTER parent validators
+    # Use wrap validator to intercept validation errors
+    @field_validator("vh_mobile", "vh_whtapp", mode="wrap")
+    @classmethod
+    def _allow_empty_phone(cls, value, handler, info):
+        """Skip validation for empty phone numbers in output schema."""
+        if value is None or value == "":
+            return None
+        try:
+            return handler(value)
+        except ValueError:
+            # If parent validator fails, return the value as-is (for legacy data)
+            return value
+    
+    @field_validator("vh_email", mode="wrap")
+    @classmethod
+    def _allow_empty_email(cls, value, handler, info):
+        """Skip validation for empty email in output schema."""
+        if value is None or (isinstance(value, str) and value.strip() == ""):
+            return None
+        try:
+            return handler(value)
+        except ValueError:
+            # If parent validator fails, return the value as-is (for legacy data)
+            return value
 
 
 class ViharaRequestPayload(BaseModel):
