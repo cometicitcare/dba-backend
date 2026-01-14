@@ -351,7 +351,7 @@ def manage_vihara_records(
                 [("payload.vh_id", "vh_id or vh_trn is required for READ_ONE action")]
             )
 
-        entity: ViharaOut | None = None
+        entity = None
         if identifier_id is not None:
             entity = vihara_service.get_vihara(db, identifier_id)
         elif identifier_trn:
@@ -362,6 +362,7 @@ def manage_vihara_records(
                 status_code=status.HTTP_404_NOT_FOUND, detail="Vihara not found"
             )
 
+        # Return entity directly - FastAPI will serialize it using the response_model
         return ViharaManagementResponse(
             status="success",
             message="Vihara retrieved successfully.",
