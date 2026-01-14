@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
 from sqlalchemy.orm import Session
+from datetime import date
 from app.api.auth_middleware import get_current_user
 from app.api.auth_dependencies import has_permission, has_any_permission
 from app.api.deps import get_db
@@ -477,3 +478,62 @@ async def upload_scanned_document(
         raise HTTPException(status_code=500, detail=str(exc)) from exc
     except Exception as exc:
         raise HTTPException(status_code=500, detail=f"File upload failed: {str(exc)}") from exc
+
+
+@router.post("/check-duplicate", dependencies=[has_any_permission("bhikku:create", "bhikku:read")])
+def check_duplicate_high_bhikku(
+    gihiname: str,
+    date_of_birth: date,
+    db: Session = Depends(get_db),
+    current_user: UserAccount = Depends(get_current_user),
+):
+    """
+    Check if a high bhikku record with the same gihiname and date of birth already exists.
+    This checks both the candidate's gihiname+dob in bhikku_regist and direct_bhikku_high.
+    """
+    from app.models.bhikku import Bhikku
+    from app.models.direct_bhikku_high import DirectBhikkuHigh
+    
+    # Check in bhikku_regist table
+    existing_bhikku = db.query(Bhikku).filter(
+        Bhikku.br_gihiname == gihiname,
+        Bhikku.br_dofb == date_of_birth,
+        Bhikku.br_is_deleted.is_(False),
+    ).first()
+    
+    if existing_bhikku:
+        return {
+            "status": "duplicate_found",
+            "message": f"A bhikku record with the same gihiname and date of birth already exists.",
+            "data": {
+                "found_in": "bhikku_regist",
+                "regn": existing_bhikku.br_regn,
+                "gihiname": existing_bhikku.br_gihiname,
+                "date_of_birth": existing_bhikku.br_dofb,
+            }
+        }
+    
+    # Check in direct_bhikku_high table
+    existing_direct = db.query(DirectBhikkuHigh).filter(
+        DirectBhikkuHigh.dbh_gihiname == gihiname,
+        DirectBhikkuHigh.dbh_dofb == date_of_birth,
+        DirectBhikkuHigh.dbh_is_deleted.is_(False),
+    ).first()
+    
+    if existing_direct:
+        return {
+            "status": "duplicate_found",
+            "message": f"A direct high bhikku record with the same gihiname and date of birth already exists.",
+            "data": {
+                "found_in": "direct_bhikku_high",
+                "regn": existing_direct.dbh_regn,
+                "gihiname": existing_direct.dbh_gihiname,
+                "date_of_birth": existing_direct.dbh_dofb,
+            }
+        }
+    
+    return {
+        "status": "no_duplicate",
+        "message": "No duplicate record found. You can proceed with high bhikku registration.",
+        "data": None
+    }

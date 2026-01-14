@@ -1609,3 +1609,62 @@ def get_qr_search_details(
         "message": "Record details retrieved successfully.",
         "data": result,
     }
+
+
+@router.post("/check-duplicate", dependencies=[has_any_permission("bhikku:create", "bhikku:read")])
+def check_duplicate_bhikku(
+    gihiname: str,
+    date_of_birth: date,
+    db: Session = Depends(get_db),
+    current_user: UserAccount = Depends(get_current_user),
+):
+    """
+    Check if a bhikku record with the same gihiname and date of birth already exists.
+    Returns the existing record if found, or indicates no duplicate exists.
+    """
+    from app.models.bhikku import Bhikku
+    from app.models.direct_bhikku_high import DirectBhikkuHigh
+    
+    # Check in bhikku_regist table
+    existing_bhikku = db.query(Bhikku).filter(
+        Bhikku.br_gihiname == gihiname,
+        Bhikku.br_dofb == date_of_birth,
+        Bhikku.br_is_deleted.is_(False),
+    ).first()
+    
+    if existing_bhikku:
+        return {
+            "status": "duplicate_found",
+            "message": f"A bhikku record with the same gihiname and date of birth already exists.",
+            "data": {
+                "found_in": "bhikku_regist",
+                "regn": existing_bhikku.br_regn,
+                "gihiname": existing_bhikku.br_gihiname,
+                "date_of_birth": existing_bhikku.br_dofb,
+            }
+        }
+    
+    # Check in direct_bhikku_high table
+    existing_direct = db.query(DirectBhikkuHigh).filter(
+        DirectBhikkuHigh.dbh_gihiname == gihiname,
+        DirectBhikkuHigh.dbh_dofb == date_of_birth,
+        DirectBhikkuHigh.dbh_is_deleted.is_(False),
+    ).first()
+    
+    if existing_direct:
+        return {
+            "status": "duplicate_found",
+            "message": f"A direct high bhikku record with the same gihiname and date of birth already exists.",
+            "data": {
+                "found_in": "direct_bhikku_high",
+                "regn": existing_direct.dbh_regn,
+                "gihiname": existing_direct.dbh_gihiname,
+                "date_of_birth": existing_direct.dbh_dofb,
+            }
+        }
+    
+    return {
+        "status": "no_duplicate",
+        "message": "No duplicate record found. You can proceed with registration.",
+        "data": None
+    }

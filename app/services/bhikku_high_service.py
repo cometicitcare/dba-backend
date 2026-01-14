@@ -36,6 +36,9 @@ class BhikkuHighService:
         if not self._has_meaningful_value(payload_dict.get("bhr_samanera_serial_no")):
             payload_dict["bhr_samanera_serial_no"] = None
 
+        # Preserve original candidate_regn for validation before TEMP- handling
+        original_candidate_regn = payload_dict.get("bhr_candidate_regn")
+
         # Handle temporary bhikku references - these can't be stored as FK references
         # Store the temp references in remarks for later retrieval
         import re
@@ -95,10 +98,10 @@ class BhikkuHighService:
             current_regn=None,
         )
         
-        # Validate no duplicate candidate and check candidate's gihiname + mobile
+        # Validate no duplicate candidate using original value before TEMP- handling
         self._validate_no_duplicate_candidate(
             db,
-            bhr_candidate_regn=payload_dict.get("bhr_candidate_regn"),
+            bhr_candidate_regn=original_candidate_regn,
             current_regn=None,
         )
 
@@ -1175,6 +1178,21 @@ class BhikkuHighService:
         """
         if not self._has_meaningful_value(bhr_candidate_regn):
             return
+        
+        # Handle TEMP- references
+        if bhr_candidate_regn.startswith("TEMP-"):
+            # Check if there's already a high bhikku record with this TEMP- candidate in remarks
+            temp_marker = f"[TEMP_BHR_CANDIDATE_REGN:{bhr_candidate_regn[5:]}]"
+            existing = db.query(BhikkuHighRegist).filter(
+                BhikkuHighRegist.bhr_remarks.contains(temp_marker),
+                BhikkuHighRegist.bhr_is_deleted.is_(False),
+            ).first()
+            
+            if existing and existing.bhr_regn != current_regn:
+                raise ValueError(
+                    f"Temporary candidate '{bhr_candidate_regn}' already has a higher bhikku record (Regn: {existing.bhr_regn})."
+                )
+            return  # For TEMP- references, we can't check gihiname+dob since they don't exist yet
         
         # Check if this candidate already has a higher bhikku record
         existing = db.query(BhikkuHighRegist).filter(
