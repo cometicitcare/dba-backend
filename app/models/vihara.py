@@ -42,6 +42,9 @@ class ViharaData(Base):
     vh_minissecrsigdate = Column(Date)
     vh_minissecrmrks = Column(String(200))
     vh_ssbmsigdate = Column(Date)
+    vh_mahanayake_date = Column(Date)
+    vh_mahanayake_letter_nu = Column(String(50))
+    vh_mahanayake_remarks = Column(String(500))
     
     # Extended Fields
     vh_province = Column(String(100), ForeignKey('cmm_province.cp_code', ondelete='SET NULL'))
