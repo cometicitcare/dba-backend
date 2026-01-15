@@ -38,6 +38,7 @@ import app.api.v1.routes.reprint_search as reprint_search
 import app.api.v1.routes.rbac_admin as rbac_admin
 import app.api.v1.routes.religion as religion
 import app.api.v1.routes.roles as roles
+import app.api.v1.routes.sasanarakshaka as sasanarakshaka
 import app.api.v1.routes.status as status
 import app.api.v1.routes.silmatha_id as silmatha_id
 import app.api.v1.routes.silmatha_id_card as silmatha_id_card
@@ -268,6 +269,11 @@ api_router.include_router(
 # ============================================================================
 # MASTER DATA MANAGEMENT
 # ============================================================================
+api_router.include_router(
+    sasanarakshaka.router,
+    prefix="/sasanarakshaka",
+    tags=["📊 Master Data Management"]
+)
 api_router.include_router(
     banks.router,
     prefix="/banks",
