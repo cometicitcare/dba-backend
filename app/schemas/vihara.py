@@ -61,6 +61,9 @@ class ViharaBase(BaseModel):
     vh_minissecrsigdate: Optional[date] = None
     vh_minissecrmrks: Annotated[Optional[str], Field(default=None, max_length=200)]
     vh_ssbmsigdate: Optional[date] = None
+    vh_mahanayake_date: Optional[date] = None
+    vh_mahanayake_letter_nu: Annotated[Optional[str], Field(default=None, max_length=50)] = None
+    vh_mahanayake_remarks: Annotated[Optional[str], Field(default=None, max_length=500)] = None
     
     # Extended Fields
     vh_province: Annotated[Optional[str], Field(default=None, max_length=100)] = None
@@ -156,6 +159,8 @@ class ViharaBase(BaseModel):
         "vh_pralename",
         "vh_bacgrecmn",
         "vh_minissecrmrks",
+        "vh_mahanayake_letter_nu",
+        "vh_mahanayake_remarks",
         "vh_created_by",
         "vh_updated_by",
         mode="before",
@@ -297,6 +302,9 @@ class ViharaUpdate(BaseModel):
     vh_minissecrsigdate: Optional[date] = None
     vh_minissecrmrks: Annotated[Optional[str], Field(default=None, max_length=200)]
     vh_ssbmsigdate: Optional[date] = None
+    vh_mahanayake_date: Optional[date] = None
+    vh_mahanayake_letter_nu: Annotated[Optional[str], Field(default=None, max_length=50)] = None
+    vh_mahanayake_remarks: Annotated[Optional[str], Field(default=None, max_length=500)] = None
     
     # Extended Fields
     vh_province: Annotated[Optional[str], Field(default=None, max_length=100)] = None
