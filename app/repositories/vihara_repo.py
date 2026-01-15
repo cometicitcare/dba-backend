@@ -142,22 +142,51 @@ class ViharaRepository:
         # are not currently in the ViharaData model. If they are in related tables,
         # you'll need to add joins here. For now, we skip them to avoid errors.
 
-        # Data Entry users should see newest first
+        # Admin users should only see pending approval records, in ascending order (oldest first)
+        # Data Entry users should see newest first (descending order)
+        # Other users see ascending order
         order_desc = False
+        admin_pending_only = False
+        
         if current_user:
             now = datetime.utcnow()
-            data_entry_role = (
+            
+            # Check for ADMIN role
+            admin_role = (
                 db.query(UserRole)
                 .join(Role, Role.ro_role_id == UserRole.ur_role_id)
                 .filter(
                     UserRole.ur_user_id == current_user.ua_user_id,
                     UserRole.ur_is_active.is_(True),
                     (UserRole.ur_expires_date.is_(None) | (UserRole.ur_expires_date > now)),
-                    Role.ro_level == "DATA_ENTRY",
+                    Role.ro_level == "ADMIN",
                 )
                 .first()
             )
-            order_desc = data_entry_role is not None
+            
+            if admin_role:
+                # Admin users see only pending approval records
+                admin_pending_only = True
+            else:
+                # Check for DATA_ENTRY role
+                data_entry_role = (
+                    db.query(UserRole)
+                    .join(Role, Role.ro_role_id == UserRole.ur_role_id)
+                    .filter(
+                        UserRole.ur_user_id == current_user.ua_user_id,
+                        UserRole.ur_is_active.is_(True),
+                        (UserRole.ur_expires_date.is_(None) | (UserRole.ur_expires_date > now)),
+                        Role.ro_level == "DATA_ENTRY",
+                    )
+                    .first()
+                )
+                order_desc = data_entry_role is not None
+        
+        # Filter for pending approval statuses if admin
+        if admin_pending_only:
+            query = query.filter(
+                ViharaData.vh_workflow_status.in_(["S1_PEND_APPROVAL", "S2_PEND_APPROVAL"])
+            )
 
         query = query.order_by(ViharaData.vh_id.desc() if order_desc else ViharaData.vh_id)
 
@@ -182,6 +211,7 @@ class ViharaRepository:
         vh_typ: Optional[str] = None,
         date_from: Optional[Any] = None,
         date_to: Optional[Any] = None,
+        current_user: Optional[UserAccount] = None,
     ) -> int:
         query = db.query(func.count(ViharaData.vh_id)).filter(
             ViharaData.vh_is_deleted.is_(False)
@@ -227,6 +257,27 @@ class ViharaRepository:
         
         if date_to:
             query = query.filter(ViharaData.vh_created_at <= date_to)
+        
+        # Admin users should only see pending approval records count
+        if current_user:
+            now = datetime.utcnow()
+            admin_role = (
+                db.query(UserRole)
+                .join(Role, Role.ro_role_id == UserRole.ur_role_id)
+                .filter(
+                    UserRole.ur_user_id == current_user.ua_user_id,
+                    UserRole.ur_is_active.is_(True),
+                    (UserRole.ur_expires_date.is_(None) | (UserRole.ur_expires_date > now)),
+                    Role.ro_level == "ADMIN",
+                )
+                .first()
+            )
+            
+            if admin_role:
+                # Admin users see only pending approval records
+                query = query.filter(
+                    ViharaData.vh_workflow_status.in_(["S1_PEND_APPROVAL", "S2_PEND_APPROVAL"])
+                )
 
         return query.scalar() or 0
 
