@@ -24,7 +24,7 @@ class ViharaData(Base):
     vh_addrs = Column(String(200))
     vh_mobile = Column(String(10), nullable=False)
     vh_whtapp = Column(String(10), nullable=False)
-    vh_email = Column(String(200), nullable=False, index=True, unique=True)
+    vh_email = Column(String(200), nullable=True, index=True, unique=True)
     vh_typ = Column(String(10), nullable=False)
     vh_gndiv = Column(String(10), ForeignKey('cmm_gndata.gn_gnc', ondelete='RESTRICT'), nullable=False)
     vh_fmlycnt = Column(Integer)
