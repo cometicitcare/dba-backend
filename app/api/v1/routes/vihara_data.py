@@ -399,7 +399,7 @@ def manage_vihara_records(
         }
 
         records = vihara_service.list_viharas(db, **filters)
-        total = vihara_service.count_viharas(db, **{k: v for k, v in filters.items() if k not in ["skip", "limit", "current_user"]})
+        total = vihara_service.count_viharas(db, **{k: v for k, v in filters.items() if k not in ["skip", "limit"]})
         
         # Convert records to list of dicts for modification (serialize SQLAlchemy models)
         records_list = []

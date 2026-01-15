@@ -711,6 +711,7 @@ class ViharaService:
         vh_typ: Optional[str] = None,
         date_from: Optional[Any] = None,
         date_to: Optional[Any] = None,
+        current_user = None,
     ) -> int:
         return vihara_repo.count(
             db,
@@ -729,6 +730,7 @@ class ViharaService:
             vh_typ=vh_typ,
             date_from=date_from,
             date_to=date_to,
+            current_user=current_user,
         )
 
     def get_vihara(self, db: Session, vh_id: int) -> Optional[ViharaData]:
