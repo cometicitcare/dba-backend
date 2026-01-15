@@ -1,0 +1,395 @@
+================================================================================
+SASANARAKSHAKA BALA MANDALAYA API ENDPOINTS - FRONTEND GUIDE
+================================================================================
+
+Base URL: /api/v1/sasanarakshaka
+Authentication: Bearer Token (JWT) required for all endpoints
+
+================================================================================
+REQUIRED PERMISSIONS
+================================================================================
+
+- sasanarakshaka:create - Create new records
+- sasanarakshaka:read   - View records
+- sasanarakshaka:update - Update records
+- sasanarakshaka:delete - Delete records
+
+================================================================================
+TABLE STRUCTURE: cmm_sasanarbm
+================================================================================
+
+Field Name          | Type         | Required | Description
+--------------------|--------------|----------|----------------------------------
+sr_id               | Integer      | Auto     | Primary Key (Auto-generated)
+sr_ssbmcode         | String(10)   | Yes      | Unique Code
+sr_dvcd             | String(10)   | Yes      | Divisional Secretariat Code (FK)
+sr_ssbname          | String(200)  | No       | Name
+sr_sbmnayakahimi    | String(12)   | No       | Bhikku Registration Number (FK)
+sr_version          | Timestamp    | Auto     | Version timestamp
+sr_is_deleted       | Boolean      | Auto     | Soft delete flag
+sr_created_at       | Timestamp    | Auto     | Creation timestamp
+sr_updated_at       | Timestamp    | Auto     | Update timestamp
+sr_created_by       | String(25)   | Auto     | Created by user ID
+sr_updated_by       | String(25)   | Auto     | Updated by user ID
+sr_version_number   | Integer      | Auto     | Version number
+
+================================================================================
+1. CREATE NEW RECORD
+================================================================================
+
+Method: POST
+Endpoint: /api/v1/sasanarakshaka
+Permission: sasanarakshaka:create
+
+Request Headers:
+  Authorization: Bearer {token}
+  Content-Type: application/json
+
+Request Body:
+{
+  "sr_ssbmcode": "SB001",
+  "sr_dvcd": "DV001",
+  "sr_ssbname": "Colombo Sasana Rakshaka Bala Mandalaya",
+  "sr_sbmnayakahimi": "BH2025000001"
+}
+
+Note: sr_sbmnayakahimi is optional (can be null)
+
+Success Response (201 Created):
+{
+  "status": "success",
+  "message": "Sasanarakshaka Bala Mandalaya created successfully.",
+  "data": {
+    "sr_id": 1,
+    "sr_ssbmcode": "SB001",
+    "sr_dvcd": "DV001",
+    "sr_ssbname": "Colombo Sasana Rakshaka Bala Mandalaya",
+    "sr_sbmnayakahimi": "BH2025000001",
+    "sr_version": "2026-01-15T10:30:00",
+    "sr_is_deleted": false,
+    "sr_created_at": "2026-01-15T10:30:00",
+    "sr_updated_at": "2026-01-15T10:30:00",
+    "sr_created_by": "admin",
+    "sr_updated_by": "admin",
+    "sr_version_number": 1
+  }
+}
+
+Error Response (400 Bad Request):
+{
+  "detail": "Sasanarakshaka Bala Mandalaya code 'SB001' already exists."
+}
+
+Error Response (403 Forbidden):
+{
+  "detail": "Permission denied. Required permission: sasanarakshaka:create"
+}
+
+================================================================================
+2. GET ALL RECORDS (LIST WITH PAGINATION)
+================================================================================
+
+Method: GET
+Endpoint: /api/v1/sasanarakshaka
+Permission: sasanarakshaka:read
+
+Request Headers:
+  Authorization: Bearer {token}
+
+Query Parameters:
+  - page        : integer (optional, default: 1, min: 1)
+  - limit       : integer (optional, default: 100, min: 1, max: 1000)
+  - search_key  : string (optional) - Search across all text fields
+  - sr_dvcd     : string (optional) - Filter by divisional secretariat code
+
+Example Request:
+GET /api/v1/sasanarakshaka?page=1&limit=10&search_key=Colombo&sr_dvcd=DV001
+
+Success Response (200 OK):
+{
+  "status": "success",
+  "message": "Sasanarakshaka Bala Mandalaya list retrieved successfully.",
+  "data": [
+    {
+      "sr_id": 1,
+      "sr_ssbmcode": "SB001",
+      "sr_dvcd": "DV001",
+      "sr_ssbname": "Colombo Sasana Rakshaka Bala Mandalaya",
+      "sr_sbmnayakahimi": "BH2025000001",
+      "sr_version": "2026-01-15T10:30:00",
+      "sr_is_deleted": false,
+      "sr_created_at": "2026-01-15T10:30:00",
+      "sr_updated_at": "2026-01-15T10:30:00",
+      "sr_created_by": "admin",
+      "sr_updated_by": "admin",
+      "sr_version_number": 1
+    }
+  ],
+  "total": 1,
+  "page": 1,
+  "limit": 10
+}
+
+================================================================================
+3. GET SINGLE RECORD BY ID
+================================================================================
+
+Method: GET
+Endpoint: /api/v1/sasanarakshaka/{sr_id}
+Permission: sasanarakshaka:read
+
+Request Headers:
+  Authorization: Bearer {token}
+
+Example Request:
+GET /api/v1/sasanarakshaka/1
+
+Success Response (200 OK):
+{
+  "status": "success",
+  "message": "Sasanarakshaka Bala Mandalaya retrieved successfully.",
+  "data": {
+    "sr_id": 1,
+    "sr_ssbmcode": "SB001",
+    "sr_dvcd": "DV001",
+    "sr_ssbname": "Colombo Sasana Rakshaka Bala Mandalaya",
+    "sr_sbmnayakahimi": "BH2025000001",
+    "sr_version": "2026-01-15T10:30:00",
+    "sr_is_deleted": false,
+    "sr_created_at": "2026-01-15T10:30:00",
+    "sr_updated_at": "2026-01-15T10:30:00",
+    "sr_created_by": "admin",
+    "sr_updated_by": "admin",
+    "sr_version_number": 1
+  }
+}
+
+Error Response (404 Not Found):
+{
+  "detail": "Sasanarakshaka Bala Mandalaya with ID 999 not found"
+}
+
+================================================================================
+4. GET SINGLE RECORD BY CODE
+================================================================================
+
+Method: GET
+Endpoint: /api/v1/sasanarakshaka/code/{sr_ssbmcode}
+Permission: sasanarakshaka:read
+
+Request Headers:
+  Authorization: Bearer {token}
+
+Example Request:
+GET /api/v1/sasanarakshaka/code/SB001
+
+Success Response (200 OK):
+{
+  "status": "success",
+  "message": "Sasanarakshaka Bala Mandalaya retrieved successfully.",
+  "data": {
+    "sr_id": 1,
+    "sr_ssbmcode": "SB001",
+    "sr_dvcd": "DV001",
+    "sr_ssbname": "Colombo Sasana Rakshaka Bala Mandalaya",
+    "sr_sbmnayakahimi": "BH2025000001",
+    "sr_version": "2026-01-15T10:30:00",
+    "sr_is_deleted": false,
+    "sr_created_at": "2026-01-15T10:30:00",
+    "sr_updated_at": "2026-01-15T10:30:00",
+    "sr_created_by": "admin",
+    "sr_updated_by": "admin",
+    "sr_version_number": 1
+  }
+}
+
+Error Response (404 Not Found):
+{
+  "detail": "Sasanarakshaka Bala Mandalaya with code SB001 not found"
+}
+
+================================================================================
+5. UPDATE RECORD
+================================================================================
+
+Method: PUT
+Endpoint: /api/v1/sasanarakshaka/{sr_id}
+Permission: sasanarakshaka:update
+
+Request Headers:
+  Authorization: Bearer {token}
+  Content-Type: application/json
+
+Request Body (all fields optional):
+{
+  "sr_ssbmcode": "SB002",
+  "sr_dvcd": "DV002",
+  "sr_ssbname": "Updated Name",
+  "sr_sbmnayakahimi": "BH2025000002"
+}
+
+Note: You can update any combination of fields. Omitted fields remain unchanged.
+
+Example Request:
+PUT /api/v1/sasanarakshaka/1
+{
+  "sr_ssbname": "Updated Sasana Rakshaka Bala Mandalaya Name"
+}
+
+Success Response (200 OK):
+{
+  "status": "success",
+  "message": "Sasanarakshaka Bala Mandalaya updated successfully.",
+  "data": {
+    "sr_id": 1,
+    "sr_ssbmcode": "SB001",
+    "sr_dvcd": "DV001",
+    "sr_ssbname": "Updated Sasana Rakshaka Bala Mandalaya Name",
+    "sr_sbmnayakahimi": "BH2025000001",
+    "sr_version": "2026-01-15T11:00:00",
+    "sr_is_deleted": false,
+    "sr_created_at": "2026-01-15T10:30:00",
+    "sr_updated_at": "2026-01-15T11:00:00",
+    "sr_created_by": "admin",
+    "sr_updated_by": "admin",
+    "sr_version_number": 2
+  }
+}
+
+Error Response (404 Not Found):
+{
+  "detail": "Sasanarakshaka Bala Mandalaya with ID 999 not found"
+}
+
+Error Response (400 Bad Request):
+{
+  "detail": "Sasanarakshaka Bala Mandalaya code 'SB002' already exists."
+}
+
+================================================================================
+6. DELETE RECORD (SOFT DELETE)
+================================================================================
+
+Method: DELETE
+Endpoint: /api/v1/sasanarakshaka/{sr_id}
+Permission: sasanarakshaka:delete
+
+Request Headers:
+  Authorization: Bearer {token}
+
+Example Request:
+DELETE /api/v1/sasanarakshaka/1
+
+Success Response (200 OK):
+{
+  "status": "success",
+  "message": "Sasanarakshaka Bala Mandalaya deleted successfully.",
+  "data": {
+    "sr_id": 1
+  }
+}
+
+Error Response (404 Not Found):
+{
+  "detail": "Sasanarakshaka Bala Mandalaya with ID 999 not found"
+}
+
+Note: This is a SOFT DELETE. The record is marked as deleted (sr_is_deleted = true)
+but not physically removed from the database. Deleted records will not appear in
+any GET requests.
+
+================================================================================
+VALIDATION RULES
+================================================================================
+
+1. UNIQUE CODE:
+   - sr_ssbmcode must be unique across all non-deleted records
+   - Attempting to create/update with an existing code will return 400 error
+
+2. FOREIGN KEY VALIDATION:
+   - sr_dvcd must exist in cmm_dvsec.dv_dvcode and not be deleted
+   - sr_sbmnayakahimi (if provided) must exist in bhikku_regist.br_regn and not be deleted
+   - Invalid foreign keys will return 400 error
+
+3. REQUIRED FIELDS (CREATE):
+   - sr_ssbmcode (required)
+   - sr_dvcd (required)
+   - sr_ssbname (optional)
+   - sr_sbmnayakahimi (optional)
+
+4. REQUIRED FIELDS (UPDATE):
+   - All fields are optional
+   - Only provided fields will be updated
+
+5. SOFT DELETE:
+   - Deleted records (sr_is_deleted = true) are excluded from all read operations
+   - Once deleted, records cannot be retrieved via API
+
+6. VERSION CONTROL:
+   - sr_version_number increments automatically on each update
+   - Can be used for optimistic locking in the future
+
+================================================================================
+ERROR CODES & RESPONSES
+================================================================================
+
+200 OK               - Success (GET, PUT, DELETE)
+201 Created          - Success (POST)
+400 Bad Request      - Validation error, duplicate code, invalid foreign key
+401 Unauthorized     - Missing or invalid authentication token
+403 Forbidden        - Insufficient permissions
+404 Not Found        - Record not found
+500 Internal Error   - Server error
+
+All error responses follow this format:
+{
+  "detail": "Error message describing what went wrong"
+}
+
+================================================================================
+FRONTEND INTEGRATION NOTES
+================================================================================
+
+1. AUTHENTICATION:
+   - Include Bearer token in all requests
+   - Token is obtained from login endpoint (/api/v1/auth/login)
+
+2. PAGINATION:
+   - Default: page=1, limit=100
+   - Maximum limit: 1000
+   - Use 'total' field to calculate total pages
+
+3. SEARCH:
+   - search_key parameter searches across all text fields:
+     * sr_ssbmcode
+     * sr_ssbname
+     * sr_dvcd
+     * sr_sbmnayakahimi
+
+4. FILTERING:
+   - sr_dvcd parameter filters by divisional secretariat code
+   - Can combine search and filter parameters
+
+5. DROPDOWN LISTS:
+   - For sr_dvcd: Fetch from /api/v1/divisional-secretariat
+   - For sr_sbmnayakahimi: Fetch from /api/v1/bhikkus
+
+6. FIELD VALIDATION (FRONTEND):
+   - sr_ssbmcode: max 10 characters, required
+   - sr_dvcd: max 10 characters, required, must exist in system
+   - sr_ssbname: max 200 characters, optional
+   - sr_sbmnayakahimi: max 12 characters, optional, must exist in system
+
+7. DISPLAY NAMES:
+   - sr_ssbmcode: "Code"
+   - sr_dvcd: "Divisional Secretariat"
+   - sr_ssbname: "Name"
+   - sr_sbmnayakahimi: "Nayaka Himi"
+
+8. TESTING:
+   - Test script available: test_sasanarakshaka.sh
+   - Postman collection can be created for comprehensive testing
+
+================================================================================
+END OF DOCUMENT
+================================================================================

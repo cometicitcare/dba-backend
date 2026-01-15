@@ -43,7 +43,7 @@ class ViharaBase(BaseModel):
     vh_addrs: Annotated[Optional[str], Field(default=None, max_length=200)]
     vh_mobile: Annotated[str, Field(min_length=10, max_length=10)]
     vh_whtapp: Annotated[str, Field(min_length=10, max_length=10)]
-    vh_email: EmailStr
+    vh_email: Optional[EmailStr] = None
     vh_typ: Annotated[str, Field(min_length=1, max_length=10)]
     vh_gndiv: Annotated[str, Field(min_length=1, max_length=10)]
     vh_fmlycnt: Annotated[Optional[int], Field(default=None, ge=0)]
@@ -177,9 +177,11 @@ class ViharaBase(BaseModel):
 
     @field_validator("vh_email", mode="before")
     @classmethod
-    def _normalize_email(cls, value: str) -> str:
+    def _normalize_email(cls, value: str) -> Optional[str]:
         if isinstance(value, str):
             value = value.strip()
+            if value == "":
+                return None
         return value
 
     @field_validator("vh_ownercd", mode="before")
@@ -206,7 +208,7 @@ class ViharaCreatePayload(BaseModel):
     temple_address: Optional[str] = Field(default=None, max_length=200)
     telephone_number: str = Field(min_length=10, max_length=10)
     whatsapp_number: str = Field(min_length=10, max_length=10)
-    email_address: EmailStr
+    email_address: Optional[EmailStr] = None
     temple_type: str = Field(min_length=1, max_length=10)  # Required: VIHARA, ARAMA, etc.
     province: Optional[str] = Field(default=None, max_length=100)
     district: Optional[str] = Field(default=None, max_length=100)
@@ -253,6 +255,15 @@ class ViharaCreatePayload(BaseModel):
     annex2_referral_resubmission: Optional[bool] = None
     
     form_id: Optional[str] = Field(default=None, max_length=50)
+
+    @field_validator("email_address", mode="before")
+    @classmethod
+    def _normalize_email(cls, value: str) -> Optional[str]:
+        if isinstance(value, str):
+            value = value.strip()
+            if value == "":
+                return None
+        return value
 
     @field_validator("telephone_number", "whatsapp_number")
     @classmethod
