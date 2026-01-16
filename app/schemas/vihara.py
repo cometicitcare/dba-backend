@@ -41,15 +41,15 @@ class ViharaBase(BaseModel):
     vh_trn: Annotated[str, Field(min_length=1, max_length=10)]
     vh_vname: Annotated[Optional[str], Field(default=None, max_length=200)]
     vh_addrs: Annotated[Optional[str], Field(default=None, max_length=200)]
-    vh_mobile: Annotated[str, Field(min_length=10, max_length=10)]
-    vh_whtapp: Annotated[str, Field(min_length=10, max_length=10)]
+    vh_mobile: Annotated[Optional[str], Field(default=None, min_length=10, max_length=10)] = None
+    vh_whtapp: Annotated[Optional[str], Field(default=None, min_length=10, max_length=10)] = None
     vh_email: Optional[EmailStr] = None
-    vh_typ: Annotated[str, Field(min_length=1, max_length=10)]
-    vh_gndiv: Annotated[str, Field(min_length=1, max_length=10)]
+    vh_typ: Annotated[Optional[str], Field(default=None, min_length=1, max_length=10)] = None
+    vh_gndiv: Annotated[Optional[str], Field(default=None, min_length=1, max_length=10)] = None
     vh_fmlycnt: Annotated[Optional[int], Field(default=None, ge=0)]
     vh_bgndate: Optional[date] = None
-    vh_ownercd: Annotated[str, Field(min_length=1, max_length=12)]
-    vh_parshawa: Annotated[str, Field(min_length=1, max_length=10)]
+    vh_ownercd: Annotated[Optional[str], Field(default=None, min_length=1, max_length=12)] = None
+    vh_parshawa: Annotated[Optional[str], Field(default=None, min_length=1, max_length=10)] = None
     vh_ssbmcode: Annotated[Optional[str], Field(default=None, max_length=10)]
     vh_syojakarmakrs: Annotated[Optional[str], Field(default=None, max_length=100)]
     vh_syojakarmdate: Optional[date] = None
@@ -175,7 +175,9 @@ class ViharaBase(BaseModel):
 
     @field_validator("vh_mobile", "vh_whtapp")
     @classmethod
-    def _validate_phone(cls, value: str) -> str:
+    def _validate_phone(cls, value: Optional[str]) -> Optional[str]:
+        if value is None:
+            return None
         if not PHONE_PATTERN.fullmatch(value):
             raise ValueError("Phone numbers must be exactly 10 digits.")
         return value
