@@ -438,20 +438,20 @@ class ViharaUpdate(BaseModel):
 # Stage-specific schemas for multi-stage vihara data entry
 class ViharaStageOneData(BaseModel):
     """Data for Stage 1: Basic Profile (steps 1–4)"""
-    vh_typ: str = Field(min_length=1, max_length=10)
-    vh_ownercd: str = Field(min_length=1, max_length=12)
+    vh_typ: Optional[str] = Field(default=None, min_length=1, max_length=10)
+    vh_ownercd: Optional[str] = Field(default=None, min_length=1, max_length=12)
     vh_vname: Optional[str] = Field(default=None, max_length=200)
     vh_addrs: Optional[str] = Field(default=None, max_length=200)
-    vh_mobile: str = Field(min_length=10, max_length=10)
-    vh_whtapp: str = Field(min_length=10, max_length=10)
-    vh_email: EmailStr
+    vh_mobile: Optional[str] = Field(default=None, min_length=10, max_length=10)
+    vh_whtapp: Optional[str] = Field(default=None, min_length=10, max_length=10)
+    vh_email: Optional[EmailStr] = None
     vh_province: Optional[str] = Field(default=None, max_length=100)
     vh_district: Optional[str] = Field(default=None, max_length=100)
     vh_divisional_secretariat: Optional[str] = Field(default=None, max_length=100)
     vh_pradeshya_sabha: Optional[str] = Field(default=None, max_length=100)
-    vh_gndiv: str = Field(min_length=1, max_length=10)
+    vh_gndiv: Optional[str] = Field(default=None, min_length=1, max_length=10)
     vh_nikaya: Optional[str] = Field(default=None, max_length=50)
-    vh_parshawa: str = Field(min_length=1, max_length=10)
+    vh_parshawa: Optional[str] = Field(default=None, min_length=1, max_length=10)
     vh_viharadhipathi_name: Optional[str] = Field(default=None, max_length=200)
     vh_viharadhipathi_regn: Optional[str] = Field(default=None, max_length=50)
     vh_period_established: Optional[str] = Field(default=None, max_length=100)
@@ -459,7 +459,9 @@ class ViharaStageOneData(BaseModel):
 
     @field_validator("vh_mobile", "vh_whtapp")
     @classmethod
-    def _validate_phone(cls, value: str) -> str:
+    def _validate_phone(cls, value: Optional[str]) -> Optional[str]:
+        if value is None:
+            return None
         if not PHONE_PATTERN.fullmatch(value):
             raise ValueError("Phone numbers must be exactly 10 digits.")
         return value
