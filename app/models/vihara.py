@@ -143,3 +143,10 @@ class ViharaData(Base):
     temple_lands = relationship("TempleLand", back_populates="vihara", cascade="all, delete-orphan")
     resident_bhikkhus = relationship("ResidentBhikkhu", back_populates="vihara", cascade="all, delete-orphan")
     vihara_lands = relationship("ViharaLand", back_populates="vihara", cascade="all, delete-orphan")
+    
+    # Foreign key relationships - only for fields with ForeignKey constraints
+    province_info = relationship("Province", foreign_keys=[vh_province], lazy="joined")
+    district_info = relationship("District", foreign_keys=[vh_district], lazy="joined")
+    divisional_secretariat_info = relationship("DivisionalSecretariat", foreign_keys=[vh_divisional_secretariat], lazy="joined")
+    gn_division_info = relationship("Gramasewaka", foreign_keys=[vh_gndiv], lazy="joined")
+    nikaya_info = relationship("NikayaData", foreign_keys=[vh_nikaya], lazy="joined")

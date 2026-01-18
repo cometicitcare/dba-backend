@@ -12,6 +12,68 @@ from app.schemas.vihara_land import ViharaLandCreate, ViharaLandInDB
 PHONE_PATTERN = re.compile(r"^[0-9]{10}$")
 
 
+# Nested response schemas for foreign key relationships
+class ProvinceNested(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    cp_code: Optional[str] = None
+    cp_name: Optional[str] = None
+
+
+class DistrictNested(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    dd_dcode: Optional[str] = None
+    dd_dname: Optional[str] = None
+    dd_prcode: Optional[str] = None
+
+
+class DivisionalSecretariatNested(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    dv_dvcode: Optional[str] = None
+    dv_dvname: Optional[str] = None
+    dv_ddcode: Optional[str] = None
+
+
+class GNDivisionNested(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    gn_gnc: Optional[str] = None
+    gn_gnname: Optional[str] = None
+    gn_dvcode: Optional[str] = None
+
+
+class NikayaNested(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    nk_nkn: Optional[str] = None
+    nk_nname: Optional[str] = None
+
+
+class ParshawaNested(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    pr_prcd: Optional[str] = None
+    pr_prname: Optional[str] = None
+    pr_nkn: Optional[str] = None
+
+
+class TemporaryViharaNested(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    tv_id: Optional[int] = None
+    tv_name: Optional[str] = None
+    tv_address: Optional[str] = None
+    tv_contact_number: Optional[str] = None
+    tv_district: Optional[str] = None
+    tv_province: Optional[str] = None
+
+
+class TemporaryBhikkuNested(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    tb_id: Optional[int] = None
+    tb_name: Optional[str] = None
+    tb_id_number: Optional[str] = None
+    tb_contact_number: Optional[str] = None
+    tb_samanera_name: Optional[str] = None
+    tb_address: Optional[str] = None
+    tb_living_temple: Optional[str] = None
+
+
 class CRUDAction(str, Enum):
     CREATE = "CREATE"
     READ_ONE = "READ_ONE"
@@ -460,13 +522,42 @@ class ViharaStageOneData(BaseModel):
     vh_mahanayake_letter_nu: Optional[str] = Field(default=None, max_length=50)
     vh_mahanayake_remarks: Optional[str] = Field(default=None, max_length=500)
 
-    @field_validator("vh_mobile", "vh_whtapp")
+    @field_validator(
+        "vh_typ", "vh_ownercd", "vh_vname", "vh_addrs", "vh_province", 
+        "vh_district", "vh_divisional_secretariat", "vh_pradeshya_sabha", 
+        "vh_gndiv", "vh_nikaya", "vh_parshawa", "vh_viharadhipathi_name", 
+        "vh_viharadhipathi_regn", "vh_period_established", "vh_mahanayake_letter_nu", 
+        "vh_mahanayake_remarks",
+        mode="before",
+    )
+    @classmethod
+    def _strip_strings(cls, value: Optional[str]) -> Optional[str]:
+        if isinstance(value, str):
+            value = value.strip()
+            if value == "":
+                return None
+        return value
+
+    @field_validator("vh_mobile", "vh_whtapp", mode="before")
     @classmethod
     def _validate_phone(cls, value: Optional[str]) -> Optional[str]:
         if value is None:
             return None
+        if isinstance(value, str):
+            value = value.strip()
+            if value == "":
+                return None
         if not PHONE_PATTERN.fullmatch(value):
             raise ValueError("Phone numbers must be exactly 10 digits.")
+        return value
+    
+    @field_validator("vh_email", mode="before")
+    @classmethod
+    def _validate_email(cls, value: Optional[str]) -> Optional[str]:
+        if isinstance(value, str):
+            value = value.strip()
+            if value == "":
+                return None
         return value
 
 
@@ -525,6 +616,17 @@ class ViharaOut(ViharaBase):
     
     temple_lands: List[TempleLandInDB] = Field(default_factory=list)
     resident_bhikkhus: List[ResidentBhikkhuInDB] = Field(default_factory=list)
+    
+    # Nested foreign key objects - only for fields with ForeignKey constraints
+    province_info: Optional[ProvinceNested] = None
+    district_info: Optional[DistrictNested] = None
+    divisional_secretariat_info: Optional[DivisionalSecretariatNested] = None
+    gn_division_info: Optional[GNDivisionNested] = None
+    nikaya_info: Optional[NikayaNested] = None
+    
+    # Temporary entity nested objects (for TEMP- references)
+    owner_temp_vihara_info: Optional[TemporaryViharaNested] = None
+    viharadhipathi_temp_bhikku_info: Optional[TemporaryBhikkuNested] = None
     
     # Override validators to allow None/empty for output - these run AFTER parent validators
     # Use wrap validator to intercept validation errors

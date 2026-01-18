@@ -77,10 +77,15 @@ def manage_vihara_records(
             result = vihara_service.save_stage_one(
                 db, payload_data=raw_data, actor_id=user_id, vh_id=vh_id
             )
+            # Enrich with temporary entity data
+            temp_data = vihara_service.enrich_with_temp_entities(db, result)
+            result_dict = ViharaOut.model_validate(result).model_dump()
+            result_dict.update(temp_data)
+            
             return ViharaManagementResponse(
                 status="success",
                 message="Stage 1 (Basic Profile) saved. Status: S1_PENDING. Next: Mark as printed.",
-                data=result,
+                data=result_dict,
             )
         except ValueError as exc:
             raise validation_error([(None, str(exc))]) from exc
@@ -99,10 +104,16 @@ def manage_vihara_records(
             result = vihara_service.save_stage_one(
                 db, payload_data=raw_data, actor_id=user_id, vh_id=payload.vh_id
             )
+            
+            # Enrich with temporary entities if present
+            temp_data = vihara_service.enrich_with_temp_entities(db, result)
+            result_dict = ViharaOut.model_validate(result).model_dump()
+            result_dict.update(temp_data)
+            
             return ViharaManagementResponse(
                 status="success",
                 message="Stage 1 (Basic Profile) updated successfully.",
-                data=result,
+                data=result_dict,
             )
         except ValueError as exc:
             raise validation_error([(None, str(exc))]) from exc
@@ -140,10 +151,16 @@ def manage_vihara_records(
             result = vihara_service.approve_stage_one(
                 db, vh_id=payload.vh_id, actor_id=user_id
             )
+            
+            # Enrich with temporary entities if present
+            temp_data = vihara_service.enrich_with_temp_entities(db, result)
+            result_dict = ViharaOut.model_validate(result).model_dump()
+            result_dict.update(temp_data)
+            
             return ViharaManagementResponse(
                 status="success",
                 message="Stage 1 approved. Status: S1_APPROVED. Ready for Stage 2 input.",
-                data=result,
+                data=result_dict,
             )
         except ValueError as exc:
             message = str(exc)
@@ -167,10 +184,16 @@ def manage_vihara_records(
             result = vihara_service.reject_stage_one(
                 db, vh_id=payload.vh_id, actor_id=user_id, rejection_reason=payload.rejection_reason
             )
+            
+            # Enrich with temporary entities if present
+            temp_data = vihara_service.enrich_with_temp_entities(db, result)
+            result_dict = ViharaOut.model_validate(result).model_dump()
+            result_dict.update(temp_data)
+            
             return ViharaManagementResponse(
                 status="success",
                 message="Stage 1 rejected. Status: S1_REJECTED.",
-                data=result,
+                data=result_dict,
             )
         except ValueError as exc:
             message = str(exc)
@@ -198,10 +221,16 @@ def manage_vihara_records(
             result = vihara_service.save_stage_two(
                 db, vh_id=payload.vh_id, payload_data=raw_data, actor_id=user_id
             )
+            
+            # Enrich with temporary entities if present
+            temp_data = vihara_service.enrich_with_temp_entities(db, result)
+            result_dict = ViharaOut.model_validate(result).model_dump()
+            result_dict.update(temp_data)
+            
             return ViharaManagementResponse(
                 status="success",
                 message="Stage 2 (Assets & Certification) saved. Status: S2_PENDING. Next: Upload scanned document.",
-                data=result,
+                data=result_dict,
             )
         except ValueError as exc:
             raise validation_error([(None, str(exc))]) from exc
@@ -220,10 +249,16 @@ def manage_vihara_records(
             result = vihara_service.save_stage_two(
                 db, vh_id=payload.vh_id, payload_data=raw_data, actor_id=user_id
             )
+            
+            # Enrich with temporary entities if present
+            temp_data = vihara_service.enrich_with_temp_entities(db, result)
+            result_dict = ViharaOut.model_validate(result).model_dump()
+            result_dict.update(temp_data)
+            
             return ViharaManagementResponse(
                 status="success",
                 message="Stage 2 (Assets & Certification) updated successfully.",
-                data=result,
+                data=result_dict,
             )
         except ValueError as exc:
             raise validation_error([(None, str(exc))]) from exc
@@ -261,10 +296,16 @@ def manage_vihara_records(
             result = vihara_service.approve_stage_two(
                 db, vh_id=payload.vh_id, actor_id=user_id
             )
+            
+            # Enrich with temporary entities if present
+            temp_data = vihara_service.enrich_with_temp_entities(db, result)
+            result_dict = ViharaOut.model_validate(result).model_dump()
+            result_dict.update(temp_data)
+            
             return ViharaManagementResponse(
                 status="success",
                 message="Stage 2 approved. Vihara registration COMPLETED!",
-                data=result,
+                data=result_dict,
             )
         except ValueError as exc:
             message = str(exc)
@@ -288,10 +329,16 @@ def manage_vihara_records(
             result = vihara_service.reject_stage_two(
                 db, vh_id=payload.vh_id, actor_id=user_id, rejection_reason=payload.rejection_reason
             )
+            
+            # Enrich with temporary entities if present
+            temp_data = vihara_service.enrich_with_temp_entities(db, result)
+            result_dict = ViharaOut.model_validate(result).model_dump()
+            result_dict.update(temp_data)
+            
             return ViharaManagementResponse(
                 status="success",
                 message="Stage 2 rejected. Status: REJECTED.",
-                data=result,
+                data=result_dict,
             )
         except ValueError as exc:
             message = str(exc)
@@ -335,10 +382,16 @@ def manage_vihara_records(
             created = vihara_service.create_vihara(
                 db, payload=create_payload, actor_id=user_id
             )
+            
+            # Enrich with temporary entities if present
+            temp_data = vihara_service.enrich_with_temp_entities(db, created)
+            result_dict = ViharaOut.model_validate(created).model_dump()
+            result_dict.update(temp_data)
+            
             return ViharaManagementResponse(
                 status="success",
                 message="Vihara created successfully.",
-                data=created,
+                data=result_dict,
             )
         except ValueError as exc:
             raise validation_error([(None, str(exc))]) from exc
@@ -362,11 +415,16 @@ def manage_vihara_records(
                 status_code=status.HTTP_404_NOT_FOUND, detail="Vihara not found"
             )
 
+        # Enrich with temporary entities if present
+        temp_data = vihara_service.enrich_with_temp_entities(db, entity)
+        result_dict = ViharaOut.model_validate(entity).model_dump()
+        result_dict.update(temp_data)
+
         # Return entity directly - FastAPI will serialize it using the response_model
         return ViharaManagementResponse(
             status="success",
             message="Vihara retrieved successfully.",
-            data=entity,
+            data=result_dict,
         )
 
     if action == CRUDAction.READ_ALL:
@@ -404,12 +462,11 @@ def manage_vihara_records(
         # Convert records to list of dicts for modification (serialize SQLAlchemy models)
         records_list = []
         for record in records:
-            if hasattr(record, '__dict__'):
-                # Convert SQLAlchemy model to dict, excluding internal attributes
-                record_dict = {k: v for k, v in record.__dict__.items() if not k.startswith('_')}
-                records_list.append(record_dict)
-            else:
-                records_list.append(record)
+            # Enrich with temporary entities if present
+            temp_data = vihara_service.enrich_with_temp_entities(db, record)
+            record_dict = ViharaOut.model_validate(record).model_dump()
+            record_dict.update(temp_data)
+            records_list.append(record_dict)
         
         # Also fetch temporary viharas and include them in results
         # Only apply search filter for temporary viharas (other filters don't apply to them)
@@ -485,10 +542,16 @@ def manage_vihara_records(
                 payload=update_payload,
                 actor_id=user_id,
             )
+            
+            # Enrich with temporary entities if present
+            temp_data = vihara_service.enrich_with_temp_entities(db, updated)
+            result_dict = ViharaOut.model_validate(updated).model_dump()
+            result_dict.update(temp_data)
+            
             return ViharaManagementResponse(
                 status="success",
                 message="Vihara updated successfully.",
-                data=updated,
+                data=result_dict,
             )
         except ValueError as exc:
             if "not found" in str(exc).lower():
@@ -529,10 +592,16 @@ def manage_vihara_records(
             approved_vihara = vihara_service.approve_vihara(
                 db, vh_id=payload.vh_id, actor_id=user_id
             )
+            
+            # Enrich with temporary entities if present
+            temp_data = vihara_service.enrich_with_temp_entities(db, approved_vihara)
+            result_dict = ViharaOut.model_validate(approved_vihara).model_dump()
+            result_dict.update(temp_data)
+            
             return ViharaManagementResponse(
                 status="success",
                 message="Vihara approved successfully.",
-                data=approved_vihara,
+                data=result_dict,
             )
         except ValueError as exc:
             message = str(exc)
@@ -559,10 +628,16 @@ def manage_vihara_records(
                 actor_id=user_id,
                 rejection_reason=payload.rejection_reason,
             )
+            
+            # Enrich with temporary entities if present
+            temp_data = vihara_service.enrich_with_temp_entities(db, rejected_vihara)
+            result_dict = ViharaOut.model_validate(rejected_vihara).model_dump()
+            result_dict.update(temp_data)
+            
             return ViharaManagementResponse(
                 status="success",
                 message="Vihara rejected successfully.",
-                data=rejected_vihara,
+                data=result_dict,
             )
         except ValueError as exc:
             message = str(exc)
@@ -582,10 +657,16 @@ def manage_vihara_records(
             printed_vihara = vihara_service.mark_printed(
                 db, vh_id=payload.vh_id, actor_id=user_id
             )
+            
+            # Enrich with temporary entities if present
+            temp_data = vihara_service.enrich_with_temp_entities(db, printed_vihara)
+            result_dict = ViharaOut.model_validate(printed_vihara).model_dump()
+            result_dict.update(temp_data)
+            
             return ViharaManagementResponse(
                 status="success",
                 message="Vihara certificate marked as printed successfully.",
-                data=printed_vihara,
+                data=result_dict,
             )
         except ValueError as exc:
             message = str(exc)
@@ -605,10 +686,16 @@ def manage_vihara_records(
             scanned_vihara = vihara_service.mark_scanned(
                 db, vh_id=payload.vh_id, actor_id=user_id
             )
+            
+            # Enrich with temporary entities if present
+            temp_data = vihara_service.enrich_with_temp_entities(db, scanned_vihara)
+            result_dict = ViharaOut.model_validate(scanned_vihara).model_dump()
+            result_dict.update(temp_data)
+            
             return ViharaManagementResponse(
                 status="success",
                 message="Vihara certificate marked as scanned successfully.",
-                data=scanned_vihara,
+                data=result_dict,
             )
         except ValueError as exc:
             message = str(exc)
