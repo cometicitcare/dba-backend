@@ -134,6 +134,7 @@ class ViharaBase(BaseModel):
     vh_pradeshya_sabha: Annotated[Optional[str], Field(default=None, max_length=100)] = None
     vh_nikaya: Annotated[Optional[str], Field(default=None, max_length=50)] = None
     vh_viharadhipathi_name: Annotated[Optional[str], Field(default=None, max_length=200)] = None
+    vh_viharadhipathi_regn: Annotated[Optional[str], Field(default=None, max_length=50)] = None
     vh_period_established: Annotated[Optional[str], Field(default=None, max_length=100)] = None
     vh_buildings_description: Annotated[Optional[str], Field(default=None, max_length=1000)] = None
     vh_dayaka_families_count: Annotated[Optional[str], Field(default=None, max_length=50)] = None
