@@ -91,6 +91,13 @@ class ViharaService:
             payload_data.pop("vh_trn", None)
             payload_data.pop("vh_id", None)
             
+            # Handle TEMP- references: set to NULL in DB (due to FK constraints)
+            # The enrichment layer will add temp entity info in response
+            if payload_data.get("vh_ownercd", "").startswith("TEMP-"):
+                payload_data["vh_ownercd"] = None
+            if payload_data.get("vh_viharadhipathi_regn", "").startswith("TEMP-"):
+                payload_data["vh_viharadhipathi_regn"] = None
+            
             # Set default values for required fields that are not in Stage 1
             payload_data.setdefault("temple_owned_land", [])
             payload_data.setdefault("resident_bhikkhus", [])
@@ -985,6 +992,27 @@ class ViharaService:
                 value = value.strip()
                 if not value:
                     continue
+                
+                # For TEMP- prefixed values, validate against temporary tables
+                if value.startswith("TEMP-"):
+                    try:
+                        temp_id = int(value.split("-")[1])
+                        
+                        # Check temporary bhikku for vh_ownercd (bhikku registration)
+                        if field == "vh_ownercd":
+                            from app.models.temporary_bhikku import TemporaryBhikku
+                            temp_exists = db.query(TemporaryBhikku).filter(
+                                TemporaryBhikku.tb_id == temp_id
+                            ).first()
+                            if not temp_exists:
+                                raise ValueError(f"Temporary Bhikku with ID {temp_id} not found. Please create the temporary bhikku entry first.")
+                        
+                        # Skip regular FK validation for TEMP values
+                        continue
+                    except (ValueError, IndexError) as e:
+                        if "not found" in str(e).lower():
+                            raise
+                        raise ValueError(f"Invalid TEMP reference format: {value}")
 
             target = fk_targets.get(field)
             if not target:
