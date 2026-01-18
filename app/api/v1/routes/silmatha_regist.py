@@ -175,33 +175,63 @@ def manage_silmatha_records(
             search=search_key
         )
         
-        # Convert temporary silmathas to Silmatha-compatible format
+        # Convert temporary silmathas to Silmatha-compatible format with nested temp_details
         for temp_silmatha in temp_silmathas:
-            # Truncate mobile to 10 chars if needed
-            mobile = temp_silmatha.ts_contact_number[:10] if temp_silmatha.ts_contact_number and len(temp_silmatha.ts_contact_number) > 10 else (temp_silmatha.ts_contact_number or "0000000000")
-            if not mobile or len(mobile) < 10:
-                mobile = "0000000000"  # Default placeholder for required field
+            # Try to resolve province as nested object
+            province_value = temp_silmatha.ts_province
+            if temp_silmatha.ts_province:
+                from app.models.province import Province
+                province_obj = db.query(Province).filter(
+                    Province.cp_code == temp_silmatha.ts_province
+                ).first()
+                if province_obj:
+                    province_value = {
+                        "pr_code": province_obj.cp_code,
+                        "pr_name": province_obj.cp_name
+                    }
+            
+            # Try to resolve district as nested object
+            district_value = temp_silmatha.ts_district
+            if temp_silmatha.ts_district:
+                from app.models.district import District
+                district_obj = db.query(District).filter(
+                    District.dd_dcode == temp_silmatha.ts_district
+                ).first()
+                if district_obj:
+                    district_value = {
+                        "ds_code": district_obj.dd_dcode,
+                        "ds_name": district_obj.dd_dname
+                    }
             
             temp_silmatha_dict = {
                 "sil_id": -temp_silmatha.ts_id,  # Negative ID to distinguish from real records
                 "sil_regn": f"TEMP-{temp_silmatha.ts_id}",  # Use TEMP prefix for identification
-                "sil_mname": temp_silmatha.ts_name,
-                "sil_nic": temp_silmatha.ts_nic,
-                "sil_addrs": temp_silmatha.ts_address,
-                "sil_mobile": mobile,
-                "sil_whtapp": mobile,
-                "sil_email": f"temp{temp_silmatha.ts_id}@temporary.local",  # Placeholder email
-                "sil_arama_name": temp_silmatha.ts_arama_name,
-                "sil_province": temp_silmatha.ts_province,
-                "sil_district": temp_silmatha.ts_district,
-                "sil_ordained_date": temp_silmatha.ts_ordained_date,
                 "sil_workflow_status": "TEMPORARY",  # Mark workflow as temporary
+                "sil_is_deleted": False,
+                "sil_version_number": 1,
                 "sil_created_at": temp_silmatha.ts_created_at,
                 "sil_created_by": temp_silmatha.ts_created_by,
                 "sil_updated_at": temp_silmatha.ts_updated_at,
                 "sil_updated_by": temp_silmatha.ts_updated_by,
-                "sil_is_deleted": False,
-                "sil_version_number": 1,
+                # Add resolved province and district as nested objects (if available)
+                "sil_province": province_value,
+                "sil_district": district_value,
+                # Nest all temporary silmatha data as a nested object
+                "temp_details": {
+                    "ts_id": temp_silmatha.ts_id,
+                    "ts_name": temp_silmatha.ts_name,
+                    "ts_nic": temp_silmatha.ts_nic,
+                    "ts_contact_number": temp_silmatha.ts_contact_number,
+                    "ts_address": temp_silmatha.ts_address,
+                    "ts_district": temp_silmatha.ts_district,
+                    "ts_province": temp_silmatha.ts_province,
+                    "ts_arama_name": temp_silmatha.ts_arama_name,
+                    "ts_ordained_date": temp_silmatha.ts_ordained_date,
+                    "ts_created_at": temp_silmatha.ts_created_at,
+                    "ts_created_by": temp_silmatha.ts_created_by,
+                    "ts_updated_at": temp_silmatha.ts_updated_at,
+                    "ts_updated_by": temp_silmatha.ts_updated_by,
+                }
             }
             silmatha_enriched.append(temp_silmatha_dict)
         

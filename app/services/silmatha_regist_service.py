@@ -135,20 +135,41 @@ class SilmathaRegistService:
                         "sil_gihiname": first_record.sil_gihiname or ""
                     }
         
-        # Resolve sil_aramadhipathi to nested object (Silmatha reference)
+        # Resolve sil_aramadhipathi to nested object (Silmatha or Temporary Silmatha reference)
         aramadhipathi_value = silmatha.sil_aramadhipathi
         if silmatha.sil_aramadhipathi and db:
-            aramadhipathi_record = db.query(SilmathaRegist).filter(
-                SilmathaRegist.sil_regn == silmatha.sil_aramadhipathi,
-                SilmathaRegist.sil_is_deleted.is_(False)
-            ).first()
-            
-            if aramadhipathi_record:
-                aramadhipathi_value = {
-                    "sil_regn": aramadhipathi_record.sil_regn,
-                    "sil_mahananame": aramadhipathi_record.sil_mahananame or "",
-                    "sil_gihiname": aramadhipathi_record.sil_gihiname or ""
-                }
+            # Check if it's a TEMP- reference
+            if silmatha.sil_aramadhipathi.startswith("TEMP-"):
+                # Extract the temp ID from "TEMP-{id}"
+                try:
+                    temp_id = int(silmatha.sil_aramadhipathi.replace("TEMP-", ""))
+                    from app.models.temporary_silmatha import TemporarySilmatha
+                    temp_aramadhipathi = db.query(TemporarySilmatha).filter(
+                        TemporarySilmatha.ts_id == temp_id
+                    ).first()
+                    
+                    if temp_aramadhipathi:
+                        aramadhipathi_value = {
+                            "sil_regn": f"TEMP-{temp_aramadhipathi.ts_id}",
+                            "ts_name": temp_aramadhipathi.ts_name or "",
+                            "ts_nic": temp_aramadhipathi.ts_nic or "",
+                            "is_temporary": True
+                        }
+                except (ValueError, AttributeError):
+                    pass  # Keep original value if parsing fails
+            else:
+                # Regular silmatha reference
+                aramadhipathi_record = db.query(SilmathaRegist).filter(
+                    SilmathaRegist.sil_regn == silmatha.sil_aramadhipathi,
+                    SilmathaRegist.sil_is_deleted.is_(False)
+                ).first()
+                
+                if aramadhipathi_record:
+                    aramadhipathi_value = {
+                        "sil_regn": aramadhipathi_record.sil_regn,
+                        "sil_mahananame": aramadhipathi_record.sil_mahananame or "",
+                        "sil_gihiname": aramadhipathi_record.sil_gihiname or ""
+                    }
         
         silmatha_dict = {
             "sil_id": silmatha.sil_id,
