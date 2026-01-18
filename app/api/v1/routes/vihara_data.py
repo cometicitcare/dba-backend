@@ -71,7 +71,7 @@ def manage_vihara_records(
         vh_id = payload.vh_id
         raw_data = payload.data
         if isinstance(raw_data, BaseModel):
-            raw_data = raw_data.model_dump(exclude_unset=True)
+            raw_data = raw_data.model_dump()
         
         try:
             result = vihara_service.save_stage_one(
@@ -93,7 +93,7 @@ def manage_vihara_records(
         
         raw_data = payload.data
         if isinstance(raw_data, BaseModel):
-            raw_data = raw_data.model_dump(exclude_unset=True)
+            raw_data = raw_data.model_dump()
         
         try:
             result = vihara_service.save_stage_one(
@@ -192,7 +192,7 @@ def manage_vihara_records(
         
         raw_data = payload.data
         if isinstance(raw_data, BaseModel):
-            raw_data = raw_data.model_dump(exclude_unset=True)
+            raw_data = raw_data.model_dump()
         
         try:
             result = vihara_service.save_stage_two(
@@ -214,7 +214,7 @@ def manage_vihara_records(
         
         raw_data = payload.data
         if isinstance(raw_data, BaseModel):
-            raw_data = raw_data.model_dump(exclude_unset=True)
+            raw_data = raw_data.model_dump()
         
         try:
             result = vihara_service.save_stage_two(
