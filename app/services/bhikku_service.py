@@ -1497,13 +1497,6 @@ class BhikkuService:
             "br_mahanaacharyacd",
             current_regn=current_regn,
         )
-        
-        self._validate_bhikku_reference(
-            db,
-            payload.get("br_mahanayaka_name"),
-            "br_mahanayaka_name",
-            current_regn=current_regn,
-        )
 
         self._validate_bhikku_high_reference(
             db, payload.get("br_upasampada_serial_no"), "br_upasampada_serial_no"
