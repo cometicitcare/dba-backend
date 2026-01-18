@@ -1064,6 +1064,52 @@ class ViharaService:
         stmt = select(column).where(column == value).limit(1)
         result = db.execute(stmt).first()
         return result is not None
+    
+    def enrich_with_temp_entities(self, db: Session, vihara: ViharaData) -> Dict[str, Any]:
+        """
+        Enrich vihara data with temporary entity information for TEMP- references.
+        """
+        from app.models.temporary_vihara import TemporaryVihara
+        from app.models.temporary_bhikku import TemporaryBhikku
+        
+        result = {}
+        
+        # Check vh_ownercd for temporary vihara
+        if vihara.vh_ownercd and vihara.vh_ownercd.startswith("TEMP-"):
+            temp_id = vihara.vh_ownercd.replace("TEMP-", "")
+            if temp_id.isdigit():
+                temp_vihara = db.query(TemporaryVihara).filter(
+                    TemporaryVihara.tv_id == int(temp_id)
+                ).first()
+                if temp_vihara:
+                    result["owner_temp_vihara_info"] = {
+                        "tv_id": temp_vihara.tv_id,
+                        "tv_name": temp_vihara.tv_name,
+                        "tv_address": temp_vihara.tv_address,
+                        "tv_contact_number": temp_vihara.tv_contact_number,
+                        "tv_district": temp_vihara.tv_district,
+                        "tv_province": temp_vihara.tv_province,
+                    }
+        
+        # Check vh_viharadhipathi_regn for temporary bhikku
+        if vihara.vh_viharadhipathi_regn and vihara.vh_viharadhipathi_regn.startswith("TEMP-"):
+            temp_id = vihara.vh_viharadhipathi_regn.replace("TEMP-", "")
+            if temp_id.isdigit():
+                temp_bhikku = db.query(TemporaryBhikku).filter(
+                    TemporaryBhikku.tb_id == int(temp_id)
+                ).first()
+                if temp_bhikku:
+                    result["viharadhipathi_temp_bhikku_info"] = {
+                        "tb_id": temp_bhikku.tb_id,
+                        "tb_name": temp_bhikku.tb_name,
+                        "tb_id_number": temp_bhikku.tb_id_number,
+                        "tb_contact_number": temp_bhikku.tb_contact_number,
+                        "tb_samanera_name": temp_bhikku.tb_samanera_name,
+                        "tb_address": temp_bhikku.tb_address,
+                        "tb_living_temple": temp_bhikku.tb_living_temple,
+                    }
+        
+        return result
 
 
 vihara_service = ViharaService()
