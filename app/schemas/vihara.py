@@ -456,6 +456,9 @@ class ViharaStageOneData(BaseModel):
     vh_viharadhipathi_regn: Optional[str] = Field(default=None, max_length=50)
     vh_period_established: Optional[str] = Field(default=None, max_length=100)
     vh_bgndate: Optional[date] = None
+    vh_mahanayake_date: Optional[date] = None
+    vh_mahanayake_letter_nu: Optional[str] = Field(default=None, max_length=50)
+    vh_mahanayake_remarks: Optional[str] = Field(default=None, max_length=500)
 
     @field_validator("vh_mobile", "vh_whtapp")
     @classmethod
