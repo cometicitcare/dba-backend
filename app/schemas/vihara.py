@@ -471,9 +471,13 @@ class ViharaUpdate(BaseModel):
             return value or None
         return value
 
-    @field_validator("vh_mobile", "vh_whtapp")
+    @field_validator("vh_mobile", "vh_whtapp", mode="before")
     @classmethod
     def _validate_phone(cls, value: Optional[str]) -> Optional[str]:
+        if isinstance(value, str):
+            value = value.strip()
+            if not value:  # Empty string becomes None
+                return None
         if value is None:
             return value
         if not PHONE_PATTERN.fullmatch(value):
