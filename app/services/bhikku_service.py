@@ -221,19 +221,31 @@ class BhikkuService:
         self._validate_contact_formats(payload_dict)
 
         # Handle temporary bhikku references - these can't be stored as FK references
-        # Clear fields that reference temporary bhikkus:
-        # - TEMP-* format (from READ_ALL response)
-        # - Pure numeric strings (tb_id from temporary_bhikku table, since real br_regn starts with "BH")
-        # Store the temp bhikku reference in remarks for later retrieval
+        # because br_viharadhipathi and br_mahanaacharyacd have foreign key constraints
+        # to bhikku_regist.br_regn. Temporary bhikku records are stored in temporary_bhikku
+        # table with numeric tb_id that don't exist in bhikku_regist.
+        # 
+        # Supported formats:
+        # - TEMP-* format (e.g., "TEMP-17" from READ_ALL response)
+        # - Pure numeric strings (e.g., "17" - tb_id from temporary_bhikku table)
+        # - TB* format (e.g., "TB000001" - alternative temp bhikku identifier)
+        # 
+        # Store the temp bhikku reference in remarks for later retrieval and set field to NULL
         temp_refs = []
         for field in ["br_viharadhipathi", "br_mahanaacharyacd"]:
             value = payload_dict.get(field)
             if value and isinstance(value, str):
-                # Extract temp bhikku ID from either "TEMP-17" or "17" format
+                value = value.strip()
+                # Extract temp bhikku ID from various formats
                 temp_id = None
                 if value.startswith("TEMP-"):
-                    temp_id = value[5:]  # Remove "TEMP-" prefix
+                    # Format: "TEMP-17"
+                    temp_id = value[5:]
+                elif value.startswith("TB"):
+                    # Format: "TB000001" or "TB17" - treat as temp bhikku reference
+                    temp_id = value
                 elif value.isdigit():
+                    # Format: "17" - pure numeric tb_id
                     temp_id = value
                 
                 if temp_id:
@@ -921,10 +933,16 @@ class BhikkuService:
         self._validate_contact_formats(update_data)
 
         # Handle temporary bhikku references - these can't be stored as FK references
-        # Clear fields that reference temporary bhikkus:
-        # - TEMP-* format (from READ_ALL response)
-        # - Pure numeric strings (tb_id from temporary_bhikku table, since real br_regn starts with "BH")
-        # Store the temp bhikku reference in remarks for later retrieval
+        # because br_viharadhipathi and br_mahanaacharyacd have foreign key constraints
+        # to bhikku_regist.br_regn. Temporary bhikku records are stored in temporary_bhikku
+        # table with numeric tb_id that don't exist in bhikku_regist.
+        # 
+        # Supported formats:
+        # - TEMP-* format (e.g., "TEMP-17" from READ_ALL response)
+        # - Pure numeric strings (e.g., "17" - tb_id from temporary_bhikku table)
+        # - TB* format (e.g., "TB000001" - alternative temp bhikku identifier)
+        # 
+        # Store the temp bhikku reference in remarks for later retrieval and set field to NULL
         temp_refs = []
         for field in ["br_viharadhipathi", "br_mahanaacharyacd"]:
             # Only process fields that were explicitly included in the update
@@ -932,11 +950,17 @@ class BhikkuService:
                 continue
             value = update_data.get(field)
             if value and isinstance(value, str):
-                # Extract temp bhikku ID from either "TEMP-17" or "17" format
+                value = value.strip()
+                # Extract temp bhikku ID from various formats
                 temp_id = None
                 if value.startswith("TEMP-"):
-                    temp_id = value[5:]  # Remove "TEMP-" prefix
+                    # Format: "TEMP-17"
+                    temp_id = value[5:]
+                elif value.startswith("TB"):
+                    # Format: "TB000001" or "TB17" - treat as temp bhikku reference
+                    temp_id = value
                 elif value.isdigit():
+                    # Format: "17" - pure numeric tb_id
                     temp_id = value
                 
                 if temp_id:
@@ -982,28 +1006,53 @@ class BhikkuService:
             current_regn=br_regn,
         )
 
-        # Reset workflow status to PENDING when record is edited
-        # This ensures the record goes through the complete workflow again:
-        # PENDING -> PRINTED -> PEND-APPROVAL -> APPROVED/REJECTED -> COMPLETED
-        update_data["br_workflow_status"] = "PENDING"
-        # Clear workflow-related fields when resetting to PENDING
-        update_data["br_approval_status"] = None
-        update_data["br_approved_by"] = None
-        update_data["br_approved_at"] = None
-        update_data["br_rejected_by"] = None
-        update_data["br_rejected_at"] = None
-        update_data["br_rejection_reason"] = None
-        update_data["br_printed_by"] = None
-        update_data["br_printed_at"] = None
-        update_data["br_scanned_by"] = None
-        update_data["br_scanned_at"] = None
-        # Increment version number for the edit
-        entity.br_version_number = (entity.br_version_number or 0) + 1
+        # Check if this is a data edit (not just workflow fields)
+        # Data fields exclude workflow and audit fields
+        workflow_fields = {
+            "br_workflow_status", "br_approval_status", "br_approved_by", "br_approved_at",
+            "br_rejected_by", "br_rejected_at", "br_rejection_reason",
+            "br_printed_by", "br_printed_at", "br_scanned_by", "br_scanned_at",
+            "br_reprint_status", "br_reprint_requested_by", "br_reprint_requested_at",
+            "br_reprint_request_reason", "br_reprint_amount", "br_reprint_remarks",
+            "br_reprint_approved_by", "br_reprint_approved_at", "br_reprint_rejected_by",
+            "br_reprint_rejected_at", "br_reprint_rejection_reason",
+            "br_reprint_completed_by", "br_reprint_completed_at",
+            "br_created_by", "br_updated_by", "br_created_at", "br_updated_at",
+            "br_version", "br_version_number", "br_is_deleted"
+        }
+        
+        # Check if any non-workflow fields are being updated
+        data_fields_updated = any(key not in workflow_fields for key in update_data.keys())
+        
+        if data_fields_updated:
+            # Reset workflow status to PENDING when actual data is edited
+            # This ensures the record goes through the complete workflow again:
+            # PENDING -> PRINTED -> PEND-APPROVAL -> APPROVED/REJECTED -> COMPLETED
+            update_data["br_workflow_status"] = "PENDING"
+        
+        # Increment version number for the edit (done in repository)
+        # entity.br_version_number will be incremented by repository
 
         update_payload = BhikkuUpdate(**update_data)
         updated = bhikku_repo.update(db, br_regn=br_regn, bhikku_update=update_payload)
         if not updated:
             raise ValueError("Bhikku record not found.")
+        
+        # After successful update, clear workflow-related fields if data was edited
+        # This is done after the repository update to ensure workflow is properly reset
+        if data_fields_updated:
+            updated.br_approval_status = None
+            updated.br_approved_by = None
+            updated.br_approved_at = None
+            updated.br_rejected_by = None
+            updated.br_rejected_at = None
+            updated.br_rejection_reason = None
+            updated.br_printed_by = None
+            updated.br_printed_at = None
+            updated.br_scanned_by = None
+            updated.br_scanned_at = None
+            db.commit()
+            db.refresh(updated)
         return updated
 
     def delete_bhikku(
@@ -1426,11 +1475,33 @@ class BhikkuService:
         self._validate_vihara_reference(
             db, payload.get("br_mahanatemple"), "br_mahanatemple"
         )
+        
+        self._validate_vihara_reference(
+            db, payload.get("br_robing_tutor_residence"), "br_robing_tutor_residence"
+        )
+        
+        self._validate_vihara_reference(
+            db, payload.get("br_robing_after_residence_temple"), "br_robing_after_residence_temple"
+        )
+
+        self._validate_bhikku_reference(
+            db,
+            payload.get("br_viharadhipathi"),
+            "br_viharadhipathi",
+            current_regn=current_regn,
+        )
 
         self._validate_bhikku_reference(
             db,
             payload.get("br_mahanaacharyacd"),
             "br_mahanaacharyacd",
+            current_regn=current_regn,
+        )
+        
+        self._validate_bhikku_reference(
+            db,
+            payload.get("br_mahanayaka_name"),
+            "br_mahanayaka_name",
             current_regn=current_regn,
         )
 
