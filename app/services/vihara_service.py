@@ -91,16 +91,12 @@ class ViharaService:
             payload_data.pop("vh_trn", None)
             payload_data.pop("vh_id", None)
             
-            # Handle TEMP- references: set to NULL in DB (due to FK constraints)
-            # The enrichment layer will add temp entity info in response
-            if payload_data.get("vh_ownercd", "").startswith("TEMP-"):
-                payload_data["vh_ownercd"] = None
-            if payload_data.get("vh_viharadhipathi_regn", "").startswith("TEMP-"):
-                payload_data["vh_viharadhipathi_regn"] = None
-            
             # Set default values for required fields that are not in Stage 1
             payload_data.setdefault("temple_owned_land", [])
             payload_data.setdefault("resident_bhikkhus", [])
+            
+            # Ensure TEMP bhikku references exist in bhikku_regist (for FK constraint)
+            self._ensure_temp_bhikku_placeholders(db, payload_data)
             
             self._validate_foreign_keys(db, payload_data)
             enriched_payload = ViharaCreate(**payload_data)
@@ -1138,6 +1134,27 @@ class ViharaService:
                     }
         
         return result
+    
+    def _ensure_temp_bhikku_placeholders(self, db: Session, payload_data: dict) -> None:
+        """
+        Verify that TEMP- bhikku references exist in bhikku_regist table.
+        TEMP bhikkus should be created through the proper bhikku registration system first.
+        """
+        from sqlalchemy import text
+        
+        vh_ownercd = payload_data.get("vh_ownercd")
+        if vh_ownercd and isinstance(vh_ownercd, str) and vh_ownercd.startswith("TEMP-"):
+            # Check if it exists in bhikku_regist (must be created via bhikku registration)
+            result = db.execute(
+                text("SELECT br_regn FROM bhikku_regist WHERE br_regn = :regn"),
+                {"regn": vh_ownercd}
+            ).first()
+            
+            if not result:
+                raise ValueError(
+                    f"Bhikku registration {vh_ownercd} not found. "
+                    f"Please create the bhikku registration record first through the Bhikku Registration system."
+                )
 
 
 vihara_service = ViharaService()
