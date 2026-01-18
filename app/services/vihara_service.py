@@ -1137,8 +1137,12 @@ class ViharaService:
     
     def _ensure_temp_bhikku_placeholders(self, db: Session, payload_data: dict) -> None:
         """
-        Verify that TEMP- bhikku references exist in bhikku_regist table.
-        TEMP bhikkus should be created through the proper bhikku registration system first.
+        Verify that TEMP- bhikku references in vh_ownercd exist in bhikku_regist table.
+        
+        Note: vh_ownercd has a FK constraint to bhikku_regist.br_regn, so TEMP values
+        must exist there (created via Bhikku Registration system).
+        
+        vh_viharadhipathi_regn does NOT have a FK constraint, so TEMP values work directly.
         """
         from sqlalchemy import text
         
@@ -1152,8 +1156,11 @@ class ViharaService:
             
             if not result:
                 raise ValueError(
-                    f"Bhikku registration {vh_ownercd} not found. "
-                    f"Please create the bhikku registration record first through the Bhikku Registration system."
+                    f"Cannot use {vh_ownercd} for Temple Owner (vh_ownercd). "
+                    f"Temporary bhikkus can be used for Chief Incumbent (vh_viharadhipathi_regn), "
+                    f"but Temple Owner must reference a fully registered bhikku in the Bhikku Registration system. "
+                    f"Please either: 1) Complete the bhikku registration for {vh_ownercd}, or "
+                    f"2) Leave Temple Owner empty and only use the temporary bhikku for Chief Incumbent."
                 )
 
 
