@@ -931,6 +931,15 @@ class BhikkuService:
         update_data = self._strip_strings(update_data)
         update_data = self._normalize_contact_fields(update_data)
         self._validate_contact_formats(update_data)
+        
+        # Remove None and empty string values to prevent overwriting existing data
+        # This handles cases where frontend sends fields that weren't changed as null or ""
+        # We keep fields explicitly set to empty only if they're contact fields that should be clearable
+        clearable_fields = {"br_email", "br_mobile", "br_fathrsmobile", "br_remarks"}
+        update_data = {
+            k: v for k, v in update_data.items() 
+            if v is not None and (v != "" or k in clearable_fields)
+        }
 
         # Handle temporary bhikku references - these can't be stored as FK references
         # because br_viharadhipathi and br_mahanaacharyacd have foreign key constraints
