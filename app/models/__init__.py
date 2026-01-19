@@ -24,6 +24,7 @@ from app.models.district_branch import DistrictBranch
 
 # Bhikku/Monk models
 from app.models.bhikku import Bhikku
+from app.models.bhikku_regist_old import BhikkuRegistOld
 from app.models.bhikku_high import BhikkuHighRegist
 from app.models.direct_bhikku_high import DirectBhikkuHigh
 from app.models.bhikku_summary import BhikkuSummary

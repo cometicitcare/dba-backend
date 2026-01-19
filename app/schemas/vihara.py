@@ -40,10 +40,20 @@ class GNDivisionNested(BaseModel):
     gn_dvcode: Optional[str] = None
 
 
+class NikayaMainBhikkuNested(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    br_regn: Optional[str] = None
+    br_mahananame: Optional[str] = None
+    br_fathrsaddrs: Optional[str] = None
+    br_mobile: Optional[str] = None
+
+
 class NikayaNested(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     nk_nkn: Optional[str] = None
     nk_nname: Optional[str] = None
+    nk_nahimicd: Optional[str] = None
+    main_bhikku_info: Optional[NikayaMainBhikkuNested] = None
 
 
 class ParshawaNested(BaseModel):
