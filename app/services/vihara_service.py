@@ -94,9 +94,6 @@ class ViharaService:
             payload_data.setdefault("temple_owned_land", [])
             payload_data.setdefault("resident_bhikkhus", [])
             
-            # Ensure TEMP bhikku references exist in bhikku_regist (for FK constraint)
-            self._ensure_temp_bhikku_placeholders(db, payload_data)
-            
             self._validate_foreign_keys(db, payload_data)
             enriched_payload = ViharaCreate(**payload_data)
             return vihara_repo.create(db, data=enriched_payload)
