@@ -67,19 +67,18 @@ class ViharaService:
             return entity
         else:
             # Create new draft record
-            # Validate contact fields
+            # Validate duplicate vihara: same name + mobile
+            vh_vname = payload_data.get("vh_vname")
             vh_mobile = payload_data.get("vh_mobile")
-            vh_whtapp = payload_data.get("vh_whtapp")
-            vh_email = payload_data.get("vh_email")
             
-            contact_fields = (
-                ("vh_mobile", vh_mobile, vihara_repo.get_by_mobile),
-                ("vh_whtapp", vh_whtapp, vihara_repo.get_by_whtapp),
-                ("vh_email", vh_email, vihara_repo.get_by_email),
-            )
-            for field_name, value, getter in contact_fields:
-                if value and getter(db, value):
-                    raise ValueError(f"{field_name} '{value}' is already registered.")
+            if vh_vname and vh_mobile:
+                existing = db.query(ViharaData).filter(
+                    ViharaData.vh_vname == vh_vname,
+                    ViharaData.vh_mobile == vh_mobile,
+                    ViharaData.vh_is_deleted == False
+                ).first()
+                if existing:
+                    raise ValueError(f"A vihara with name '{vh_vname}' and mobile '{vh_mobile}' already exists.")
             
             payload_data["vh_created_by"] = actor_id
             payload_data["vh_updated_by"] = actor_id
