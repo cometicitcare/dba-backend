@@ -23,6 +23,44 @@ class CRUDAction(str, Enum):
     MARK_SCANNED = "MARK_SCANNED"
 
 
+# --- Nested Response Schemas for Foreign Key Fields ---
+class ProvinceResponse(BaseModel):
+    """Nested response for province"""
+    cp_code: str
+    cp_name: Optional[str] = None
+
+class DistrictResponse(BaseModel):
+    """Nested response for district"""
+    dd_dcode: str
+    dd_dname: Optional[str] = None
+
+class DivisionalSecretariatResponse(BaseModel):
+    """Nested response for divisional secretariat"""
+    dv_dvcode: str
+    dv_dvname: Optional[str] = None
+
+class GNDivisionResponse(BaseModel):
+    """Nested response for GN division"""
+    gn_gnc: str
+    gn_gnname: Optional[str] = None
+
+class NikayaResponse(BaseModel):
+    """Nested response for nikaya"""
+    nk_nkn: str
+    nk_nname: Optional[str] = None
+
+class ParshawaResponse(BaseModel):
+    """Nested response for parshawa"""
+    pr_prn: str
+    pr_pname: Optional[str] = None
+
+class SilmathaResponse(BaseModel):
+    """Nested response for owner silmatha"""
+    sil_regn: str
+    sil_gihiname: Optional[str] = None
+    sil_mahananame: Optional[str] = None
+
+
 class AramaBase(BaseModel):
     ar_trn: Annotated[str, Field(min_length=1, max_length=10)]
     ar_vname: Annotated[Optional[str], Field(default=None, max_length=200)]
@@ -352,6 +390,15 @@ class AramaOut(AramaBase):
     ar_id: int
     arama_lands: List[AramaLandInDB] = Field(default_factory=list)
     resident_silmathas: List[AramaResidentSilmathaInDB] = Field(default_factory=list)
+    
+    # Override base fields to use nested response objects
+    ar_province: Optional[Union[ProvinceResponse, str]] = None
+    ar_district: Optional[Union[DistrictResponse, str]] = None
+    ar_divisional_secretariat: Optional[Union[DivisionalSecretariatResponse, str]] = None
+    ar_gndiv: Union[GNDivisionResponse, str]
+    ar_nikaya: Optional[Union[NikayaResponse, str]] = None
+    ar_parshawa: Union[ParshawaResponse, str]
+    ar_ownercd: Union[SilmathaResponse, str]
 
 
 class AramaRequestPayload(BaseModel):

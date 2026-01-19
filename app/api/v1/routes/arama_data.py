@@ -8,6 +8,7 @@ from app.api.auth_dependencies import has_permission, has_any_permission
 from app.api.deps import get_db
 from app.models.user import UserAccount
 from app.models.silmatha_regist import SilmathaRegist
+from app.models.arama import AramaData
 from app.schemas.arama import (
     CRUDAction,
     AramaCreate,
@@ -15,6 +16,13 @@ from app.schemas.arama import (
     AramaManagementResponse,
     AramaOut,
     AramaUpdate,
+    ProvinceResponse,
+    DistrictResponse,
+    DivisionalSecretariatResponse,
+    GNDivisionResponse,
+    NikayaResponse,
+    ParshawaResponse,
+    SilmathaResponse,
 )
 from app.services.arama_service import arama_service
 from app.services.silmatha_regist_service import silmatha_regist_service
@@ -23,6 +31,61 @@ from app.repositories.silmatha_regist_repo import silmatha_regist_repo
 from app.utils.http_exceptions import validation_error
 
 router = APIRouter()  # Tags defined in router.py
+
+
+def _convert_arama_to_out(arama: AramaData) -> AramaOut:
+    """Convert AramaData model to AramaOut schema with nested foreign key objects"""
+    arama_dict = {
+        **{col.name: getattr(arama, col.name) for col in arama.__table__.columns},
+        "arama_lands": arama.arama_lands,
+        "resident_silmathas": arama.resident_silmathas,
+    }
+    
+    # Convert foreign key relationships to nested response objects
+    if arama.province_ref:
+        arama_dict["ar_province"] = ProvinceResponse(
+            cp_code=arama.province_ref.cp_code,
+            cp_name=arama.province_ref.cp_name
+        )
+    
+    if arama.district_ref:
+        arama_dict["ar_district"] = DistrictResponse(
+            dd_dcode=arama.district_ref.dd_dcode,
+            dd_dname=arama.district_ref.dd_dname
+        )
+    
+    if arama.divisional_secretariat_ref:
+        arama_dict["ar_divisional_secretariat"] = DivisionalSecretariatResponse(
+            dv_dvcode=arama.divisional_secretariat_ref.dv_dvcode,
+            dv_dvname=arama.divisional_secretariat_ref.dv_dvname
+        )
+    
+    if arama.gn_division_ref:
+        arama_dict["ar_gndiv"] = GNDivisionResponse(
+            gn_gnc=arama.gn_division_ref.gn_gnc,
+            gn_gnname=arama.gn_division_ref.gn_gnname
+        )
+    
+    if arama.nikaya_ref:
+        arama_dict["ar_nikaya"] = NikayaResponse(
+            nk_nkn=arama.nikaya_ref.nk_nkn,
+            nk_nname=arama.nikaya_ref.nk_nname
+        )
+    
+    if arama.parshawa_ref:
+        arama_dict["ar_parshawa"] = ParshawaResponse(
+            pr_prn=arama.parshawa_ref.pr_prn,
+            pr_pname=arama.parshawa_ref.pr_pname
+        )
+    
+    if arama.owner_silmatha_ref:
+        arama_dict["ar_ownercd"] = SilmathaResponse(
+            sil_regn=arama.owner_silmatha_ref.sil_regn,
+            sil_gihiname=arama.owner_silmatha_ref.sil_gihiname,
+            sil_mahananame=arama.owner_silmatha_ref.sil_mahananame
+        )
+    
+    return AramaOut(**arama_dict)
 
 
 @router.post("/manage", response_model=AramaManagementResponse, dependencies=[has_any_permission("arama:create", "arama:read", "arama:update", "arama:delete")])
@@ -87,7 +150,7 @@ def manage_arama_records(
                 [("payload.ar_id", "ar_id or ar_trn is required for READ_ONE action")]
             )
 
-        entity: AramaOut | None = None
+        entity = None
         if identifier_id is not None:
             entity = arama_service.get_arama(db, identifier_id)
         elif identifier_trn:
@@ -98,10 +161,13 @@ def manage_arama_records(
                 status_code=status.HTTP_404_NOT_FOUND, detail="Arama not found"
             )
 
+        # Convert to AramaOut with nested foreign key objects
+        entity_out = _convert_arama_to_out(entity)
+
         return AramaManagementResponse(
             status="success",
             message="Arama retrieved successfully.",
-            data=entity,
+            data=entity_out,
         )
 
     if action == CRUDAction.READ_ALL:
@@ -138,8 +204,8 @@ def manage_arama_records(
         records = arama_service.list_aramas(db, **filters)
         total = arama_service.count_aramas(db, **{k: v for k, v in filters.items() if k not in ["skip", "limit", "current_user"]})
         
-        # Convert AramaData objects to AramaOut Pydantic models for proper serialization
-        records_list = [AramaOut.model_validate(record) for record in records]
+        # Convert AramaData objects to AramaOut Pydantic models with nested foreign key objects
+        records_list = [_convert_arama_to_out(record) for record in records]
         
         # Also fetch temporary aramas and include them in results
         # Only apply search filter for temporary aramas (other filters don't apply to them)

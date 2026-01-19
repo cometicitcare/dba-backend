@@ -30,7 +30,14 @@ class AramaRepository:
             db.query(AramaData)
             .options(
                 selectinload(AramaData.arama_lands),
-                selectinload(AramaData.resident_silmathas)
+                selectinload(AramaData.resident_silmathas),
+                selectinload(AramaData.province_ref),
+                selectinload(AramaData.district_ref),
+                selectinload(AramaData.divisional_secretariat_ref),
+                selectinload(AramaData.gn_division_ref),
+                selectinload(AramaData.nikaya_ref),
+                selectinload(AramaData.parshawa_ref),
+                selectinload(AramaData.owner_silmatha_ref)
             )
             .filter(AramaData.ar_id == ar_id, AramaData.ar_is_deleted.is_(False))
             .first()
@@ -41,7 +48,14 @@ class AramaRepository:
             db.query(AramaData)
             .options(
                 selectinload(AramaData.arama_lands),
-                selectinload(AramaData.resident_silmathas)
+                selectinload(AramaData.resident_silmathas),
+                selectinload(AramaData.province_ref),
+                selectinload(AramaData.district_ref),
+                selectinload(AramaData.divisional_secretariat_ref),
+                selectinload(AramaData.gn_division_ref),
+                selectinload(AramaData.nikaya_ref),
+                selectinload(AramaData.parshawa_ref),
+                selectinload(AramaData.owner_silmatha_ref)
             )
             .filter(AramaData.ar_trn == ar_trn, AramaData.ar_is_deleted.is_(False))
             .first()
@@ -102,10 +116,17 @@ class AramaRepository:
     ) -> list[AramaData]:
         query = db.query(AramaData).filter(AramaData.ar_is_deleted.is_(False))
         
-        # Eager load relationships
+        # Eager load relationships - only direct foreign keys, no cascading
         query = query.options(
             selectinload(AramaData.arama_lands),
-            selectinload(AramaData.resident_silmathas)
+            selectinload(AramaData.resident_silmathas),
+            selectinload(AramaData.province_ref),
+            selectinload(AramaData.district_ref),
+            selectinload(AramaData.divisional_secretariat_ref),
+            selectinload(AramaData.gn_division_ref),
+            selectinload(AramaData.nikaya_ref),
+            selectinload(AramaData.parshawa_ref),
+            selectinload(AramaData.owner_silmatha_ref)
         )
 
         # General search (existing functionality)

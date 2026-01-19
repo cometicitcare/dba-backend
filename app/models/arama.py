@@ -5,6 +5,7 @@ from sqlalchemy import (
     DateTime,
     Integer,
     String,
+    ForeignKey,
     func,
     text,
 )
@@ -25,11 +26,11 @@ class AramaData(Base):
     ar_whtapp = Column(String(10), nullable=False)
     ar_email = Column(String(200), nullable=False, index=True, unique=True)
     ar_typ = Column(String(10), nullable=False)
-    ar_gndiv = Column(String(10), nullable=False)
+    ar_gndiv = Column(String(10), ForeignKey("cmm_gndata.gn_gnc"), nullable=False)
     ar_fmlycnt = Column(Integer)
     ar_bgndate = Column(Date)
-    ar_ownercd = Column(String(12), nullable=False)
-    ar_parshawa = Column(String(10), nullable=False)
+    ar_ownercd = Column(String(12), ForeignKey("silmatha_regist.sil_regn"), nullable=False)
+    ar_parshawa = Column(String(10), ForeignKey("cmm_parshawadata.pr_prn"), nullable=False)
     ar_ssbmcode = Column(String(10))
     ar_syojakarmakrs = Column(String(100))
     ar_syojakarmdate = Column(Date)
@@ -43,11 +44,11 @@ class AramaData(Base):
     ar_ssbmsigdate = Column(Date)
     
     # Extended Fields
-    ar_province = Column(String(100))
-    ar_district = Column(String(100))
-    ar_divisional_secretariat = Column(String(100))
+    ar_province = Column(String(100), ForeignKey("cmm_province.cp_code"))
+    ar_district = Column(String(100), ForeignKey("cmm_districtdata.dd_dcode"))
+    ar_divisional_secretariat = Column(String(100), ForeignKey("cmm_dvsec.dv_dvcode"))
     ar_pradeshya_sabha = Column(String(100))
-    ar_nikaya = Column(String(50))
+    ar_nikaya = Column(String(50), ForeignKey("cmm_nikayadata.nk_nkn"))
     ar_viharadhipathi_name = Column(String(200))
     ar_period_established = Column(String(100))
     ar_buildings_description = Column(String(1000))
@@ -112,3 +113,12 @@ class AramaData(Base):
     # Relationships
     arama_lands = relationship("AramaLand", back_populates="arama", cascade="all, delete-orphan")
     resident_silmathas = relationship("AramaResidentSilmatha", back_populates="arama", cascade="all, delete-orphan")
+    
+    # Foreign key relationships - use selectinload at query level to avoid cascading joins
+    province_ref = relationship("Province", foreign_keys=[ar_province])
+    district_ref = relationship("District", foreign_keys=[ar_district])
+    divisional_secretariat_ref = relationship("DivisionalSecretariat", foreign_keys=[ar_divisional_secretariat])
+    gn_division_ref = relationship("Gramasewaka", foreign_keys=[ar_gndiv])
+    nikaya_ref = relationship("NikayaData", foreign_keys=[ar_nikaya])
+    parshawa_ref = relationship("ParshawaData", foreign_keys=[ar_parshawa])
+    owner_silmatha_ref = relationship("SilmathaRegist", foreign_keys=[ar_ownercd])
