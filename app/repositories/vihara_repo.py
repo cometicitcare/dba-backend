@@ -182,11 +182,10 @@ class ViharaRepository:
                 )
                 order_desc = data_entry_role is not None
         
-        # Filter for pending approval statuses if admin (exclude temporary vihara records)
+        # Filter for pending approval statuses if admin
         if admin_pending_only:
             query = query.filter(
-                ViharaData.vh_workflow_status.in_(["S1_PEND_APPROVAL", "S1_APPROVED", "S2_PEND_APPROVAL"]),
-                ViharaData.vh_status != "TEMPORARY"
+                ViharaData.vh_workflow_status.in_(["S1_PEND_APPROVAL", "S1_APPROVED", "S2_PEND_APPROVAL"])
             )
 
         query = query.order_by(ViharaData.vh_id.desc() if order_desc else ViharaData.vh_id)
