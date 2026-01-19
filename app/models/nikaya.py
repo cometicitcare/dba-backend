@@ -1,4 +1,5 @@
-from sqlalchemy import Boolean, Column, Date, Integer, String, TIMESTAMP, text
+from sqlalchemy import Boolean, Column, Date, Integer, String, TIMESTAMP, text, ForeignKey
+from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 
 from app.db.base import Base
@@ -10,7 +11,7 @@ class NikayaData(Base):
     nk_id = Column(Integer, primary_key=True, index=True)
     nk_nkn = Column(String(10), nullable=False, index=True)
     nk_nname = Column(String(200))
-    nk_nahimicd = Column(String(12), index=True)
+    nk_nahimicd = Column(String(12), ForeignKey("bhikku_regist.br_regn"), index=True)
     nk_startdate = Column(Date)
     nk_rmakrs = Column(String(200))
     nk_version = Column(
@@ -29,3 +30,6 @@ class NikayaData(Base):
     nk_created_by = Column(String(25))
     nk_updated_by = Column(String(25))
     nk_version_number = Column(Integer, server_default=text("1"))
+    
+    # Relationship to fetch main bhikku details from bhikku_regist table
+    main_bhikku_info = relationship("Bhikku", foreign_keys=[nk_nahimicd], lazy="joined")
