@@ -4,7 +4,7 @@ from datetime import datetime
 
 from sqlalchemy import func, or_, select, text
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 
 from app.models.arama import AramaData
 from app.models.arama_land import AramaLand
@@ -28,6 +28,10 @@ class AramaRepository:
     def get(self, db: Session, ar_id: int) -> Optional[AramaData]:
         return (
             db.query(AramaData)
+            .options(
+                selectinload(AramaData.arama_lands),
+                selectinload(AramaData.resident_silmathas)
+            )
             .filter(AramaData.ar_id == ar_id, AramaData.ar_is_deleted.is_(False))
             .first()
         )
@@ -35,6 +39,10 @@ class AramaRepository:
     def get_by_trn(self, db: Session, ar_trn: str) -> Optional[AramaData]:
         return (
             db.query(AramaData)
+            .options(
+                selectinload(AramaData.arama_lands),
+                selectinload(AramaData.resident_silmathas)
+            )
             .filter(AramaData.ar_trn == ar_trn, AramaData.ar_is_deleted.is_(False))
             .first()
         )
@@ -93,6 +101,12 @@ class AramaRepository:
         current_user: Optional[UserAccount] = None,
     ) -> list[AramaData]:
         query = db.query(AramaData).filter(AramaData.ar_is_deleted.is_(False))
+        
+        # Eager load relationships
+        query = query.options(
+            selectinload(AramaData.arama_lands),
+            selectinload(AramaData.resident_silmathas)
+        )
 
         # General search (existing functionality)
         if search:
