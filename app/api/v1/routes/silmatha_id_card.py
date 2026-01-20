@@ -20,6 +20,7 @@ from app.schemas.silmatha_id_card import (
     StayHistoryItem,
 )
 from app.services.silmatha_id_card_service import silmatha_id_card_service
+from app.services.temporary_silmatha_service import temporary_silmatha_service
 
 
 router = APIRouter()
@@ -224,11 +225,113 @@ async def manage_silmatha_id_card(
                 search_key=search_key
             )
             
+            # Convert cards to response format
+            card_responses = [SilmathaIDCardResponse.model_validate(card) for card in cards]
+            
+            # Also fetch temporary silmathas and include them in results
+            # Only apply search filter for temporary silmathas (other filters don't apply to them)
+            temp_silmathas = temporary_silmatha_service.list_temporary_silmathas(
+                db,
+                skip=0,  # Get all matching temp silmathas
+                limit=200,  # Max allowed
+                search=search_key
+            )
+            
+            # Convert temporary silmathas to SilmathaIDCard-compatible format with temp_details
+            for temp_silmatha in temp_silmathas:
+                # Try to resolve province as nested object
+                province_value = temp_silmatha.ts_province
+                if temp_silmatha.ts_province:
+                    from app.models.province import Province
+                    province_obj = db.query(Province).filter(
+                        Province.cp_code == temp_silmatha.ts_province
+                    ).first()
+                    if province_obj:
+                        province_value = {
+                            "pr_code": province_obj.cp_code,
+                            "pr_name": province_obj.cp_name
+                        }
+                
+                # Try to resolve district as nested object
+                district_value = temp_silmatha.ts_district
+                if temp_silmatha.ts_district:
+                    from app.models.district import District
+                    district_obj = db.query(District).filter(
+                        District.dd_dcode == temp_silmatha.ts_district
+                    ).first()
+                    if district_obj:
+                        district_value = {
+                            "ds_code": district_obj.dd_dcode,
+                            "ds_name": district_obj.dd_dname
+                        }
+                
+                # Create a temporary ID card response format
+                temp_card_dict = {
+                    "sic_id": -temp_silmatha.ts_id,  # Negative ID to distinguish from real records
+                    "sic_sil_regn": f"TEMP-{temp_silmatha.ts_id}",  # Use TEMP prefix for identification
+                    "sic_form_no": f"TEMP-SIC-{temp_silmatha.ts_id}",
+                    "sic_divisional_secretariat": None,
+                    "sic_district": district_value.get("ds_name") if isinstance(district_value, dict) else district_value,
+                    "sic_full_silmatha_name": temp_silmatha.ts_name,
+                    "sic_title_post": None,
+                    "sic_lay_name_full": None,
+                    "sic_dob": None,
+                    "sic_birth_place": None,
+                    "sic_robing_date": temp_silmatha.ts_ordained_date,
+                    "sic_robing_place": None,
+                    "sic_robing_nikaya": None,
+                    "sic_robing_parshawaya": None,
+                    "sic_samaneri_reg_no": None,
+                    "sic_dasa_sil_mata_reg_no": None,
+                    "sic_higher_ord_date": None,
+                    "sic_higher_ord_name": None,
+                    "sic_perm_residence": temp_silmatha.ts_address,
+                    "sic_national_id": temp_silmatha.ts_nic,
+                    "sic_stay_history": None,
+                    "sic_left_thumbprint_url": None,
+                    "sic_applicant_photo_url": None,
+                    "sic_workflow_status": "TEMPORARY",  # Mark workflow as temporary
+                    "sic_submitted_by": temp_silmatha.ts_created_by,
+                    "sic_submitted_at": temp_silmatha.ts_created_at,
+                    "sic_approved_by": None,
+                    "sic_approved_at": None,
+                    "sic_rejected_by": None,
+                    "sic_rejected_at": None,
+                    "sic_rejection_reason": None,
+                    "sic_printed_by": None,
+                    "sic_printed_at": None,
+                    "sic_created_at": temp_silmatha.ts_created_at,
+                    "sic_created_by": temp_silmatha.ts_created_by,
+                    "sic_updated_at": temp_silmatha.ts_updated_at,
+                    "sic_updated_by": temp_silmatha.ts_updated_by,
+                    # Nest all temporary silmatha data as a nested object
+                    "temp_details": {
+                        "ts_id": temp_silmatha.ts_id,
+                        "ts_name": temp_silmatha.ts_name,
+                        "ts_nic": temp_silmatha.ts_nic,
+                        "ts_contact_number": temp_silmatha.ts_contact_number,
+                        "ts_address": temp_silmatha.ts_address,
+                        "ts_district": temp_silmatha.ts_district,
+                        "ts_province": temp_silmatha.ts_province,
+                        "ts_arama_name": temp_silmatha.ts_arama_name,
+                        "ts_ordained_date": temp_silmatha.ts_ordained_date,
+                        "ts_created_at": temp_silmatha.ts_created_at,
+                        "ts_created_by": temp_silmatha.ts_created_by,
+                        "ts_updated_at": temp_silmatha.ts_updated_at,
+                        "ts_updated_by": temp_silmatha.ts_updated_by,
+                    }
+                }
+                card_responses.append(temp_card_dict)
+            
+            # Update total count to include temporary silmathas
+            temp_count = temporary_silmatha_service.count_temporary_silmathas(db, search=search_key)
+            total_with_temp = total + temp_count
+            
             return SilmathaIDCardManageResponse(
                 status="success",
-                message=f"Retrieved {len(cards)} Silmatha ID Cards",
-                data=[SilmathaIDCardResponse.model_validate(card) for card in cards],
-                total=total
+                message=f"Retrieved {len(card_responses)} Silmatha ID Cards (including temporary)",
+                data=card_responses,
+                total=total_with_temp
             )
         
         # --- UPDATE ---
