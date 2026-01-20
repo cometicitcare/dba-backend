@@ -10,6 +10,7 @@ from app.schemas import silmatha_regist as schemas
 from app.services.silmatha_regist_service import silmatha_regist_service
 from app.services.arama_service import arama_service
 from app.services.temporary_silmatha_service import temporary_silmatha_service
+from app.services.temporary_arama_service import temporary_arama_service
 from app.repositories.silmatha_regist_repo import silmatha_regist_repo
 from app.utils.http_exceptions import validation_error
 from pydantic import ValidationError
@@ -847,11 +848,33 @@ def get_arama_list_for_silmatha(
         for arama in aramas
     ]
     
+    # Also fetch temporary aramas and include them in results
+    temp_aramas = temporary_arama_service.list_temporary_aramas(
+        db,
+        skip=0,  # Get all matching temp aramas
+        limit=200,  # Max allowed
+        search=search,
+    )
+    
+    # Convert temporary aramas to simplified format
+    for temp_arama in temp_aramas:
+        simple_aramas.append(
+            schemas.AramaSimpleItem(
+                ar_trn=f"TEMP-{temp_arama.ta_id}",
+                ar_vname=temp_arama.ta_name,
+                ar_addrs=temp_arama.ta_address or "",
+            )
+        )
+    
+    # Update total count to include temporary aramas
+    temp_count = temporary_arama_service.count_temporary_aramas(db, search=search)
+    total_with_temp = total + temp_count
+    
     return schemas.AramaListResponse(
         status="success",
         message="Arama records retrieved successfully.",
         data=simple_aramas,
-        totalRecords=total,
+        totalRecords=total_with_temp,
         page=page,
         limit=limit,
     )
