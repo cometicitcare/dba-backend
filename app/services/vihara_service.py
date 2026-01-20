@@ -327,20 +327,49 @@ class ViharaService:
         temple_lands = payload_data.pop("temple_owned_land", [])
         resident_bhikkhus = payload_data.pop("resident_bhikkhus", [])
         
-        # Update stage two fields
+        # Define Stage 2 specific fields (only update these)
+        stage2_fields = {
+            'vh_buildings_description',
+            'vh_dayaka_families_count',
+            'vh_fmlycnt',
+            'vh_kulangana_committee',
+            'vh_dayaka_sabha',
+            'vh_temple_working_committee',
+            'vh_other_associations',
+            'vh_land_info_certified',
+            'vh_resident_bhikkhus_certified',
+            'vh_inspection_report',
+            'vh_inspection_code',
+            'vh_grama_niladhari_division_ownership',
+            'vh_sanghika_donation_deed',
+            'vh_government_donation_deed',
+            'vh_government_donation_deed_in_progress',
+            'vh_authority_consent_attached',
+            'vh_recommend_new_center',
+            'vh_recommend_registered_temple',
+            'vh_annex2_recommend_construction',
+            'vh_annex2_land_ownership_docs',
+            'vh_annex2_chief_incumbent_letter',
+            'vh_annex2_coordinator_recommendation',
+            'vh_annex2_divisional_secretary_recommendation',
+            'vh_annex2_approval_construction',
+            'vh_annex2_referral_resubmission',
+        }
+        
+        # Update only stage two specific fields, ignore Stage 1 fields from payload
         for key, value in payload_data.items():
-            if hasattr(entity, key):
+            if key in stage2_fields and hasattr(entity, key):
                 setattr(entity, key, value)
         
         entity.vh_workflow_status = "S2_PENDING"
         entity.vh_updated_by = actor_id
         entity.vh_updated_at = now
         
-        # Handle nested relationships - use ViharaLand (not TempleLand)
+        # Handle nested relationships - use TempleLand
         if temple_lands:
-            entity.vihara_lands = []
+            entity.temple_lands = []
             for land_data in temple_lands:
-                from app.models.vihara_land import ViharaLand
+                from app.models.temple_land import TempleLand
                 land_data.pop('id', None)
                 land_data.pop('vh_id', None)
                 
@@ -358,8 +387,8 @@ class ViharaService:
                     'land_occupants': land_data.get('landOccupants', land_data.get('land_occupants')),
                 }
                 snake_case_land = {k: v for k, v in snake_case_land.items() if v is not None}
-                land = ViharaLand(vh_id=vh_id, **snake_case_land)
-                entity.vihara_lands.append(land)
+                land = TempleLand(vh_id=vh_id, **snake_case_land)
+                entity.temple_lands.append(land)
         
         if resident_bhikkhus:
             entity.resident_bhikkhus = []
