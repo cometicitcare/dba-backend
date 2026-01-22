@@ -2,7 +2,7 @@ import time
 from typing import Any, Optional
 from datetime import datetime
 
-from sqlalchemy import func, or_, select, text
+from sqlalchemy import func, or_, select, text, case
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, joinedload
 
@@ -142,11 +142,13 @@ class ViharaRepository:
         # are not currently in the ViharaData model. If they are in related tables,
         # you'll need to add joins here. For now, we skip them to avoid errors.
 
-        # Admin users should only see pending approval records, in ascending order (oldest first)
-        # Data Entry users should see newest first (descending order)
-        # Other users see ascending order
+        # Ordering logic:
+        # - ADMIN users: See ALL records with pending approvals at top (ascending order),
+        #                then other records (ascending order)
+        # - DATA_ENTRY users: See newest first (descending order)
+        # - Other users: See ascending order
         order_desc = False
-        admin_pending_only = False
+        is_admin = False
         
         if current_user:
             now = datetime.utcnow()
@@ -165,8 +167,8 @@ class ViharaRepository:
             )
             
             if admin_role:
-                # Admin users see only pending approval records
-                admin_pending_only = True
+                # Admin users see ALL records with pending approvals at the top
+                is_admin = True
             else:
                 # Check for DATA_ENTRY role
                 data_entry_role = (
@@ -182,13 +184,18 @@ class ViharaRepository:
                 )
                 order_desc = data_entry_role is not None
         
-        # Filter for pending approval statuses if admin
-        if admin_pending_only:
-            query = query.filter(
-                ViharaData.vh_workflow_status.in_(["S1_PEND_APPROVAL", "S1_APPROVED", "S2_PEND_APPROVAL"])
+        # Apply ordering based on user role
+        if is_admin:
+            # Admin: pending approval records first (ascending), then others (ascending)
+            # Using CASE to prioritize pending approval statuses
+            priority = case(
+                (ViharaData.vh_workflow_status.in_(["S1_PEND_APPROVAL", "S2_PEND_APPROVAL"]), 0),
+                else_=1
             )
-
-        query = query.order_by(ViharaData.vh_id.desc() if order_desc else ViharaData.vh_id)
+            query = query.order_by(priority, ViharaData.vh_id.asc())
+        else:
+            # DATA_ENTRY or other users
+            query = query.order_by(ViharaData.vh_id.desc() if order_desc else ViharaData.vh_id)
 
         return query.offset(max(skip, 0)).limit(limit).all()
 
@@ -258,26 +265,9 @@ class ViharaRepository:
         if date_to:
             query = query.filter(ViharaData.vh_created_at <= date_to)
         
-        # Admin users should only see pending approval records count
-        if current_user:
-            now = datetime.utcnow()
-            admin_role = (
-                db.query(UserRole)
-                .join(Role, Role.ro_role_id == UserRole.ur_role_id)
-                .filter(
-                    UserRole.ur_user_id == current_user.ua_user_id,
-                    UserRole.ur_is_active.is_(True),
-                    (UserRole.ur_expires_date.is_(None) | (UserRole.ur_expires_date > now)),
-                    Role.ro_level == "ADMIN",
-                )
-                .first()
-            )
-            
-            if admin_role:
-                # Admin users see only pending approval records
-                query = query.filter(
-                    ViharaData.vh_workflow_status.in_(["S1_PEND_APPROVAL", "S2_PEND_APPROVAL"])
-                )
+        # Note: Admin users now see ALL records (not filtered by status)
+        # The count should reflect all matching records regardless of user role
+        # Ordering/prioritization is handled in the list method
 
         return query.scalar() or 0
 
