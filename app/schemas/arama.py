@@ -409,6 +409,7 @@ class AramaRequestPayload(BaseModel):
     # Pagination
     skip: Annotated[int, Field(ge=0)] = 0
     limit: Annotated[int, Field(ge=1, le=200)] = 10
+    page_size: Annotated[Optional[int], Field(default=None, ge=1, le=200)] = None  # Alias for limit
     page: Annotated[Optional[int], Field(default=1, ge=1)] = 1
     
     # Search and filters
