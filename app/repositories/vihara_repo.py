@@ -202,17 +202,16 @@ class ViharaRepository:
             if vihara_admin_role:
                 # Vihara Admin: Special ordering as requested
                 # 1. First: Stage 1 and 2 pending approval (ascending)
-                # 2. Then: Other stages (excluding completed) 
-                # 3. Then: Completed stage records
+                # 2. Then: Completed stage records
+                # 3. Then: Other stages (like pending, rejected, etc.)
                 # Note: temp-vihara records are handled separately in the endpoint
                 priority = case(
                     # Priority 0: Stage 1 and 2 pending approval
                     (ViharaData.vh_workflow_status.in_(["S1_PEND_APPROVAL", "S2_PEND_APPROVAL"]), 0),
-                    # Priority 1: Other stages (excluding completed)
-                    (ViharaData.vh_workflow_status.notin_(["COMPLETED", "S1_PEND_APPROVAL", "S2_PEND_APPROVAL"]), 1), 
-                    # Priority 2: Completed stage
-                    (ViharaData.vh_workflow_status == "COMPLETED", 2),
-                    else_=3
+                    # Priority 1: Completed stage
+                    (ViharaData.vh_workflow_status == "COMPLETED", 1),
+                    # Priority 2: Other stages (pending, rejected, etc.)
+                    else_=2
                 )
                 query = query.order_by(priority, ViharaData.vh_id.asc())
             else:

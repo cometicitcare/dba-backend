@@ -1,12 +1,14 @@
 from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File, Query
 from pydantic import BaseModel, ValidationError
 from sqlalchemy.orm import Session
-from datetime import date
+from datetime import date, datetime
 
 from app.api.auth_middleware import get_current_user
 from app.api.auth_dependencies import has_permission, has_any_permission
 from app.api.deps import get_db
 from app.models.user import UserAccount
+from app.models.user_roles import UserRole
+from app.models.roles import Role
 from app.schemas.vihara import (
     CRUDAction,
     ViharaCreate,
@@ -488,6 +490,23 @@ def manage_vihara_records(
         records = vihara_service.list_viharas(db, **filters)
         total = vihara_service.count_viharas(db, **{k: v for k, v in filters.items() if k not in ["skip", "limit"]})
         
+        # Check if current user is vihara_admin (VIHA_ADM role)
+        is_vihara_admin = False
+        now = datetime.utcnow()
+        vihara_admin_role = (
+            db.query(UserRole)
+            .join(Role, Role.ro_role_id == UserRole.ur_role_id)
+            .filter(
+                UserRole.ur_user_id == current_user.ua_user_id,
+                UserRole.ur_is_active.is_(True),
+                (UserRole.ur_expires_date.is_(None) | (UserRole.ur_expires_date > now)),
+                Role.ro_role_id == "VIHA_ADM",
+            )
+            .first()
+        )
+        if vihara_admin_role:
+            is_vihara_admin = True
+        
         # Convert records to list of dicts for modification (serialize SQLAlchemy models)
         records_list = []
         for record in records:
@@ -500,52 +519,138 @@ def manage_vihara_records(
             record_dict.update(viharanga_data)
             records_list.append(record_dict)
         
-        # Also fetch temporary viharas and include them in results
-        # Only apply search filter for temporary viharas (other filters don't apply to them)
-        temp_viharas = temporary_vihara_service.list_temporary_viharas(
-            db,
-            skip=0,  # Get all matching temp viharas
-            limit=200,  # Max allowed
-            search=search
-        )
-        
-        # Convert temporary viharas to Vihara-compatible format
-        for temp_vihara in temp_viharas:
-            # Truncate mobile to 10 chars if needed
-            mobile = temp_vihara.tv_contact_number[:10] if temp_vihara.tv_contact_number and len(temp_vihara.tv_contact_number) > 10 else (temp_vihara.tv_contact_number or "0000000000")
-            if not mobile or len(mobile) < 10:
-                mobile = "0000000000"  # Default placeholder for required field
-            
-            temp_vihara_dict = {
-                "vh_id": -temp_vihara.tv_id,  # Negative ID to distinguish from real records
-                "vh_trn": f"TEMP-{temp_vihara.tv_id}",  # Use TEMP prefix for identification
-                "vh_vname": temp_vihara.tv_name,
-                "vh_addrs": temp_vihara.tv_address,
-                "vh_mobile": mobile,
-                "vh_whtapp": mobile,
-                "vh_email": f"temp{temp_vihara.tv_id}@temporary.local",  # Placeholder email
-                "vh_typ": "TEMP",  # Mark as temporary type
-                "vh_gndiv": "TEMP",  # Placeholder
-                "vh_ownercd": "TEMP",  # Placeholder
-                "vh_parshawa": "TEMP",  # Placeholder
-                "vh_province": temp_vihara.tv_province,
-                "vh_district": temp_vihara.tv_district,
-                "vh_viharadhipathi_name": temp_vihara.tv_viharadhipathi_name,
-                "vh_workflow_status": "TEMPORARY",  # Mark workflow as temporary
-                "vh_created_at": temp_vihara.tv_created_at,
-                "vh_created_by": temp_vihara.tv_created_by,
-                "vh_updated_at": temp_vihara.tv_updated_at,
-                "vh_updated_by": temp_vihara.tv_updated_by,
-                "vh_is_deleted": False,
-                "vh_version_number": 1,
-                "temple_lands": [],
-                "resident_bhikkhus": [],
-            }
-            records_list.append(temp_vihara_dict)
-        
-        # Update total count to include temporary viharas
+        # For vihara_admin: Handle temporary viharas with proper pagination
+        # Temp viharas should only appear after ALL regular records
         temp_count = temporary_vihara_service.count_temporary_viharas(db, search=search)
         total_with_temp = total + temp_count
+        
+        if is_vihara_admin:
+            # Only include temp viharas if we've paginated past all regular records
+            # skip = starting position, total = total regular records
+            if skip >= total:
+                # We're past all regular records, now show temp viharas
+                temp_skip = skip - total
+                temp_viharas = temporary_vihara_service.list_temporary_viharas(
+                    db,
+                    skip=temp_skip,
+                    limit=limit,
+                    search=search
+                )
+                
+                # Convert temporary viharas to Vihara-compatible format
+                for temp_vihara in temp_viharas:
+                    mobile = temp_vihara.tv_contact_number[:10] if temp_vihara.tv_contact_number and len(temp_vihara.tv_contact_number) > 10 else (temp_vihara.tv_contact_number or "0000000000")
+                    if not mobile or len(mobile) < 10:
+                        mobile = "0000000000"
+                    
+                    temp_vihara_dict = {
+                        "vh_id": -temp_vihara.tv_id,
+                        "vh_trn": f"TEMP-{temp_vihara.tv_id}",
+                        "vh_vname": temp_vihara.tv_name,
+                        "vh_addrs": temp_vihara.tv_address,
+                        "vh_mobile": mobile,
+                        "vh_whtapp": mobile,
+                        "vh_email": f"temp{temp_vihara.tv_id}@temporary.local",
+                        "vh_typ": "TEMP",
+                        "vh_gndiv": "TEMP",
+                        "vh_ownercd": "TEMP",
+                        "vh_parshawa": "TEMP",
+                        "vh_province": temp_vihara.tv_province,
+                        "vh_district": temp_vihara.tv_district,
+                        "vh_viharadhipathi_name": temp_vihara.tv_viharadhipathi_name,
+                        "vh_workflow_status": "TEMPORARY",
+                        "vh_created_at": temp_vihara.tv_created_at,
+                        "vh_created_by": temp_vihara.tv_created_by,
+                        "vh_updated_at": temp_vihara.tv_updated_at,
+                        "vh_updated_by": temp_vihara.tv_updated_by,
+                        "vh_is_deleted": False,
+                        "vh_version_number": 1,
+                        "temple_lands": [],
+                        "resident_bhikkhus": [],
+                    }
+                    records_list.append(temp_vihara_dict)
+            elif skip + limit > total:
+                # We're partially in regular records and need some temp viharas to fill
+                remaining_slots = limit - len(records_list)
+                if remaining_slots > 0:
+                    temp_viharas = temporary_vihara_service.list_temporary_viharas(
+                        db,
+                        skip=0,
+                        limit=remaining_slots,
+                        search=search
+                    )
+                    
+                    for temp_vihara in temp_viharas:
+                        mobile = temp_vihara.tv_contact_number[:10] if temp_vihara.tv_contact_number and len(temp_vihara.tv_contact_number) > 10 else (temp_vihara.tv_contact_number or "0000000000")
+                        if not mobile or len(mobile) < 10:
+                            mobile = "0000000000"
+                        
+                        temp_vihara_dict = {
+                            "vh_id": -temp_vihara.tv_id,
+                            "vh_trn": f"TEMP-{temp_vihara.tv_id}",
+                            "vh_vname": temp_vihara.tv_name,
+                            "vh_addrs": temp_vihara.tv_address,
+                            "vh_mobile": mobile,
+                            "vh_whtapp": mobile,
+                            "vh_email": f"temp{temp_vihara.tv_id}@temporary.local",
+                            "vh_typ": "TEMP",
+                            "vh_gndiv": "TEMP",
+                            "vh_ownercd": "TEMP",
+                            "vh_parshawa": "TEMP",
+                            "vh_province": temp_vihara.tv_province,
+                            "vh_district": temp_vihara.tv_district,
+                            "vh_viharadhipathi_name": temp_vihara.tv_viharadhipathi_name,
+                            "vh_workflow_status": "TEMPORARY",
+                            "vh_created_at": temp_vihara.tv_created_at,
+                            "vh_created_by": temp_vihara.tv_created_by,
+                            "vh_updated_at": temp_vihara.tv_updated_at,
+                            "vh_updated_by": temp_vihara.tv_updated_by,
+                            "vh_is_deleted": False,
+                            "vh_version_number": 1,
+                            "temple_lands": [],
+                            "resident_bhikkhus": [],
+                        }
+                        records_list.append(temp_vihara_dict)
+        else:
+            # Non-vihara_admin users: append temp viharas as before
+            temp_viharas = temporary_vihara_service.list_temporary_viharas(
+                db,
+                skip=0,
+                limit=200,
+                search=search
+            )
+            
+            for temp_vihara in temp_viharas:
+                mobile = temp_vihara.tv_contact_number[:10] if temp_vihara.tv_contact_number and len(temp_vihara.tv_contact_number) > 10 else (temp_vihara.tv_contact_number or "0000000000")
+                if not mobile or len(mobile) < 10:
+                    mobile = "0000000000"
+                
+                temp_vihara_dict = {
+                    "vh_id": -temp_vihara.tv_id,
+                    "vh_trn": f"TEMP-{temp_vihara.tv_id}",
+                    "vh_vname": temp_vihara.tv_name,
+                    "vh_addrs": temp_vihara.tv_address,
+                    "vh_mobile": mobile,
+                    "vh_whtapp": mobile,
+                    "vh_email": f"temp{temp_vihara.tv_id}@temporary.local",
+                    "vh_typ": "TEMP",
+                    "vh_gndiv": "TEMP",
+                    "vh_ownercd": "TEMP",
+                    "vh_parshawa": "TEMP",
+                    "vh_province": temp_vihara.tv_province,
+                    "vh_district": temp_vihara.tv_district,
+                    "vh_viharadhipathi_name": temp_vihara.tv_viharadhipathi_name,
+                    "vh_workflow_status": "TEMPORARY",
+                    "vh_created_at": temp_vihara.tv_created_at,
+                    "vh_created_by": temp_vihara.tv_created_by,
+                    "vh_updated_at": temp_vihara.tv_updated_at,
+                    "vh_updated_by": temp_vihara.tv_updated_by,
+                    "vh_is_deleted": False,
+                    "vh_version_number": 1,
+                    "temple_lands": [],
+                    "resident_bhikkhus": [],
+                }
+                records_list.append(temp_vihara_dict)
         
         return ViharaManagementResponse(
             status="success",
