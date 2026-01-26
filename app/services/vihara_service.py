@@ -1160,6 +1160,42 @@ class ViharaService:
         
         return result
     
+    def enrich_with_viharanga_data(self, db: Session, vihara: ViharaData) -> Dict[str, Any]:
+        """
+        Enrich vihara data with viharanga information parsed from vh_buildings_description.
+        Expects vh_buildings_description to contain comma-separated viharanga codes.
+        """
+        from app.models.viharanga import Viharanga
+        
+        result = {"viharanga_list": []}
+        
+        if not vihara.vh_buildings_description:
+            return result
+        
+        # Parse viharanga codes from buildings_description (comma-separated)
+        viharanga_codes = [code.strip().upper() for code in vihara.vh_buildings_description.split(',') if code.strip()]
+        
+        if not viharanga_codes:
+            return result
+        
+        # Fetch viharanga objects for the codes
+        viharangas = db.query(Viharanga).filter(
+            Viharanga.vg_code.in_(viharanga_codes),
+            Viharanga.vg_is_deleted.is_(False)
+        ).all()
+        
+        # Convert to nested response format
+        result["viharanga_list"] = [
+            {
+                "vg_id": v.vg_id,
+                "vg_code": v.vg_code,
+                "vg_item": v.vg_item
+            }
+            for v in viharangas
+        ]
+        
+        return result
+    
     def _ensure_temp_bhikku_placeholders(self, db: Session, payload_data: dict) -> None:
         """
         Verify that TEMP- bhikku references in vh_ownercd exist in bhikku_regist table.

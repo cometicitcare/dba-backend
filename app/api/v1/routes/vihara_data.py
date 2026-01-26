@@ -77,10 +77,12 @@ def manage_vihara_records(
             result = vihara_service.save_stage_one(
                 db, payload_data=raw_data, actor_id=user_id, vh_id=vh_id
             )
-            # Enrich with temporary entity data
+            # Enrich with temporary entity data and viharanga data
             temp_data = vihara_service.enrich_with_temp_entities(db, result)
+            viharanga_data = vihara_service.enrich_with_viharanga_data(db, result)
             result_dict = ViharaOut.model_validate(result).model_dump()
             result_dict.update(temp_data)
+            result_dict.update(viharanga_data)
             
             return ViharaManagementResponse(
                 status="success",
@@ -107,8 +109,11 @@ def manage_vihara_records(
             
             # Enrich with temporary entities if present
             temp_data = vihara_service.enrich_with_temp_entities(db, result)
+            # Enrich with viharanga data if present
+            viharanga_data = vihara_service.enrich_with_viharanga_data(db, result)
             result_dict = ViharaOut.model_validate(result).model_dump()
             result_dict.update(temp_data)
+            result_dict.update(viharanga_data)
             
             return ViharaManagementResponse(
                 status="success",
@@ -154,8 +159,11 @@ def manage_vihara_records(
             
             # Enrich with temporary entities if present
             temp_data = vihara_service.enrich_with_temp_entities(db, result)
+            # Enrich with viharanga data if present
+            viharanga_data = vihara_service.enrich_with_viharanga_data(db, result)
             result_dict = ViharaOut.model_validate(result).model_dump()
             result_dict.update(temp_data)
+            result_dict.update(viharanga_data)
             
             return ViharaManagementResponse(
                 status="success",
@@ -187,8 +195,11 @@ def manage_vihara_records(
             
             # Enrich with temporary entities if present
             temp_data = vihara_service.enrich_with_temp_entities(db, result)
+            # Enrich with viharanga data if present
+            viharanga_data = vihara_service.enrich_with_viharanga_data(db, result)
             result_dict = ViharaOut.model_validate(result).model_dump()
             result_dict.update(temp_data)
+            result_dict.update(viharanga_data)
             
             return ViharaManagementResponse(
                 status="success",
@@ -224,8 +235,11 @@ def manage_vihara_records(
             
             # Enrich with temporary entities if present
             temp_data = vihara_service.enrich_with_temp_entities(db, result)
+            # Enrich with viharanga data if present
+            viharanga_data = vihara_service.enrich_with_viharanga_data(db, result)
             result_dict = ViharaOut.model_validate(result).model_dump()
             result_dict.update(temp_data)
+            result_dict.update(viharanga_data)
             
             return ViharaManagementResponse(
                 status="success",
@@ -252,8 +266,11 @@ def manage_vihara_records(
             
             # Enrich with temporary entities if present
             temp_data = vihara_service.enrich_with_temp_entities(db, result)
+            # Enrich with viharanga data if present
+            viharanga_data = vihara_service.enrich_with_viharanga_data(db, result)
             result_dict = ViharaOut.model_validate(result).model_dump()
             result_dict.update(temp_data)
+            result_dict.update(viharanga_data)
             
             return ViharaManagementResponse(
                 status="success",
@@ -299,8 +316,11 @@ def manage_vihara_records(
             
             # Enrich with temporary entities if present
             temp_data = vihara_service.enrich_with_temp_entities(db, result)
+            # Enrich with viharanga data if present
+            viharanga_data = vihara_service.enrich_with_viharanga_data(db, result)
             result_dict = ViharaOut.model_validate(result).model_dump()
             result_dict.update(temp_data)
+            result_dict.update(viharanga_data)
             
             return ViharaManagementResponse(
                 status="success",
@@ -332,8 +352,11 @@ def manage_vihara_records(
             
             # Enrich with temporary entities if present
             temp_data = vihara_service.enrich_with_temp_entities(db, result)
+            # Enrich with viharanga data if present
+            viharanga_data = vihara_service.enrich_with_viharanga_data(db, result)
             result_dict = ViharaOut.model_validate(result).model_dump()
             result_dict.update(temp_data)
+            result_dict.update(viharanga_data)
             
             return ViharaManagementResponse(
                 status="success",
@@ -385,8 +408,11 @@ def manage_vihara_records(
             
             # Enrich with temporary entities if present
             temp_data = vihara_service.enrich_with_temp_entities(db, created)
+            # Enrich with viharanga data if present
+            viharanga_data = vihara_service.enrich_with_viharanga_data(db, created)
             result_dict = ViharaOut.model_validate(created).model_dump()
             result_dict.update(temp_data)
+            result_dict.update(viharanga_data)
             
             return ViharaManagementResponse(
                 status="success",
@@ -417,8 +443,11 @@ def manage_vihara_records(
 
         # Enrich with temporary entities if present
         temp_data = vihara_service.enrich_with_temp_entities(db, entity)
+        # Enrich with viharanga data if present
+        viharanga_data = vihara_service.enrich_with_viharanga_data(db, entity)
         result_dict = ViharaOut.model_validate(entity).model_dump()
         result_dict.update(temp_data)
+        result_dict.update(viharanga_data)
 
         # Return entity directly - FastAPI will serialize it using the response_model
         return ViharaManagementResponse(
@@ -464,8 +493,11 @@ def manage_vihara_records(
         for record in records:
             # Enrich with temporary entities if present
             temp_data = vihara_service.enrich_with_temp_entities(db, record)
+            # Enrich with viharanga data if present
+            viharanga_data = vihara_service.enrich_with_viharanga_data(db, record)
             record_dict = ViharaOut.model_validate(record).model_dump()
             record_dict.update(temp_data)
+            record_dict.update(viharanga_data)
             records_list.append(record_dict)
         
         # Also fetch temporary viharas and include them in results
@@ -545,8 +577,11 @@ def manage_vihara_records(
             
             # Enrich with temporary entities if present
             temp_data = vihara_service.enrich_with_temp_entities(db, updated)
+            # Enrich with viharanga data if present
+            viharanga_data = vihara_service.enrich_with_viharanga_data(db, updated)
             result_dict = ViharaOut.model_validate(updated).model_dump()
             result_dict.update(temp_data)
+            result_dict.update(viharanga_data)
             
             return ViharaManagementResponse(
                 status="success",
@@ -595,8 +630,11 @@ def manage_vihara_records(
             
             # Enrich with temporary entities if present
             temp_data = vihara_service.enrich_with_temp_entities(db, approved_vihara)
+            # Enrich with viharanga data if present
+            viharanga_data = vihara_service.enrich_with_viharanga_data(db, approved_vihara)
             result_dict = ViharaOut.model_validate(approved_vihara).model_dump()
             result_dict.update(temp_data)
+            result_dict.update(viharanga_data)
             
             return ViharaManagementResponse(
                 status="success",
@@ -631,8 +669,11 @@ def manage_vihara_records(
             
             # Enrich with temporary entities if present
             temp_data = vihara_service.enrich_with_temp_entities(db, rejected_vihara)
+            # Enrich with viharanga data if present
+            viharanga_data = vihara_service.enrich_with_viharanga_data(db, rejected_vihara)
             result_dict = ViharaOut.model_validate(rejected_vihara).model_dump()
             result_dict.update(temp_data)
+            result_dict.update(viharanga_data)
             
             return ViharaManagementResponse(
                 status="success",
@@ -660,8 +701,11 @@ def manage_vihara_records(
             
             # Enrich with temporary entities if present
             temp_data = vihara_service.enrich_with_temp_entities(db, printed_vihara)
+            # Enrich with viharanga data if present
+            viharanga_data = vihara_service.enrich_with_viharanga_data(db, printed_vihara)
             result_dict = ViharaOut.model_validate(printed_vihara).model_dump()
             result_dict.update(temp_data)
+            result_dict.update(viharanga_data)
             
             return ViharaManagementResponse(
                 status="success",
@@ -689,8 +733,11 @@ def manage_vihara_records(
             
             # Enrich with temporary entities if present
             temp_data = vihara_service.enrich_with_temp_entities(db, scanned_vihara)
+            # Enrich with viharanga data if present
+            viharanga_data = vihara_service.enrich_with_viharanga_data(db, scanned_vihara)
             result_dict = ViharaOut.model_validate(scanned_vihara).model_dump()
             result_dict.update(temp_data)
+            result_dict.update(viharanga_data)
             
             return ViharaManagementResponse(
                 status="success",
