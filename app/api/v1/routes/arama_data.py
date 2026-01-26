@@ -173,7 +173,8 @@ def manage_arama_records(
     if action == CRUDAction.READ_ALL:
         check_permission("arama:read")
         page = payload.page or 1
-        limit = payload.limit
+        # Use page_size if provided, otherwise fall back to limit
+        limit = payload.page_size if payload.page_size else payload.limit
         search = payload.search_key.strip() if payload.search_key else None
         if search == "":
             search = None
