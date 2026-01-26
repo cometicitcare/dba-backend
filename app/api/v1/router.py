@@ -49,6 +49,7 @@ import app.api.v1.routes.temporary_devala as temporary_devala
 import app.api.v1.routes.temporary_silmatha as temporary_silmatha
 import app.api.v1.routes.temporary_vihara as temporary_vihara
 import app.api.v1.routes.vihara_data as vihara_data
+import app.api.v1.routes.viharanga as viharanga
 from app.api.v1 import auth_sms_test
 
 
@@ -297,6 +298,11 @@ api_router.include_router(
 api_router.include_router(
     bhikku_category.router, 
     prefix="/bhikku-category", 
+    tags=["📊 Master Data Management"]
+)
+api_router.include_router(
+    viharanga.router, 
+    prefix="/viharanga", 
     tags=["📊 Master Data Management"]
 )
 api_router.include_router(
