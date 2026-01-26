@@ -186,13 +186,44 @@ class ViharaRepository:
         
         # Apply ordering based on user role
         if is_admin:
-            # Admin: pending approval records first (ascending), then others (ascending)
-            # Using CASE to prioritize pending approval statuses
-            priority = case(
-                (ViharaData.vh_workflow_status.in_(["S1_PEND_APPROVAL", "S2_PEND_APPROVAL"]), 0),
-                else_=1
+            # Check if this is specifically a vihara_admin (VIHA_ADM role)
+            vihara_admin_role = (
+                db.query(UserRole)
+                .join(Role, Role.ro_role_id == UserRole.ur_role_id)
+                .filter(
+                    UserRole.ur_user_id == current_user.ua_user_id,
+                    UserRole.ur_is_active.is_(True),
+                    (UserRole.ur_expires_date.is_(None) | (UserRole.ur_expires_date > now)),
+                    Role.ro_role_id == "VIHA_ADM",  # Specifically check for vihara_admin role
+                )
+                .first()
             )
-            query = query.order_by(priority, ViharaData.vh_id.asc())
+            
+            if vihara_admin_role:
+                # Vihara Admin: Special ordering as requested
+                # 1. First: Stage 1 and 2 pending approval (ascending)
+                # 2. Then: Other stages (excluding completed) 
+                # 3. Then: Completed stage records
+                # Note: temp-vihara records are handled separately in the endpoint
+                priority = case(
+                    # Priority 0: Stage 1 and 2 pending approval
+                    (ViharaData.vh_workflow_status.in_(["S1_PEND_APPROVAL", "S2_PEND_APPROVAL"]), 0),
+                    # Priority 1: Other stages (excluding completed)
+                    (ViharaData.vh_workflow_status.notin_(["COMPLETED", "S1_PEND_APPROVAL", "S2_PEND_APPROVAL"]), 1), 
+                    # Priority 2: Completed stage
+                    (ViharaData.vh_workflow_status == "COMPLETED", 2),
+                    else_=3
+                )
+                query = query.order_by(priority, ViharaData.vh_id.asc())
+            else:
+                # Other admin users: original behavior
+                # Admin: pending approval records first (ascending), then others (ascending)
+                # Using CASE to prioritize pending approval statuses
+                priority = case(
+                    (ViharaData.vh_workflow_status.in_(["S1_PEND_APPROVAL", "S2_PEND_APPROVAL"]), 0),
+                    else_=1
+                )
+                query = query.order_by(priority, ViharaData.vh_id.asc())
         else:
             # DATA_ENTRY or other users
             query = query.order_by(ViharaData.vh_id.desc() if order_desc else ViharaData.vh_id)

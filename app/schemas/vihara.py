@@ -48,6 +48,14 @@ class NikayaMainBhikkuNested(BaseModel):
     br_mobile: Optional[str] = None
 
 
+class ViharangaNested(BaseModel):
+    """Nested response schema for viharanga"""
+    model_config = ConfigDict(from_attributes=True)
+    vg_id: Optional[int] = None
+    vg_code: Optional[str] = None
+    vg_item: Optional[str] = None
+
+
 class NikayaNested(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     nk_nkn: Optional[str] = None
@@ -642,6 +650,9 @@ class ViharaOut(ViharaBase):
     divisional_secretariat_info: Optional[DivisionalSecretariatNested] = None
     gn_division_info: Optional[GNDivisionNested] = None
     nikaya_info: Optional[NikayaNested] = None
+    
+    # Viharanga nested objects (parsed from buildings_description)
+    viharanga_list: List[ViharangaNested] = Field(default_factory=list)
     
     # Temporary entity nested objects (for TEMP- references)
     owner_temp_vihara_info: Optional[TemporaryViharaNested] = None
