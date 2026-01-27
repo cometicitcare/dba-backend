@@ -951,7 +951,7 @@ class BhikkuService:
         # - Pure numeric strings (e.g., "17" - tb_id from temporary_bhikku table)
         # - TB* format (e.g., "TB000001" - alternative temp bhikku identifier)
         # 
-        # Store the temp bhikku reference in remarks for later retrieval and set field to NULL
+        # Store the temp bhikku reference in remarks for later retrieval and remove field from update
         temp_refs = []
         for field in ["br_viharadhipathi", "br_mahanaacharyacd"]:
             # Only process fields that were explicitly included in the update
@@ -974,7 +974,9 @@ class BhikkuService:
                 
                 if temp_id:
                     temp_refs.append(f"[TEMP_{field.upper()}:{temp_id}]")
-                    update_data[field] = None
+                    # Remove the field from update_data instead of setting to None
+                    # This prevents overwriting the database field with NULL
+                    del update_data[field]
         
         # Handle temporary vihara references - these can't be stored as FK references
         # Clear fields that reference temporary viharas (TEMP-* format from READ_ALL response)
@@ -989,7 +991,9 @@ class BhikkuService:
                 if value.startswith("TEMP-"):
                     temp_id = value[5:]  # Remove "TEMP-" prefix
                     temp_refs.append(f"[TEMP_{field.upper()}:{temp_id}]")
-                    update_data[field] = None
+                    # Remove the field from update_data instead of setting to None
+                    # This prevents overwriting the database field with NULL
+                    del update_data[field]
         
         # Append temp references to remarks if any
         if temp_refs:
