@@ -1,7 +1,7 @@
 # app/schemas/temporary_devala.py
 from pydantic import BaseModel, Field, ConfigDict
 from datetime import datetime
-from typing import Optional
+from typing import Optional, Union
 from enum import Enum
 
 
@@ -14,14 +14,31 @@ class CRUDAction(str, Enum):
     DELETE = "DELETE"
 
 
+# --- Foreign Key Response Classes ---
+class ProvinceResponse(BaseModel):
+    """Province reference for responses"""
+    cp_code: str
+    cp_name: str
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class DistrictResponse(BaseModel):
+    """District reference for responses"""
+    dd_dcode: str
+    dd_dname: str
+
+    model_config = ConfigDict(from_attributes=True)
+
+
 # --- Base Schema ---
 class TemporaryDevalaBase(BaseModel):
     """Base schema with common fields for Temporary Devala"""
     td_name: str = Field(..., max_length=200, description="Devala/Shrine name (required)")
     td_address: Optional[str] = Field(None, max_length=500, description="Devala address")
     td_contact_number: Optional[str] = Field(None, max_length=15, description="Contact/mobile number")
-    td_district: Optional[str] = Field(None, max_length=100, description="District name or code")
-    td_province: Optional[str] = Field(None, max_length=100, description="Province name or code")
+    td_district: Optional[Union["DistrictResponse", str]] = Field(None, description="District (nested object or code string)")
+    td_province: Optional[Union["ProvinceResponse", str]] = Field(None, description="Province (nested object or code string)")
     td_basnayake_nilame_name: Optional[str] = Field(None, max_length=200, description="Basnayake Nilame name")
 
 

@@ -16,11 +16,45 @@ from app.schemas.temporary_arama import (
     TemporaryAramaManagementRequest,
     TemporaryAramaManagementResponse,
     TemporaryAramaUpdate,
+    TemporaryAramaResponse,
+    ProvinceResponse,
+    DistrictResponse,
+    DivisionalSecretariatResponse,
+    GNDivisionResponse,
 )
 from app.services.temporary_arama_service import temporary_arama_service
+from app.repositories.province_repo import province_repo
+from app.repositories.district_repo import district_repo
+from app.repositories.divisional_secretariat_repo import divisional_secretariat_repo
+from app.repositories.gn_division_repo import gn_division_repo
 from app.utils.http_exceptions import validation_error
 
 router = APIRouter()
+
+
+def _convert_temp_arama_to_response(temp_arama, db: Session) -> TemporaryAramaResponse:
+    """Convert temporary arama model to response schema with FK resolution"""
+    arama_dict = {k: v for k, v in temp_arama.__dict__.items() if not k.startswith('_')}
+    
+    # Resolve province FK
+    if temp_arama.ta_province:
+        province = province_repo.get_by_code(db, temp_arama.ta_province)
+        if province:
+            arama_dict["ta_province"] = ProvinceResponse(
+                cp_code=province.cp_code,
+                cp_name=province.cp_name
+            )
+    
+    # Resolve district FK
+    if temp_arama.ta_district:
+        district = district_repo.get_by_code(db, temp_arama.ta_district)
+        if district:
+            arama_dict["ta_district"] = DistrictResponse(
+                dd_dcode=district.dd_dcode,
+                dd_dname=district.dd_dname
+            )
+    
+    return TemporaryAramaResponse(**arama_dict)
 
 
 @router.post(
@@ -90,21 +124,39 @@ def manage_temporary_arama_records(
 
     # ==================== READ_ALL ====================
     if action == CRUDAction.READ_ALL:
-        skip = payload.skip
+        # Support both page-based and skip-based pagination
+        # Default: if page is provided, use it; otherwise use skip
+        page = payload.page or 1
         limit = payload.limit
         search = payload.search
+
+        # Calculate skip from page if page is provided, otherwise use skip directly
+        skip = payload.skip if payload.page is None else (page - 1) * limit
+        skip = skip if skip is not None else 0  # Default to 0 if neither provided
+        
+        # Ensure skip and limit are within valid ranges
+        limit = max(1, min(limit, 200))
+        skip = max(0, skip)
 
         records = temporary_arama_service.list_temporary_aramas(
             db, skip=skip, limit=limit, search=search
         )
         total = temporary_arama_service.count_temporary_aramas(db, search=search)
 
+        # Convert SQLAlchemy models to response schemas with FK resolution
+        records_list = [_convert_temp_arama_to_response(record, db) for record in records]
+
+        # Calculate page from skip for consistent pagination format
+        calculated_page = (skip // limit) + 1 if limit > 0 else 1
+
         return TemporaryAramaManagementResponse(
             status="success",
-            message=f"Retrieved {len(records)} temporary arama records.",
+            message=f"Retrieved {len(records_list)} temporary arama records.",
             data={
-                "records": records,
+                "records": [r.model_dump() for r in records_list],
                 "total": total,
+                # Return both pagination formats for client flexibility
+                "page": calculated_page,
                 "skip": skip,
                 "limit": limit,
             },

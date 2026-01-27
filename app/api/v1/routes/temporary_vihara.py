@@ -16,11 +16,45 @@ from app.schemas.temporary_vihara import (
     TemporaryViharaManagementRequest,
     TemporaryViharaManagementResponse,
     TemporaryViharaUpdate,
+    TemporaryViharaResponse,
+    ProvinceResponse,
+    DistrictResponse,
+    DivisionalSecretariatResponse,
+    GNDivisionResponse,
 )
 from app.services.temporary_vihara_service import temporary_vihara_service
+from app.repositories.province_repo import province_repo
+from app.repositories.district_repo import district_repo
+from app.repositories.divisional_secretariat_repo import divisional_secretariat_repo
+from app.repositories.gn_division_repo import gn_division_repo
 from app.utils.http_exceptions import validation_error
 
 router = APIRouter()
+
+
+def _convert_temp_vihara_to_response(temp_vihara, db: Session) -> TemporaryViharaResponse:
+    """Convert temporary vihara model to response schema with FK resolution"""
+    vihara_dict = {k: v for k, v in temp_vihara.__dict__.items() if not k.startswith('_')}
+    
+    # Resolve province FK
+    if temp_vihara.tv_province:
+        province = province_repo.get_by_code(db, temp_vihara.tv_province)
+        if province:
+            vihara_dict["tv_province"] = ProvinceResponse(
+                cp_code=province.cp_code,
+                cp_name=province.cp_name
+            )
+    
+    # Resolve district FK
+    if temp_vihara.tv_district:
+        district = district_repo.get_by_code(db, temp_vihara.tv_district)
+        if district:
+            vihara_dict["tv_district"] = DistrictResponse(
+                dd_dcode=district.dd_dcode,
+                dd_dname=district.dd_dname
+            )
+    
+    return TemporaryViharaResponse(**vihara_dict)
 
 
 @router.post(
@@ -90,30 +124,39 @@ def manage_temporary_vihara_records(
 
     # ==================== READ_ALL ====================
     if action == CRUDAction.READ_ALL:
-        skip = payload.skip
+        # Support both page-based and skip-based pagination
+        # Default: if page is provided, use it; otherwise use skip
+        page = payload.page or 1
         limit = payload.limit
         search = payload.search
+
+        # Calculate skip from page if page is provided, otherwise use skip directly
+        skip = payload.skip if payload.page is None else (page - 1) * limit
+        skip = skip if skip is not None else 0  # Default to 0 if neither provided
+        
+        # Ensure skip and limit are within valid ranges
+        limit = max(1, min(limit, 200))
+        skip = max(0, skip)
 
         records = temporary_vihara_service.list_temporary_viharas(
             db, skip=skip, limit=limit, search=search
         )
         total = temporary_vihara_service.count_temporary_viharas(db, search=search)
         
-        # Convert SQLAlchemy models to dicts for serialization
-        records_list = []
-        for record in records:
-            if hasattr(record, '__dict__'):
-                record_dict = {k: v for k, v in record.__dict__.items() if not k.startswith('_')}
-                records_list.append(record_dict)
-            else:
-                records_list.append(record)
+        # Convert SQLAlchemy models to response schemas with FK resolution
+        records_list = [_convert_temp_vihara_to_response(record, db) for record in records]
+
+        # Calculate page from skip for consistent pagination format
+        calculated_page = (skip // limit) + 1 if limit > 0 else 1
 
         return TemporaryViharaManagementResponse(
             status="success",
             message=f"Retrieved {len(records_list)} temporary vihara records.",
             data={
-                "records": records_list,
+                "records": [r.model_dump() for r in records_list],
                 "total": total,
+                # Return both pagination formats for client flexibility
+                "page": calculated_page,
                 "skip": skip,
                 "limit": limit,
             },

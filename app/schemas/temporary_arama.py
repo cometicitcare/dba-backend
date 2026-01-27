@@ -1,8 +1,33 @@
 # app/schemas/temporary_arama.py
 from pydantic import BaseModel, Field, ConfigDict
 from datetime import datetime
-from typing import Optional
+from typing import Optional, Union
 from enum import Enum
+
+
+# --- Nested Response Classes for Foreign Key Resolution ---
+class ProvinceResponse(BaseModel):
+    """Nested response for province"""
+    cp_code: str
+    cp_name: str
+
+
+class DistrictResponse(BaseModel):
+    """Nested response for district"""
+    dd_dcode: str
+    dd_dname: str
+
+
+class DivisionalSecretariatResponse(BaseModel):
+    """Nested response for divisional secretariat"""
+    dv_dvcode: str
+    dv_dvname: str
+
+
+class GNDivisionResponse(BaseModel):
+    """Nested response for GN division"""
+    gn_gnc: str
+    gn_gnname: str
 
 
 # --- Action Enum ---
@@ -20,8 +45,8 @@ class TemporaryAramaBase(BaseModel):
     ta_name: str = Field(..., max_length=200, description="Arama/Hermitage name (required)")
     ta_address: Optional[str] = Field(None, max_length=500, description="Arama address")
     ta_contact_number: Optional[str] = Field(None, max_length=15, description="Contact/mobile number")
-    ta_district: Optional[str] = Field(None, max_length=100, description="District name or code")
-    ta_province: Optional[str] = Field(None, max_length=100, description="Province name or code")
+    ta_district: Optional[Union[DistrictResponse, str]] = Field(None, description="District (nested object or code)")
+    ta_province: Optional[Union[ProvinceResponse, str]] = Field(None, description="Province (nested object or code)")
     ta_aramadhipathi_name: Optional[str] = Field(None, max_length=200, description="Aramadhipathi/Chief incumbent name")
 
 
@@ -37,14 +62,14 @@ class TemporaryAramaUpdate(BaseModel):
     ta_name: Optional[str] = Field(None, max_length=200, description="Arama/Hermitage name")
     ta_address: Optional[str] = Field(None, max_length=500, description="Arama address")
     ta_contact_number: Optional[str] = Field(None, max_length=15, description="Contact/mobile number")
-    ta_district: Optional[str] = Field(None, max_length=100, description="District name or code")
-    ta_province: Optional[str] = Field(None, max_length=100, description="Province name or code")
+    ta_district: Optional[str] = Field(None, max_length=100, description="District code")
+    ta_province: Optional[str] = Field(None, max_length=100, description="Province code")
     ta_aramadhipathi_name: Optional[str] = Field(None, max_length=200, description="Aramadhipathi/Chief incumbent name")
 
 
 # --- Response Schema ---
 class TemporaryAramaResponse(TemporaryAramaBase):
-    """Schema for temporary arama response"""
+    """Schema for temporary arama response with enriched foreign key objects"""
     ta_id: int
     ta_created_at: datetime
     ta_created_by: Optional[str]
@@ -62,7 +87,9 @@ class TemporaryAramaPayload(BaseModel):
     updates: Optional[TemporaryAramaUpdate] = Field(None, description="Updates for UPDATE operation")
     
     # Pagination and filters for READ_ALL
-    skip: int = Field(0, ge=0, description="Number of records to skip")
+    # Support both page-based and skip-based pagination for client flexibility
+    page: Optional[int] = Field(None, ge=1, description="Page number (1-based) - alternative to skip")
+    skip: Optional[int] = Field(None, ge=0, description="Number of records to skip (0-based) - alternative to page")
     limit: int = Field(100, ge=1, le=200, description="Maximum number of records to return")
     search: Optional[str] = Field(None, description="Search by name, address, or contact")
 
