@@ -953,6 +953,7 @@ class BhikkuService:
         # 
         # Store the temp bhikku reference in remarks for later retrieval and remove field from update
         temp_refs = []
+        removed_temp_fields = {}  # Track which fields were removed due to TEMP-* handling
         for field in ["br_viharadhipathi", "br_mahanaacharyacd"]:
             # Only process fields that were explicitly included in the update
             if field not in update_data:
@@ -976,6 +977,7 @@ class BhikkuService:
                     temp_refs.append(f"[TEMP_{field.upper()}:{temp_id}]")
                     # Remove the field from update_data instead of setting to None
                     # This prevents overwriting the database field with NULL
+                    removed_temp_fields[field] = value
                     del update_data[field]
         
         # Handle temporary vihara references - these can't be stored as FK references
@@ -993,7 +995,11 @@ class BhikkuService:
                     temp_refs.append(f"[TEMP_{field.upper()}:{temp_id}]")
                     # Remove the field from update_data instead of setting to None
                     # This prevents overwriting the database field with NULL
+                    removed_temp_fields[field] = value
                     del update_data[field]
+        
+        # Validate field preservation to catch unintended field clearing
+        self._validate_field_preservation(entity, update_data, removed_temp_fields)
         
         # Append temp references to remarks if any
         if temp_refs:
@@ -1462,6 +1468,71 @@ class BhikkuService:
                 raise ValueError(
                     f"{field} '{value}' is not a valid mobile number. Expected 10 digits starting with 0."
                 )
+
+    def _validate_field_preservation(
+        self,
+        original_entity: Bhikku,
+        update_data: Dict[str, Any],
+        removed_fields: Dict[str, Any],
+    ) -> None:
+        """
+        Validate that important fields are not being unintentionally cleared.
+        
+        Args:
+            original_entity: The original bhikku record from database
+            update_data: The cleaned update data to be applied
+            removed_fields: Fields that were removed from update_data (e.g., TEMP-* references)
+        
+        Raises:
+            ValueError: If validation detects potential unintended field clearing
+        """
+        # Fields that should NOT be cleared unless explicitly intended
+        protected_vihara_fields = {
+            "br_livtemple",
+            "br_mahanatemple",
+            "br_robing_tutor_residence",
+            "br_robing_after_residence_temple",
+        }
+        
+        protected_bhikku_fields = {
+            "br_viharadhipathi",
+            "br_mahanaacharyacd",
+        }
+        
+        all_protected_fields = protected_vihara_fields | protected_bhikku_fields
+        
+        # Check if any protected field was removed due to TEMP-* handling
+        # These fields should only be removed if they had TEMP-* values
+        for field in all_protected_fields:
+            if field in removed_fields:
+                # This is expected - field was removed because it had a TEMP-* value
+                # The value was preserved in remarks
+                continue
+            
+            # If the field is in update_data and has a None value, validate it
+            if field in update_data and update_data[field] is None:
+                original_value = getattr(original_entity, field, None)
+                if original_value:
+                    raise ValueError(
+                        f"Validation error: Field '{field}' has an existing value ('{original_value}') "
+                        f"but you're attempting to clear it. If this is intentional, please explicitly set it to empty string or null in your request."
+                    )
+        
+        # Validate field types for protected vihara fields
+        for field in protected_vihara_fields:
+            if field in update_data:
+                value = update_data[field]
+                if value is not None and not isinstance(value, str):
+                    raise ValueError(
+                        f"Validation error: Field '{field}' must be a string value, got {type(value).__name__}"
+                    )
+                # Validate that non-TEMP values look like valid vihara codes
+                if isinstance(value, str) and value and not value.startswith("TEMP-"):
+                    if not (value.startswith("VH") or value.startswith("TRN") or value.startswith("PR")):
+                        raise ValueError(
+                            f"Validation error: Field '{field}' has unexpected format '{value}'. "
+                            f"Expected format: VH*, TRN*, or PR* codes, or TEMP-* for temporary references."
+                        )
 
     @staticmethod
     def _normalize_contact_fields(data: Dict[str, Any]) -> Dict[str, Any]:
