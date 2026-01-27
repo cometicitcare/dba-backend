@@ -86,3 +86,22 @@ class TemporarySilmathaPayload(BaseModel):
     skip: int = Field(0, ge=0, description="Number of records to skip")
     limit: int = Field(100, ge=1, le=200, description="Maximum number of records to return")
     search: Optional[str] = Field(None, description="Search by name, NIC, address, or contact")
+
+
+# --- Management Request Schema ---
+class TemporarySilmathaManagementRequest(BaseModel):
+    """Request schema for temporary silmatha management endpoint"""
+    action: CRUDAction = Field(..., description="CRUD action to perform")
+    payload: TemporarySilmathaPayload = Field(..., description="Payload data based on action")
+
+
+# --- Management Response Schema ---
+class TemporarySilmathaManagementResponse(BaseModel):
+    """Response schema for temporary silmatha management endpoint"""
+    status: str = Field(..., description="Response status (success/error)")
+    message: str = Field(..., description="Response message")
+    data: Optional[TemporarySilmathaResponse | list[TemporarySilmathaResponse] | dict] = Field(
+        None, description="Response data (single record, list, or metadata)"
+    )
+
+    model_config = ConfigDict(from_attributes=True)

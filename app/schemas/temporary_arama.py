@@ -18,18 +18,6 @@ class DistrictResponse(BaseModel):
     dd_dname: str
 
 
-class DivisionalSecretariatResponse(BaseModel):
-    """Nested response for divisional secretariat"""
-    dv_dvcode: str
-    dv_dvname: str
-
-
-class GNDivisionResponse(BaseModel):
-    """Nested response for GN division"""
-    gn_gnc: str
-    gn_gnname: str
-
-
 # --- Action Enum ---
 class CRUDAction(str, Enum):
     CREATE = "CREATE"
