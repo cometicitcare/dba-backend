@@ -1,7 +1,7 @@
 # app/schemas/temporary_silmatha.py
 from pydantic import BaseModel, Field, ConfigDict
 from datetime import datetime, date
-from typing import Optional
+from typing import Optional, Union
 from enum import Enum
 
 
@@ -14,6 +14,23 @@ class CRUDAction(str, Enum):
     DELETE = "DELETE"
 
 
+# --- Foreign Key Response Classes ---
+class ProvinceResponse(BaseModel):
+    """Province reference for responses"""
+    cp_code: str
+    cp_name: str
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class DistrictResponse(BaseModel):
+    """District reference for responses"""
+    dd_dcode: str
+    dd_dname: str
+
+    model_config = ConfigDict(from_attributes=True)
+
+
 # --- Base Schema ---
 class TemporarySilmathaBase(BaseModel):
     """Base schema with common fields for Temporary Silmatha"""
@@ -21,8 +38,8 @@ class TemporarySilmathaBase(BaseModel):
     ts_nic: Optional[str] = Field(None, max_length=15, description="NIC number")
     ts_contact_number: Optional[str] = Field(None, max_length=15, description="Contact/mobile number")
     ts_address: Optional[str] = Field(None, max_length=500, description="Address")
-    ts_district: Optional[str] = Field(None, max_length=100, description="District name or code")
-    ts_province: Optional[str] = Field(None, max_length=100, description="Province name or code")
+    ts_district: Optional[Union["DistrictResponse", str]] = Field(None, description="District (nested object or code string)")
+    ts_province: Optional[Union["ProvinceResponse", str]] = Field(None, description="Province (nested object or code string)")
     ts_arama_name: Optional[str] = Field(None, max_length=200, description="Arama/Hermitage name")
     ts_ordained_date: Optional[date] = Field(None, description="Date of ordination")
 
@@ -69,22 +86,3 @@ class TemporarySilmathaPayload(BaseModel):
     skip: int = Field(0, ge=0, description="Number of records to skip")
     limit: int = Field(100, ge=1, le=200, description="Maximum number of records to return")
     search: Optional[str] = Field(None, description="Search by name, NIC, address, or contact")
-
-
-# --- Management Request Schema ---
-class TemporarySilmathaManagementRequest(BaseModel):
-    """Request schema for temporary silmatha management endpoint"""
-    action: CRUDAction = Field(..., description="CRUD action to perform")
-    payload: TemporarySilmathaPayload = Field(..., description="Payload data based on action")
-
-
-# --- Management Response Schema ---
-class TemporarySilmathaManagementResponse(BaseModel):
-    """Response schema for temporary silmatha management endpoint"""
-    status: str = Field(..., description="Response status (success/error)")
-    message: str = Field(..., description="Response message")
-    data: Optional[TemporarySilmathaResponse | list[TemporarySilmathaResponse] | dict] = Field(
-        None, description="Response data (single record, list, or metadata)"
-    )
-
-    model_config = ConfigDict(from_attributes=True)

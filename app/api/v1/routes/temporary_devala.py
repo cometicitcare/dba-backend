@@ -16,11 +16,41 @@ from app.schemas.temporary_devala import (
     TemporaryDevalaManagementRequest,
     TemporaryDevalaManagementResponse,
     TemporaryDevalaUpdate,
+    TemporaryDevalaResponse,
+    ProvinceResponse,
+    DistrictResponse,
 )
 from app.services.temporary_devala_service import temporary_devala_service
+from app.repositories.province_repo import province_repo
+from app.repositories.district_repo import district_repo
 from app.utils.http_exceptions import validation_error
 
 router = APIRouter()
+
+
+def _convert_temp_devala_to_response(temp_devala, db: Session) -> TemporaryDevalaResponse:
+    """Convert temporary devala model to response schema with FK resolution"""
+    devala_dict = {k: v for k, v in temp_devala.__dict__.items() if not k.startswith('_')}
+    
+    # Resolve province FK
+    if temp_devala.td_province:
+        province = province_repo.get_by_code(db, temp_devala.td_province)
+        if province:
+            devala_dict["td_province"] = ProvinceResponse(
+                cp_code=province.cp_code,
+                cp_name=province.cp_name
+            )
+    
+    # Resolve district FK
+    if temp_devala.td_district:
+        district = district_repo.get_by_code(db, temp_devala.td_district)
+        if district:
+            devala_dict["td_district"] = DistrictResponse(
+                dd_dcode=district.dd_dcode,
+                dd_dname=district.dd_dname
+            )
+    
+    return TemporaryDevalaResponse(**devala_dict)
 
 
 @router.post(
@@ -99,11 +129,14 @@ def manage_temporary_devala_records(
         )
         total = temporary_devala_service.count_temporary_devalas(db, search=search)
 
+        # Convert SQLAlchemy models to response schemas with FK resolution
+        records_list = [_convert_temp_devala_to_response(record, db) for record in records]
+
         return TemporaryDevalaManagementResponse(
             status="success",
-            message=f"Retrieved {len(records)} temporary devala records.",
+            message=f"Retrieved {len(records_list)} temporary devala records.",
             data={
-                "records": records,
+                "records": [r.model_dump() for r in records_list],
                 "total": total,
                 "skip": skip,
                 "limit": limit,

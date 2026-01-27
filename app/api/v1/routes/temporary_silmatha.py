@@ -16,11 +16,41 @@ from app.schemas.temporary_silmatha import (
     TemporarySilmathaManagementRequest,
     TemporarySilmathaManagementResponse,
     TemporarySilmathaUpdate,
+    TemporarySilmathaResponse,
+    ProvinceResponse,
+    DistrictResponse,
 )
 from app.services.temporary_silmatha_service import temporary_silmatha_service
+from app.repositories.province_repo import province_repo
+from app.repositories.district_repo import district_repo
 from app.utils.http_exceptions import validation_error
 
 router = APIRouter()
+
+
+def _convert_temp_silmatha_to_response(temp_silmatha, db: Session) -> TemporarySilmathaResponse:
+    """Convert temporary silmatha model to response schema with FK resolution"""
+    silmatha_dict = {k: v for k, v in temp_silmatha.__dict__.items() if not k.startswith('_')}
+    
+    # Resolve province FK
+    if temp_silmatha.ts_province:
+        province = province_repo.get_by_code(db, temp_silmatha.ts_province)
+        if province:
+            silmatha_dict["ts_province"] = ProvinceResponse(
+                cp_code=province.cp_code,
+                cp_name=province.cp_name
+            )
+    
+    # Resolve district FK
+    if temp_silmatha.ts_district:
+        district = district_repo.get_by_code(db, temp_silmatha.ts_district)
+        if district:
+            silmatha_dict["ts_district"] = DistrictResponse(
+                dd_dcode=district.dd_dcode,
+                dd_dname=district.dd_dname
+            )
+    
+    return TemporarySilmathaResponse(**silmatha_dict)
 
 
 @router.post(
@@ -99,11 +129,14 @@ def manage_temporary_silmatha_records(
         )
         total = temporary_silmatha_service.count_temporary_silmathas(db, search=search)
 
+        # Convert SQLAlchemy models to response schemas with FK resolution
+        records_list = [_convert_temp_silmatha_to_response(record, db) for record in records]
+
         return TemporarySilmathaManagementResponse(
             status="success",
-            message=f"Retrieved {len(records)} temporary silmatha records.",
+            message=f"Retrieved {len(records_list)} temporary silmatha records.",
             data={
-                "records": records,
+                "records": [r.model_dump() for r in records_list],
                 "total": total,
                 "skip": skip,
                 "limit": limit,
