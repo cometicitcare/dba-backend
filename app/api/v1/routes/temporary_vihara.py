@@ -19,14 +19,10 @@ from app.schemas.temporary_vihara import (
     TemporaryViharaResponse,
     ProvinceResponse,
     DistrictResponse,
-    DivisionalSecretariatResponse,
-    GNDivisionResponse,
 )
 from app.services.temporary_vihara_service import temporary_vihara_service
 from app.repositories.province_repo import province_repo
 from app.repositories.district_repo import district_repo
-from app.repositories.divisional_secretariat_repo import divisional_secretariat_repo
-from app.repositories.gn_division_repo import gn_division_repo
 from app.utils.http_exceptions import validation_error
 
 router = APIRouter()
