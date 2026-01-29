@@ -787,24 +787,44 @@ class SilmathaRegistService:
     def _validate_mahanaacharyacd_reference(
         self, db: Session, value: Optional[str], field_name: str
     ) -> None:
-        """Validate mahanaacharyacd - can be single sil_regn or comma-separated list of sil_regn values"""
+        """Validate mahanaacharyacd - can be single sil_regn or comma-separated list of sil_regn values
+        Also supports TEMP-{id} references to TemporarySilmatha records."""
         if not self._has_meaningful_value(value):
             return
 
         # Split by comma in case multiple values are provided
         regns = [r.strip() for r in value.split(',') if r.strip()]
         
+        from app.models.temporary_silmatha import TemporarySilmatha
+        
         for regn in regns:
-            exists = (
-                db.query(SilmathaRegist.sil_regn)
-                .filter(
-                    SilmathaRegist.sil_regn == regn,
-                    SilmathaRegist.sil_is_deleted.is_(False),
+            # Check if it's a TEMP- reference (temporary silmatha)
+            if regn.startswith("TEMP-"):
+                try:
+                    temp_id = int(regn.replace("TEMP-", ""))
+                    exists = (
+                        db.query(TemporarySilmatha.ts_id)
+                        .filter(TemporarySilmatha.ts_id == temp_id)
+                        .first()
+                    )
+                    if not exists:
+                        raise ValueError(f"Invalid reference: {field_name} contains invalid sil_regn '{regn}' not found in temporary silmatha table.")
+                except ValueError as e:
+                    if "invalid literal" in str(e):
+                        raise ValueError(f"Invalid reference: {field_name} contains invalid TEMP reference '{regn}'. Expected format: TEMP-<number>.")
+                    raise
+            else:
+                # Regular silmatha reference
+                exists = (
+                    db.query(SilmathaRegist.sil_regn)
+                    .filter(
+                        SilmathaRegist.sil_regn == regn,
+                        SilmathaRegist.sil_is_deleted.is_(False),
+                    )
+                    .first()
                 )
-                .first()
-            )
-            if not exists:
-                raise ValueError(f"Invalid reference: {field_name} contains invalid sil_regn '{regn}' not found in silmatha table.")
+                if not exists:
+                    raise ValueError(f"Invalid reference: {field_name} contains invalid sil_regn '{regn}' not found in silmatha table.")
 
     @staticmethod
     def _has_meaningful_value(value: Any) -> bool:
@@ -816,17 +836,23 @@ class SilmathaRegistService:
         return True
 
     def _strip_strings(self, data: Dict[str, Any]) -> Dict[str, Any]:
-        """Strip whitespace from all string values in the dictionary."""
+        """Strip whitespace from all string values in the dictionary.
+        Only process fields that are present in the data (preserves missing fields)."""
         for key, value in data.items():
             if isinstance(value, str):
-                data[key] = value.strip() if value else None
+                # Strip whitespace but preserve None
+                stripped = value.strip()
+                data[key] = stripped if stripped else None
         return data
 
     def _normalize_contact_fields(self, data: Dict[str, Any]) -> Dict[str, Any]:
-        """Normalize contact fields (mobile, email) to None if empty."""
+        """Normalize contact fields (mobile, email) to None if empty, but only for fields that were explicitly provided."""
         for field in ["sil_mobile", "sil_fathrsmobile", "sil_email"]:
-            if field in data and not data[field]:
-                data[field] = None
+            # Only normalize if field is explicitly in the update request
+            if field in data:
+                # Set to None only if empty string, not if it's falsy (0, False are valid)
+                if data[field] == "" or (isinstance(data[field], str) and data[field].strip() == ""):
+                    data[field] = None
         return data
 
     def _validate_contact_formats(self, data: Dict[str, Any]) -> None:
