@@ -119,21 +119,43 @@ class SilmathaRegistService:
             # Check if it's a comma-separated list or single value
             regns = [r.strip() for r in silmatha.sil_mahanaacharyacd.split(',') if r.strip()]
             if regns:
-                # Query all at once for efficiency - checking silmatha table
-                mahanaacharyacd_records = db.query(SilmathaRegist).filter(
-                    SilmathaRegist.sil_regn.in_(regns),
-                    SilmathaRegist.sil_is_deleted.is_(False)
-                ).all()
+                from app.models.temporary_silmatha import TemporarySilmatha
                 
-                if mahanaacharyacd_records:
-                    # If single record, return as object; if multiple, return first one as object
-                    # (Following the pattern - you can modify this if you want a list)
-                    first_record = mahanaacharyacd_records[0]
-                    mahanaacharyacd_value = {
-                        "sil_regn": first_record.sil_regn,
-                        "sil_mahananame": first_record.sil_mahananame or "",
-                        "sil_gihiname": first_record.sil_gihiname or ""
-                    }
+                # Separate regular and temporary references
+                regular_regns = [r for r in regns if not r.startswith("TEMP-")]
+                temp_regns = [r for r in regns if r.startswith("TEMP-")]
+                
+                # Query regular silmatha records
+                if regular_regns:
+                    mahanaacharyacd_records = db.query(SilmathaRegist).filter(
+                        SilmathaRegist.sil_regn.in_(regular_regns),
+                        SilmathaRegist.sil_is_deleted.is_(False)
+                    ).all()
+                    
+                    if mahanaacharyacd_records:
+                        # If single record, return as object; if multiple, return first one as object
+                        first_record = mahanaacharyacd_records[0]
+                        mahanaacharyacd_value = {
+                            "sil_regn": first_record.sil_regn,
+                            "sil_mahananame": first_record.sil_mahananame or "",
+                            "sil_gihiname": first_record.sil_gihiname or ""
+                        }
+                # If no regular records but have temp records, use the first temp record
+                elif temp_regns:
+                    try:
+                        temp_id = int(temp_regns[0].replace("TEMP-", ""))
+                        temp_record = db.query(TemporarySilmatha).filter(
+                            TemporarySilmatha.ts_id == temp_id
+                        ).first()
+                        
+                        if temp_record:
+                            mahanaacharyacd_value = {
+                                "sil_regn": f"TEMP-{temp_record.ts_id}",
+                                "sil_mahananame": temp_record.ts_name or "",
+                                "sil_gihiname": temp_record.ts_name or ""
+                            }
+                    except (ValueError, AttributeError):
+                        pass  # Keep original value if parsing fails
         
         # Resolve sil_aramadhipathi to nested object (Silmatha or Temporary Silmatha reference)
         aramadhipathi_value = silmatha.sil_aramadhipathi
@@ -151,9 +173,8 @@ class SilmathaRegistService:
                     if temp_aramadhipathi:
                         aramadhipathi_value = {
                             "sil_regn": f"TEMP-{temp_aramadhipathi.ts_id}",
-                            "ts_name": temp_aramadhipathi.ts_name or "",
-                            "ts_nic": temp_aramadhipathi.ts_nic or "",
-                            "is_temporary": True
+                            "sil_mahananame": temp_aramadhipathi.ts_name or "",
+                            "sil_gihiname": temp_aramadhipathi.ts_name or ""
                         }
                 except (ValueError, AttributeError):
                     pass  # Keep original value if parsing fails
@@ -787,24 +808,42 @@ class SilmathaRegistService:
     def _validate_mahanaacharyacd_reference(
         self, db: Session, value: Optional[str], field_name: str
     ) -> None:
-        """Validate mahanaacharyacd - can be single sil_regn or comma-separated list of sil_regn values"""
+        """Validate mahanaacharyacd - can be single sil_regn or comma-separated list of sil_regn values.
+        Can also reference temporary silmatha records with TEMP-{id} format."""
         if not self._has_meaningful_value(value):
             return
 
         # Split by comma in case multiple values are provided
         regns = [r.strip() for r in value.split(',') if r.strip()]
         
+        from app.models.temporary_silmatha import TemporarySilmatha
+        
         for regn in regns:
-            exists = (
-                db.query(SilmathaRegist.sil_regn)
-                .filter(
-                    SilmathaRegist.sil_regn == regn,
-                    SilmathaRegist.sil_is_deleted.is_(False),
+            # Check if it's a temporary silmatha reference (TEMP-{id} format)
+            if regn.startswith("TEMP-"):
+                try:
+                    temp_id = int(regn.replace("TEMP-", ""))
+                    exists = (
+                        db.query(TemporarySilmatha.ts_id)
+                        .filter(TemporarySilmatha.ts_id == temp_id)
+                        .first()
+                    )
+                    if not exists:
+                        raise ValueError(f"Invalid reference: {field_name} contains invalid temporary sil_regn '{regn}' not found in temporary_silmatha table.")
+                except (ValueError, AttributeError):
+                    raise ValueError(f"Invalid reference: {field_name} contains invalid temporary sil_regn format '{regn}'. Expected format: TEMP-{id}.")
+            else:
+                # Regular silmatha reference
+                exists = (
+                    db.query(SilmathaRegist.sil_regn)
+                    .filter(
+                        SilmathaRegist.sil_regn == regn,
+                        SilmathaRegist.sil_is_deleted.is_(False),
+                    )
+                    .first()
                 )
-                .first()
-            )
-            if not exists:
-                raise ValueError(f"Invalid reference: {field_name} contains invalid sil_regn '{regn}' not found in silmatha table.")
+                if not exists:
+                    raise ValueError(f"Invalid reference: {field_name} contains invalid sil_regn '{regn}' not found in silmatha table.")
 
     @staticmethod
     def _has_meaningful_value(value: Any) -> bool:
