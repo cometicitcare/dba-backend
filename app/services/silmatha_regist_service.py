@@ -110,6 +110,42 @@ class SilmathaRegistService:
             raise ValueError(f"Failed to delete silmatha record '{sil_regn}'.")
         return deleted
 
+    def _resolve_arama_reference(self, db: Session, arama_ref: Optional[str]) -> Optional[Dict[str, Any]]:
+        """Resolve an arama reference to a nested object. Handles both regular (ar_trn) and temporary (TEMP-{id}) formats."""
+        if not arama_ref:
+            return None
+        
+        # Check if it's a temporary arama reference
+        if arama_ref.startswith("TEMP-"):
+            try:
+                temp_id = int(arama_ref.replace("TEMP-", ""))
+                from app.models.temporary_arama import TemporaryArama
+                temp_arama = db.query(TemporaryArama).filter(
+                    TemporaryArama.ta_id == temp_id
+                ).first()
+                
+                if temp_arama:
+                    return {
+                        "ar_trn": f"TEMP-{temp_arama.ta_id}",
+                        "ar_vname": temp_arama.ta_name or ""
+                    }
+            except (ValueError, AttributeError):
+                pass  # Return None if parsing fails
+        else:
+            # Regular arama reference
+            arama = db.query(AramaData).filter(
+                AramaData.ar_trn == arama_ref,
+                AramaData.ar_is_deleted.is_(False)
+            ).first()
+            
+            if arama:
+                return {
+                    "ar_trn": arama.ar_trn,
+                    "ar_vname": arama.ar_vname or ""
+                }
+        
+        return None
+
     def enrich_silmatha_dict(self, silmatha: SilmathaRegist, db: Session = None) -> dict:
         """Transform SilmathaRegist model to dictionary with resolved foreign key names as nested objects"""
         
@@ -244,18 +280,33 @@ class SilmathaRegistService:
             "sil_mahanadate": silmatha.sil_mahanadate,
             "sil_mahananame": silmatha.sil_mahananame,
             "sil_mahanaacharyacd": mahanaacharyacd_value,  # Resolved to nested object
-            "sil_robing_tutor_residence": {
-                "ar_trn": silmatha.robing_tutor_residence_rel.ar_trn,
-                "ar_vname": silmatha.robing_tutor_residence_rel.ar_vname
-            } if silmatha.robing_tutor_residence_rel else silmatha.sil_robing_tutor_residence,
-            "sil_mahanatemple": {
-                "ar_trn": silmatha.mahanatemple_rel.ar_trn,
-                "ar_vname": silmatha.mahanatemple_rel.ar_vname
-            } if silmatha.mahanatemple_rel else silmatha.sil_mahanatemple,
-            "sil_robing_after_residence_temple": {
-                "ar_trn": silmatha.robing_after_residence_temple_rel.ar_trn,
-                "ar_vname": silmatha.robing_after_residence_temple_rel.ar_vname
-            } if silmatha.robing_after_residence_temple_rel else silmatha.sil_robing_after_residence_temple,
+            "sil_robing_tutor_residence": (
+                self._resolve_arama_reference(db, silmatha.sil_robing_tutor_residence)
+                or (
+                    {
+                        "ar_trn": silmatha.robing_tutor_residence_rel.ar_trn,
+                        "ar_vname": silmatha.robing_tutor_residence_rel.ar_vname
+                    } if silmatha.robing_tutor_residence_rel else silmatha.sil_robing_tutor_residence
+                )
+            ) if db else silmatha.sil_robing_tutor_residence,
+            "sil_mahanatemple": (
+                self._resolve_arama_reference(db, silmatha.sil_mahanatemple)
+                or (
+                    {
+                        "ar_trn": silmatha.mahanatemple_rel.ar_trn,
+                        "ar_vname": silmatha.mahanatemple_rel.ar_vname
+                    } if silmatha.mahanatemple_rel else silmatha.sil_mahanatemple
+                )
+            ) if db else silmatha.sil_mahanatemple,
+            "sil_robing_after_residence_temple": (
+                self._resolve_arama_reference(db, silmatha.sil_robing_after_residence_temple)
+                or (
+                    {
+                        "ar_trn": silmatha.robing_after_residence_temple_rel.ar_trn,
+                        "ar_vname": silmatha.robing_after_residence_temple_rel.ar_vname
+                    } if silmatha.robing_after_residence_temple_rel else silmatha.sil_robing_after_residence_temple
+                )
+            ) if db else silmatha.sil_robing_after_residence_temple,
             
             # Form ID
             "sil_form_id": silmatha.sil_form_id,
@@ -759,19 +810,36 @@ class SilmathaRegistService:
     def _validate_arama_reference(
         self, db: Session, value: Optional[str], field_name: str
     ) -> None:
+        """Validate arama reference - can be ar_trn or TEMP-{id} for temporary arama"""
         if not self._has_meaningful_value(value):
             return
 
-        exists = (
-            db.query(AramaData.ar_trn)
-            .filter(
-                AramaData.ar_trn == value,
-                AramaData.ar_is_deleted.is_(False),
+        # Check if it's a temporary arama reference (TEMP-{id} format)
+        if value.startswith("TEMP-"):
+            try:
+                temp_id = int(value.replace("TEMP-", ""))
+                from app.models.temporary_arama import TemporaryArama
+                exists = (
+                    db.query(TemporaryArama.ta_id)
+                    .filter(TemporaryArama.ta_id == temp_id)
+                    .first()
+                )
+                if not exists:
+                    raise ValueError(f"Invalid reference: {field_name} '{value}' not found in temporary_arama table.")
+            except (ValueError, AttributeError):
+                raise ValueError(f"Invalid reference: {field_name} '{value}' has invalid temporary arama format. Expected format: TEMP-{id}.")
+        else:
+            # Regular arama reference
+            exists = (
+                db.query(AramaData.ar_trn)
+                .filter(
+                    AramaData.ar_trn == value,
+                    AramaData.ar_is_deleted.is_(False),
+                )
+                .first()
             )
-            .first()
-        )
-        if not exists:
-            raise ValueError(f"Invalid reference: {field_name} '{value}' not found in arama table.")
+            if not exists:
+                raise ValueError(f"Invalid reference: {field_name} '{value}' not found in arama table.")
 
     def _validate_category_reference(
         self, db: Session, value: Optional[str], field_name: str
