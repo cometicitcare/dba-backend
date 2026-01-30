@@ -66,19 +66,12 @@ class AramaService:
         else:
             payload_dict = payload.model_dump(exclude_unset=True)
         
-        # Validate contact fields
-        ar_mobile = payload_dict.get("ar_mobile")
-        ar_whtapp = payload_dict.get("ar_whtapp")
+        # Validate contact fields - mobile validations removed
         ar_email = payload_dict.get("ar_email")
         
-        contact_fields = (
-            ("ar_mobile", ar_mobile, arama_repo.get_by_mobile),
-            ("ar_whtapp", ar_whtapp, arama_repo.get_by_whtapp),
-            ("ar_email", ar_email, arama_repo.get_by_email),
-        )
-        for field_name, value, getter in contact_fields:
-            if value and getter(db, value):
-                raise ValueError(f"{field_name} '{value}' is already registered.")
+        # Only validate email uniqueness, not mobile numbers
+        if ar_email and arama_repo.get_by_email(db, ar_email):
+            raise ValueError(f"ar_email '{ar_email}' is already registered.")
 
         now = datetime.utcnow()
         payload_dict.pop("ar_trn", None)
@@ -247,20 +240,7 @@ class AramaService:
         if payload.ar_trn and payload.ar_trn != entity.ar_trn:
             raise ValueError("ar_trn cannot be modified once generated.")
 
-        if payload.ar_mobile and payload.ar_mobile != entity.ar_mobile:
-            conflict = arama_repo.get_by_mobile(db, payload.ar_mobile)
-            if conflict and conflict.ar_id != entity.ar_id:
-                raise ValueError(
-                    f"ar_mobile '{payload.ar_mobile}' is already registered."
-                )
-
-        if payload.ar_whtapp and payload.ar_whtapp != entity.ar_whtapp:
-            conflict = arama_repo.get_by_whtapp(db, payload.ar_whtapp)
-            if conflict and conflict.ar_id != entity.ar_id:
-                raise ValueError(
-                    f"ar_whtapp '{payload.ar_whtapp}' is already registered."
-                )
-
+        # Mobile number validations removed - only validate email uniqueness
         if payload.ar_email and payload.ar_email != entity.ar_email:
             conflict = arama_repo.get_by_email(db, payload.ar_email)
             if conflict and conflict.ar_id != entity.ar_id:

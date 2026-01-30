@@ -37,7 +37,8 @@ class AramaRepository:
                 selectinload(AramaData.gn_division_ref),
                 selectinload(AramaData.nikaya_ref),
                 selectinload(AramaData.parshawa_ref),
-                selectinload(AramaData.owner_silmatha_ref)
+                selectinload(AramaData.owner_silmatha_ref),
+                selectinload(AramaData.viharadhipathi_ref)
             )
             .filter(AramaData.ar_id == ar_id, AramaData.ar_is_deleted.is_(False))
             .first()
@@ -55,7 +56,8 @@ class AramaRepository:
                 selectinload(AramaData.gn_division_ref),
                 selectinload(AramaData.nikaya_ref),
                 selectinload(AramaData.parshawa_ref),
-                selectinload(AramaData.owner_silmatha_ref)
+                selectinload(AramaData.owner_silmatha_ref),
+                selectinload(AramaData.viharadhipathi_ref)
             )
             .filter(AramaData.ar_trn == ar_trn, AramaData.ar_is_deleted.is_(False))
             .first()
@@ -126,7 +128,8 @@ class AramaRepository:
             selectinload(AramaData.gn_division_ref),
             selectinload(AramaData.nikaya_ref),
             selectinload(AramaData.parshawa_ref),
-            selectinload(AramaData.owner_silmatha_ref)
+            selectinload(AramaData.owner_silmatha_ref),
+            selectinload(AramaData.viharadhipathi_ref)
         )
 
         # General search (existing functionality)
@@ -412,7 +415,8 @@ class AramaRepository:
         *,
         current_id: Optional[int],
     ) -> None:
-        for field_name in ("ar_mobile", "ar_whtapp", "ar_email"):
+        # Only validate email uniqueness - mobile number validations removed
+        for field_name in ("ar_email",):
             value = payload.get(field_name)
             self._ensure_unique_contact_field(
                 db,
