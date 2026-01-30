@@ -85,6 +85,13 @@ def _convert_arama_to_out(arama: AramaData) -> AramaOut:
             sil_mahananame=arama.owner_silmatha_ref.sil_mahananame
         )
     
+    if arama.viharadhipathi_ref:
+        arama_dict["ar_viharadhipathi_name"] = SilmathaResponse(
+            sil_regn=arama.viharadhipathi_ref.sil_regn,
+            sil_gihiname=arama.viharadhipathi_ref.sil_gihiname,
+            sil_mahananame=arama.viharadhipathi_ref.sil_mahananame
+        )
+    
     return AramaOut(**arama_dict)
 
 
@@ -133,10 +140,12 @@ def manage_arama_records(
             created = arama_service.create_arama(
                 db, payload=create_payload, actor_id=user_id
             )
+            # Convert to AramaOut with nested foreign key objects
+            created_out = _convert_arama_to_out(created)
             return AramaManagementResponse(
                 status="success",
                 message="Arama created successfully.",
-                data=created,
+                data=created_out,
             )
         except ValueError as exc:
             raise validation_error([(None, str(exc))]) from exc
@@ -284,10 +293,12 @@ def manage_arama_records(
                 payload=update_payload,
                 actor_id=user_id,
             )
+            # Convert to AramaOut with nested foreign key objects
+            updated_out = _convert_arama_to_out(updated)
             return AramaManagementResponse(
                 status="success",
                 message="Arama updated successfully.",
-                data=updated,
+                data=updated_out,
             )
         except ValueError as exc:
             if "not found" in str(exc).lower():
@@ -329,10 +340,12 @@ def manage_arama_records(
             approved_arama = arama_service.approve_arama(
                 db, ar_id=payload.ar_id, actor_id=user_id
             )
+            # Convert to AramaOut with nested foreign key objects
+            approved_out = _convert_arama_to_out(approved_arama)
             return AramaManagementResponse(
                 status="success",
                 message="Arama approved successfully.",
-                data=approved_arama,
+                data=approved_out,
             )
         except ValueError as exc:
             message = str(exc)
@@ -360,10 +373,12 @@ def manage_arama_records(
                 actor_id=user_id,
                 rejection_reason=payload.rejection_reason,
             )
+            # Convert to AramaOut with nested foreign key objects
+            rejected_out = _convert_arama_to_out(rejected_arama)
             return AramaManagementResponse(
                 status="success",
                 message="Arama rejected successfully.",
-                data=rejected_arama,
+                data=rejected_out,
             )
         except ValueError as exc:
             message = str(exc)
@@ -384,10 +399,12 @@ def manage_arama_records(
             printed_arama = arama_service.mark_printed(
                 db, ar_id=payload.ar_id, actor_id=user_id
             )
+            # Convert to AramaOut with nested foreign key objects
+            printed_out = _convert_arama_to_out(printed_arama)
             return AramaManagementResponse(
                 status="success",
                 message="Arama certificate marked as printed successfully.",
-                data=printed_arama,
+                data=printed_out,
             )
         except ValueError as exc:
             message = str(exc)
@@ -408,10 +425,12 @@ def manage_arama_records(
             scanned_arama = arama_service.mark_scanned(
                 db, ar_id=payload.ar_id, actor_id=user_id
             )
+            # Convert to AramaOut with nested foreign key objects
+            scanned_out = _convert_arama_to_out(scanned_arama)
             return AramaManagementResponse(
                 status="success",
                 message="Arama certificate marked as scanned successfully.",
-                data=scanned_arama,
+                data=scanned_out,
             )
         except ValueError as exc:
             message = str(exc)

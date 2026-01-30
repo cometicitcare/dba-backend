@@ -21,7 +21,7 @@ class AramaLandBase(BaseModel):
     land_occupants: Optional[str] = Field(default=None, max_length=500, alias="landOccupants")
     land_notes: Optional[str] = Field(default=None, max_length=1000, alias="landNotes")
 
-    model_config = ConfigDict(populate_by_name=True)
+    model_config = ConfigDict(populate_by_name=True, extra="ignore")
 
 
 class AramaLandCreate(AramaLandBase):

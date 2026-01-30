@@ -62,12 +62,14 @@ class SilmathaResponse(BaseModel):
 
 
 class AramaBase(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    
     ar_trn: Annotated[str, Field(min_length=1, max_length=10)]
     ar_vname: Annotated[Optional[str], Field(default=None, max_length=200)]
     ar_addrs: Annotated[Optional[str], Field(default=None, max_length=200)]
     ar_mobile: Annotated[str, Field(min_length=10, max_length=10)]
     ar_whtapp: Annotated[str, Field(min_length=10, max_length=10)]
-    ar_email: EmailStr
+    ar_email: Optional[EmailStr] = None
     ar_typ: Annotated[str, Field(min_length=1, max_length=10)]
     ar_gndiv: Annotated[str, Field(min_length=1, max_length=10)]
     ar_fmlycnt: Annotated[Optional[int], Field(default=None, ge=0)]
@@ -177,9 +179,11 @@ class AramaBase(BaseModel):
 
     @field_validator("ar_email", mode="before")
     @classmethod
-    def _normalize_email(cls, value: str) -> str:
+    def _normalize_email(cls, value) -> Optional[str]:
         if isinstance(value, str):
             value = value.strip()
+            if value == "":
+                return None
         return value
 
     @field_validator("ar_ownercd", mode="before")
@@ -198,10 +202,14 @@ class AramaCreate(AramaBase):
     # Nested data - use AramaLandCreate for the new format with serial_number
     temple_owned_land: List[AramaLandCreate] = Field(default_factory=list)
     resident_silmathas: List[AramaResidentSilmathaCreate] = Field(default_factory=list)
+    
+    model_config = ConfigDict(extra="ignore")
 
 
 class AramaCreatePayload(BaseModel):
     """Payload schema for creating Arama with camelCase field names"""
+    model_config = ConfigDict(extra="ignore")
+    
     temple_name: Optional[str] = Field(default=None, max_length=200)
     temple_address: Optional[str] = Field(default=None, max_length=200)
     telephone_number: str = Field(min_length=10, max_length=10)
@@ -256,6 +264,8 @@ class AramaCreatePayload(BaseModel):
 
 
 class AramaUpdate(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    
     ar_trn: Annotated[Optional[str], Field(default=None, min_length=1, max_length=10)]
     ar_vname: Annotated[Optional[str], Field(default=None, max_length=200)]
     ar_addrs: Annotated[Optional[str], Field(default=None, max_length=200)]
@@ -399,9 +409,12 @@ class AramaOut(AramaBase):
     ar_nikaya: Optional[Union[NikayaResponse, str]] = None
     ar_parshawa: Union[ParshawaResponse, str]
     ar_ownercd: Union[SilmathaResponse, str]
+    ar_viharadhipathi_name: Optional[Union[SilmathaResponse, str]] = None
 
 
 class AramaRequestPayload(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    
     # Identifiers
     ar_id: Optional[int] = None
     ar_trn: Optional[str] = None
@@ -438,6 +451,8 @@ class AramaRequestPayload(BaseModel):
 
 
 class AramaManagementRequest(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    
     action: CRUDAction
     payload: AramaRequestPayload
 
