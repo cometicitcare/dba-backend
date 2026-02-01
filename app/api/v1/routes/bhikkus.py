@@ -932,6 +932,9 @@ def manage_bhikku_records(
         bhikku_schemas = [schemas.Bhikku(**bhikku_service.enrich_bhikku_dict(bhikku, db=db)) for bhikku in bhikkus]
         
         # Also fetch temporary bhikkus and include them in results
+        # NOTE: As of the recent update, new temp-bhikku records are saved directly to bhikku_regist table
+        # This code still fetches from temporary_bhikku table for backward compatibility with any old records
+        # New temp-bhikku records will appear in the main bhikkus list above (not in temp list)
         # Only apply search filter for temporary bhikkus (other filters don't apply to them)
         temp_bhikkus = temporary_bhikku_service.list_temporary_bhikkus(
             db,
