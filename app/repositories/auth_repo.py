@@ -1,6 +1,8 @@
 # app/repositories/auth_repo.py
 from sqlalchemy.orm import Session
-from app.models.user import UserAccount, LoginHistory, Role
+from app.models.user import UserAccount, LoginHistory
+from app.models.roles import Role
+from app.models.user_roles import UserRole
 from app.schemas.user import UserCreate
 from app.core.security import get_password_hash, generate_salt
 from datetime import datetime
@@ -11,17 +13,17 @@ def get_role_by_id(db: Session, role_id: str):
     """Get role by ID"""
     return db.query(Role).filter(
         Role.ro_role_id == role_id,
-        Role.ro_is_deleted == False
+        Role.ro_is_active == True
     ).first()
 
 
 def get_all_roles(db: Session):
     """Get all active roles"""
-    return db.query(Role).filter(Role.ro_is_deleted == False).all()
+    return db.query(Role).filter(Role.ro_is_active == True).all()
 
 
 def create_user(db: Session, user: UserCreate):
-    """Create a new user with role validation"""
+    """Create a new user with role validation and all required fields"""
     # Validate that the role exists
     role = get_role_by_id(db, user.ro_role_id)
     if not role:
@@ -34,19 +36,50 @@ def create_user(db: Session, user: UserCreate):
     user_id = f"UA{str(uuid.uuid4().int)[:7]}"
 
     db_user = UserAccount(
+        # Required fields
         ua_user_id=user_id,
         ua_username=user.ua_username,
         ua_password_hash=hashed_password,
         ua_salt=salt,
         ua_email=user.ua_email,
+        
+        # Optional personal info from registration
         ua_first_name=user.ua_first_name,
         ua_last_name=user.ua_last_name,
         ua_phone=user.ua_phone,
-        ro_role_id=user.ro_role_id,
+        
+        # Status and security fields - explicitly set defaults
+        ua_status="active",
+        ua_login_attempts=0,
+        ua_must_change_password=False,
+        ua_two_factor_enabled=False,
+        ua_is_deleted=False,
+        ua_version_number=1,
+        
+        # Audit fields
         ua_created_by=user_id,  # Self-created
         ua_updated_by=user_id,
+        
+        # Nullable timestamp fields (set later during usage)
+        ua_last_login=None,
+        ua_locked_until=None,
+        ua_password_expires=None,
+        ua_two_factor_secret=None,
     )
     db.add(db_user)
+    db.flush()  # Flush to get the user_id before creating UserRole
+    
+    # Create the UserRole relationship
+    user_role = UserRole(
+        ur_user_id=user_id,
+        ur_role_id=user.ro_role_id,
+        ur_is_active=True,
+        ur_assigned_by=user_id,  # Self-assigned during registration
+        ur_assigned_date=datetime.utcnow(),
+        ur_expires_date=None  # No expiration by default
+    )
+    db.add(user_role)
+    
     db.commit()
     db.refresh(db_user)
     return db_user

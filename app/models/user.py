@@ -11,38 +11,19 @@ from sqlalchemy import (
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from app.db.base import Base
-
-
-class Role(Base):
-    __tablename__ = "roles"
-
-    ro_role_id = Column(String(20), primary_key=True, index=True)
-    ro_role_name = Column(String(100), unique=True, nullable=False)
-    ro_description = Column(Text)
-    ro_is_system_role = Column(Boolean, default=False)
-    ro_is_deleted = Column(Boolean, default=False)
-    ro_created_at = Column(DateTime(timezone=True), server_default=func.now())
-    ro_updated_at = Column(
-        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
-    )
-    ro_created_by = Column(String(50))
-    ro_updated_by = Column(String(50))
-    ro_version_number = Column(Integer, default=1)
-
-    # Relationship
-    users = relationship("UserAccount", back_populates="role")
+from .roles import Role
 
 
 class UserAccount(Base):
     __tablename__ = "user_accounts"
 
-    ua_user_id = Column(String(20), primary_key=True, index=True)
+    ua_user_id = Column(String(10), primary_key=True, index=True)
     ua_username = Column(String(50), unique=True, nullable=False, index=True)
     ua_email = Column(String(100), unique=True, nullable=False, index=True)
     ua_password_hash = Column(String(255), nullable=False)
-    ua_salt = Column(String(255), nullable=False)
-    ua_first_name = Column(String(100))
-    ua_last_name = Column(String(100))
+    ua_salt = Column(String(100), nullable=False)
+    ua_first_name = Column(String(50))
+    ua_last_name = Column(String(50))
     ua_phone = Column(String(15))
     ua_status = Column(String(20), default="active")
     ua_last_login = Column(DateTime(timezone=True), nullable=True)
@@ -51,7 +32,7 @@ class UserAccount(Base):
     ua_password_expires = Column(DateTime(timezone=True), nullable=True)
     ua_must_change_password = Column(Boolean, default=False)
     ua_two_factor_enabled = Column(Boolean, default=False)
-    ua_two_factor_secret = Column(String(255), nullable=True)
+    ua_two_factor_secret = Column(String(100), nullable=True)
     ua_is_deleted = Column(Boolean, default=False)
     ua_created_at = Column(DateTime(timezone=True), server_default=func.now())
     ua_updated_at = Column(
@@ -61,11 +42,22 @@ class UserAccount(Base):
     ua_updated_by = Column(String(50))
     ua_version_number = Column(Integer, default=1)
     
-    # Foreign Key to Role
-    ro_role_id = Column(String(20), ForeignKey("roles.ro_role_id"), nullable=False)
-
-    # Relationship
-    role = relationship("Role", back_populates="users")
+    # Location-based access control fields
+    ua_location_type = Column(String(20))  # 'MAIN_BRANCH', 'DISTRICT_BRANCH'
+    ua_main_branch_id = Column(Integer, ForeignKey("main_branches.mb_id"), nullable=True, index=True)
+    ua_district_branch_id = Column(Integer, ForeignKey("district_branches.db_id"), nullable=True, index=True)
+    
+    # Relationships (many-to-many through junction tables)
+    # User can have multiple roles via UserRole table
+    user_roles = relationship("UserRole", back_populates="user", cascade="all, delete-orphan")
+    # User can belong to multiple groups via UserGroup table
+    user_groups = relationship("UserGroup", back_populates="user", cascade="all, delete-orphan")
+    # User can have permission overrides via UserPermission table
+    user_permissions = relationship("UserPermission", back_populates="user", cascade="all, delete-orphan")
+    
+    # Location relationships
+    main_branch = relationship("MainBranch", back_populates="users", foreign_keys=[ua_main_branch_id])
+    district_branch = relationship("DistrictBranch", back_populates="users", foreign_keys=[ua_district_branch_id])
 
 
 class LoginHistory(Base):

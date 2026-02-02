@@ -1,0 +1,112 @@
+# app/models/bhikku.py
+from sqlalchemy import Boolean, Column, Integer, String, Date, TIMESTAMP, text, ForeignKey
+from sqlalchemy.orm import relationship
+from sqlalchemy.sql import func
+from app.db.base import Base
+
+class Bhikku(Base):
+    __tablename__ = "bhikku_regist"
+
+    br_id = Column(Integer, primary_key=True, index=True)
+    br_regn = Column(String(20), unique=True, nullable=False, index=True)
+    br_reqstdate = Column(Date, nullable=False)
+    
+    # Geographic/Birth Information (NEW FIELDS)
+    br_birthpls = Column(String(50))
+    br_province = Column(String(50))
+    br_district = Column(String(50))
+    br_korale = Column(String(50))
+    br_pattu = Column(String(50))
+    br_division = Column(String(50))
+    br_vilage = Column(String(50))
+    br_gndiv = Column(String(10), nullable=False)
+    
+    # Personal Information
+    br_gihiname = Column(String(50))
+    br_dofb = Column(Date)
+    br_fathrname = Column(String(50))
+    br_remarks = Column(String(100))
+    
+    # Status Information
+    br_currstat = Column(String(5), nullable=False)
+    br_effctdate = Column(Date)
+    
+    # Temple/Religious Information
+    br_parshawaya = Column(String(10), nullable=False)
+    br_livtemple = Column(String(10))  # Made nullable - not always provided in payload
+    br_mahanatemple = Column(String(10), nullable=False)
+    br_mahanaacharyacd = Column(String(12), nullable=False)
+    br_multi_mahanaacharyacd = Column(String(200))
+    br_mahananame = Column(String(50))
+    br_mahanadate = Column(Date)
+    br_cat = Column(String(5))
+    
+    # Additional Religious/Administrative Fields
+    br_viharadhipathi = Column(String(20))  # Viharadhipathi registration number
+    br_nikaya = Column(String(10))  # Nikaya code
+    br_mahanayaka_name = Column(String(200))  # Mahanayaka name in Sinhala/Tamil
+    br_mahanayaka_address = Column(String(500))  # Mahanayaka address
+    br_residence_at_declaration = Column(String(500))  # Residence at time of declaration
+    br_declaration_date = Column(Date)  # Declaration date
+    br_robing_tutor_residence = Column(String(20))  # Robing tutor's residence temple
+    br_robing_after_residence_temple = Column(String(20))  # Residence temple after robing
+    
+    # Contact Information
+    br_mobile = Column(String(10))
+    br_email = Column(String(50))
+    br_fathrsaddrs = Column(String(200))
+    br_fathrsmobile = Column(String(10))
+    
+    # Serial Number
+    br_upasampada_serial_no = Column(String(20))
+    
+    # Workflow Fields
+    br_workflow_status = Column(String(20), server_default=text("'PENDING'"), nullable=False, index=True)
+    br_approval_status = Column(String(20))  # APPROVED, REJECTED
+    br_approved_by = Column(String(25))
+    br_approved_at = Column(TIMESTAMP)
+    br_rejected_by = Column(String(25))
+    br_rejected_at = Column(TIMESTAMP)
+    br_rejection_reason = Column(String(500))
+    br_printed_at = Column(TIMESTAMP)
+    br_printed_by = Column(String(25))
+    br_scanned_at = Column(TIMESTAMP)
+    br_scanned_by = Column(String(25))
+    
+    # Reprint Workflow Fields
+    br_reprint_status = Column(String(20))  # REPRINT_PENDING, REPRINT_ACCEPTED, REPRINT_REJECTED, REPRINT_COMPLETED
+    br_reprint_requested_by = Column(String(25))
+    br_reprint_requested_at = Column(TIMESTAMP)
+    br_reprint_request_reason = Column(String(500))
+    br_reprint_approved_by = Column(String(25))
+    br_reprint_approved_at = Column(TIMESTAMP)
+    br_reprint_rejected_by = Column(String(25))
+    br_reprint_rejected_at = Column(TIMESTAMP)
+    br_reprint_rejection_reason = Column(String(500))
+    br_reprint_completed_by = Column(String(25))
+    br_reprint_completed_at = Column(TIMESTAMP)
+    
+    # Audit Fields
+    br_version = Column(TIMESTAMP, nullable=False, server_default=func.now())
+    br_is_deleted = Column(Boolean, server_default=text('false'))
+    br_created_at = Column(TIMESTAMP, server_default=func.now())
+    br_updated_at = Column(TIMESTAMP, server_default=func.now(), onupdate=func.now())
+    br_created_by = Column(String(25))
+    br_updated_by = Column(String(25))
+    br_version_number = Column(Integer, server_default=text('1'))
+    # Relationships
+    province_rel = relationship("Province", foreign_keys=[br_province])
+    district_rel = relationship("District", foreign_keys=[br_district])
+    division_rel = relationship("DivisionalSecretariat", foreign_keys=[br_division])
+    gndiv_rel = relationship("Gramasewaka", foreign_keys=[br_gndiv])
+    status_rel = relationship("StatusData", foreign_keys=[br_currstat])
+    parshawaya_rel = relationship("ParshawaData", foreign_keys=[br_parshawaya])
+    livtemple_rel = relationship("ViharaData", foreign_keys=[br_livtemple])
+    mahanatemple_rel = relationship("ViharaData", foreign_keys=[br_mahanatemple])
+    mahanaacharyacd_rel = relationship("Bhikku", foreign_keys=[br_mahanaacharyacd], remote_side=[br_regn])
+    category_rel = relationship("BhikkuCategory", foreign_keys=[br_cat])
+    viharadhipathi_rel = relationship("Bhikku", foreign_keys=[br_viharadhipathi], remote_side=[br_regn])
+    nikaya_rel = relationship("NikayaData", foreign_keys=[br_nikaya])
+    mahanayaka_rel = relationship("Bhikku", foreign_keys=[br_mahanayaka_name], remote_side=[br_regn])
+    robing_tutor_residence_rel = relationship("ViharaData", foreign_keys=[br_robing_tutor_residence])
+    robing_after_residence_temple_rel = relationship("ViharaData", foreign_keys=[br_robing_after_residence_temple])

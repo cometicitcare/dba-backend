@@ -1,0 +1,1031 @@
+# app/api/v1/routes/silmatha_regist.py
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
+from sqlalchemy.orm import Session
+
+from app.api.deps import get_db
+from app.api.auth_middleware import get_current_user
+from app.api.auth_dependencies import has_permission, has_any_permission, get_user_permissions
+from app.models.user import UserAccount
+from app.schemas import silmatha_regist as schemas
+from app.services.silmatha_regist_service import silmatha_regist_service
+from app.services.arama_service import arama_service
+from app.services.temporary_silmatha_service import temporary_silmatha_service
+from app.services.temporary_arama_service import temporary_arama_service
+from app.repositories.silmatha_regist_repo import silmatha_regist_repo
+from app.utils.http_exceptions import validation_error
+from pydantic import ValidationError
+
+router = APIRouter()
+
+def check_silmatha_permission(db: Session, user: UserAccount, required_permission: str):
+    """Ensure the current user has the required silmatha permission."""
+    user_permissions = get_user_permissions(db, user)
+    if required_permission not in user_permissions:
+        raise HTTPException(
+            status_code=403,
+            detail=f"Permission denied. Required permission: {required_permission}"
+        )
+
+
+@router.post(
+    "/manage",
+    response_model=schemas.SilmathaRegistManagementResponse,
+    dependencies=[has_any_permission("silmatha:create", "silmatha:update", "silmatha:delete", "silmatha:read")],
+)
+def manage_silmatha_records(
+    request: schemas.SilmathaRegistManagementRequest, 
+    db: Session = Depends(get_db),
+    current_user: UserAccount = Depends(get_current_user),
+):
+    """
+    Unified endpoint for all Silmatha CRUD operations.
+    Requires authentication + at least one of: silmatha:create, silmatha:update, silmatha:delete, silmatha:read
+    """
+    action = request.action
+    payload = request.payload
+
+    # Get user identifier for audit trail
+    user_id = current_user.ua_user_id
+
+    if action == schemas.CRUDAction.CREATE:
+        # Match Bhikku workflow by enforcing explicit create permission
+        check_silmatha_permission(db, current_user, "silmatha:create")
+
+        if not payload or not hasattr(payload, 'data'):
+            raise validation_error(
+                [("payload.data", "data is required for CREATE action")]
+            )
+
+        create_payload: schemas.SilmathaRegistCreate
+        if isinstance(payload.data, schemas.SilmathaRegistCreate):
+            create_payload = payload.data
+        else:
+            raw_data = (
+                payload.data.model_dump()
+                if hasattr(payload.data, "model_dump")
+                else payload.data
+            )
+            try:
+                create_payload = schemas.SilmathaRegistCreate(**raw_data)
+            except ValidationError as exc:
+                formatted_errors = []
+                for error in exc.errors():
+                    loc = ".".join(str(part) for part in error.get("loc", []))
+                    formatted_errors.append(
+                        (loc or None, error.get("msg", "Invalid data"))
+                    )
+                raise validation_error(formatted_errors) from exc
+
+        try:
+            created_silmatha = silmatha_regist_service.create_silmatha(
+                db, payload=create_payload, actor_id=user_id, current_user=current_user
+            )
+        except ValueError as exc:
+            raise validation_error([(None, str(exc))]) from exc
+        except RuntimeError as exc:
+            raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+        # Convert SQLAlchemy model to Pydantic schema with enriched nested data
+        silmatha_enriched = silmatha_regist_service.enrich_silmatha_dict(created_silmatha, db)
+        silmatha_schema = schemas.Silmatha.model_validate(silmatha_enriched)
+        
+        return schemas.SilmathaRegistManagementResponse(
+            status="success",
+            message="Silmatha record created successfully.",
+            data=silmatha_schema,
+        )
+
+    elif action == schemas.CRUDAction.READ_ONE:
+        if not payload or not hasattr(payload, 'sil_regn'):
+            raise validation_error(
+                [("payload.sil_regn", "sil_regn is required for READ_ONE action")]
+            )
+        
+        db_silmatha = silmatha_regist_repo.get_by_regn(db, sil_regn=payload.sil_regn)
+        if db_silmatha is None:
+            raise HTTPException(status_code=404, detail="Silmatha record not found")
+        
+        # Enrich with nested FK objects
+        silmatha_enriched = silmatha_regist_service.enrich_silmatha_dict(db_silmatha, db)
+        silmatha_schema = schemas.Silmatha.model_validate(silmatha_enriched)
+        
+        return schemas.SilmathaRegistManagementResponse(
+            status="success",
+            message="Silmatha record retrieved successfully.",
+            data=silmatha_schema,
+        )
+
+    elif action == schemas.CRUDAction.READ_ALL:
+        # Handle pagination
+        skip = payload.skip if payload and hasattr(payload, 'skip') else 0
+        limit = payload.limit if payload and hasattr(payload, 'limit') else 100
+        page = payload.page if payload and hasattr(payload, 'page') else 1
+        search_key = payload.search_key.strip() if payload and hasattr(payload, 'search_key') and payload.search_key else None
+        
+        # Get paginated silmatha records with search and filters
+        silmatha_records = silmatha_regist_repo.get_all(
+            db, 
+            skip=skip, 
+            limit=limit, 
+            search_key=search_key,
+            vh_trn=payload.vh_trn if payload and hasattr(payload, 'vh_trn') else None,
+            province=payload.province if payload and hasattr(payload, 'province') else None,
+            district=payload.district if payload and hasattr(payload, 'district') else None,
+            divisional_secretariat=payload.divisional_secretariat if payload and hasattr(payload, 'divisional_secretariat') else None,
+            gn_division=payload.gn_division if payload and hasattr(payload, 'gn_division') else None,
+            temple=payload.temple if payload and hasattr(payload, 'temple') else None,
+            child_temple=payload.child_temple if payload and hasattr(payload, 'child_temple') else None,
+            parshawaya=payload.parshawaya if payload and hasattr(payload, 'parshawaya') else None,
+            category=payload.category if payload and hasattr(payload, 'category') else None,
+            status=payload.status if payload and hasattr(payload, 'status') else None,
+            workflow_status=payload.workflow_status if payload and hasattr(payload, 'workflow_status') else None,
+            date_from=payload.date_from if payload and hasattr(payload, 'date_from') else None,
+            date_to=payload.date_to if payload and hasattr(payload, 'date_to') else None,
+            current_user=current_user
+        )
+        
+        # Get total count for pagination
+        total_count = silmatha_regist_repo.get_total_count(
+            db, 
+            search_key=search_key,
+            vh_trn=payload.vh_trn if payload and hasattr(payload, 'vh_trn') else None,
+            province=payload.province if payload and hasattr(payload, 'province') else None,
+            district=payload.district if payload and hasattr(payload, 'district') else None,
+            divisional_secretariat=payload.divisional_secretariat if payload and hasattr(payload, 'divisional_secretariat') else None,
+            gn_division=payload.gn_division if payload and hasattr(payload, 'gn_division') else None,
+            temple=payload.temple if payload and hasattr(payload, 'temple') else None,
+            child_temple=payload.child_temple if payload and hasattr(payload, 'child_temple') else None,
+            parshawaya=payload.parshawaya if payload and hasattr(payload, 'parshawaya') else None,
+            category=payload.category if payload and hasattr(payload, 'category') else None,
+            status=payload.status if payload and hasattr(payload, 'status') else None,
+            workflow_status=payload.workflow_status if payload and hasattr(payload, 'workflow_status') else None,
+            date_from=payload.date_from if payload and hasattr(payload, 'date_from') else None,
+            date_to=payload.date_to if payload and hasattr(payload, 'date_to') else None,
+            current_user=current_user
+        )
+        
+        # Get temporary silmathas count for proper pagination
+        temp_count = temporary_silmatha_service.count_temporary_silmathas(db, search=search_key)
+        
+        # Calculate how to handle pagination with both normal and temp records
+        # We need to fetch temp records with proper pagination consideration
+        normal_count = len(silmatha_records)
+        remaining_limit = max(0, limit - normal_count) if normal_count < limit else 0
+        
+        # Calculate skip for temp records based on overall pagination
+        temp_skip = max(0, skip - total_count) if skip > total_count else 0
+        
+        # Fetch temporary silmathas with proper pagination
+        temp_silmathas = []
+        if remaining_limit > 0 or skip >= total_count:
+            temp_silmathas = temporary_silmatha_service.list_temporary_silmathas(
+                db,
+                skip=temp_skip,
+                limit=remaining_limit if remaining_limit > 0 else limit,
+                search=search_key
+            )
+        
+        # Enrich each normal record with nested FK objects
+        silmatha_enriched = [silmatha_regist_service.enrich_silmatha_dict(record, db) for record in silmatha_records]
+        
+        # Convert temporary silmathas to Silmatha-compatible format with complete structure
+        for temp_silmatha in temp_silmathas:
+            # Try to resolve province as nested object
+            province_value = temp_silmatha.ts_province
+            if temp_silmatha.ts_province:
+                from app.models.province import Province
+                province_obj = db.query(Province).filter(
+                    Province.cp_code == temp_silmatha.ts_province
+                ).first()
+                if province_obj:
+                    province_value = {
+                        "pr_code": province_obj.cp_code,
+                        "pr_name": province_obj.cp_name
+                    }
+            
+            # Try to resolve district as nested object
+            district_value = temp_silmatha.ts_district
+            if temp_silmatha.ts_district:
+                from app.models.district import District
+                district_obj = db.query(District).filter(
+                    District.dd_dcode == temp_silmatha.ts_district
+                ).first()
+                if district_obj:
+                    district_value = {
+                        "ds_code": district_obj.dd_dcode,
+                        "ds_name": district_obj.dd_dname
+                    }
+            
+            temp_silmatha_dict = {
+                # Core identification
+                "sil_id": -temp_silmatha.ts_id,  # Negative ID to distinguish from real records
+                "sil_regn": f"TEMP-{temp_silmatha.ts_id}",  # Use TEMP prefix for identification
+                "sil_reqstdate": None,
+                
+                # Personal Information - map temp fields to main fields where possible
+                "sil_gihiname": temp_silmatha.ts_name,  # Map ts_name to sil_gihiname
+                "sil_dofb": None,
+                "sil_fathrname": None,
+                "sil_email": None,
+                "sil_mobile": temp_silmatha.ts_contact_number,  # Map ts_contact_number to sil_mobile
+                "sil_fathrsaddrs": temp_silmatha.ts_address,  # Map ts_address to sil_fathrsaddrs
+                "sil_fathrsmobile": None,
+                
+                # Geographic/Birth Information with nested objects
+                "sil_birthpls": None,
+                "sil_province": province_value,
+                "sil_district": district_value,
+                "sil_korale": None,
+                "sil_pattu": None,
+                "sil_division": None,
+                "sil_vilage": None,
+                "sil_gndiv": None,
+                
+                # Temple/Religious Information with nested objects
+                "sil_viharadhipathi": None,
+                "sil_aramadhipathi": None,
+                "sil_cat": None,
+                "sil_currstat": None,
+                "sil_declaration_date": temp_silmatha.ts_ordained_date,  # Map ts_ordained_date to sil_declaration_date
+                "sil_remarks": None,
+                "sil_mahanadate": None,
+                "sil_mahananame": None,
+                "sil_mahanaacharyacd": None,
+                "sil_robing_tutor_residence": None,
+                "sil_mahanatemple": None,
+                "sil_robing_after_residence_temple": None,
+                
+                # Form ID
+                "sil_form_id": None,
+                
+                # Signature Fields (Boolean) - all false for temp records
+                "sil_student_signature": False,
+                "sil_acharya_signature": False,
+                "sil_aramadhipathi_signature": False,
+                "sil_district_secretary_signature": False,
+                
+                # Document Storage
+                "sil_scanned_document_path": None,
+                
+                # Workflow Fields
+                "sil_workflow_status": "TEMPORARY",  # Mark workflow as temporary
+                "sil_approval_status": None,
+                "sil_approved_by": None,
+                "sil_approved_at": None,
+                "sil_rejected_by": None,
+                "sil_rejected_at": None,
+                "sil_rejection_reason": None,
+                "sil_printed_at": None,
+                "sil_printed_by": None,
+                "sil_scanned_at": None,
+                "sil_scanned_by": None,
+                
+                # Reprint Workflow Fields
+                "sil_reprint_status": None,
+                "sil_reprint_requested_by": None,
+                "sil_reprint_requested_at": None,
+                "sil_reprint_request_reason": None,
+                "sil_reprint_approved_by": None,
+                "sil_reprint_approved_at": None,
+                "sil_reprint_rejected_by": None,
+                "sil_reprint_rejected_at": None,
+                "sil_reprint_rejection_reason": None,
+                "sil_reprint_completed_by": None,
+                "sil_reprint_completed_at": None,
+                
+                # Audit Fields
+                "sil_version": temp_silmatha.ts_created_at,  # Use created timestamp as version
+                "sil_is_deleted": False,
+                "sil_created_at": temp_silmatha.ts_created_at,
+                "sil_updated_at": temp_silmatha.ts_updated_at,
+                "sil_created_by": temp_silmatha.ts_created_by,
+                "sil_updated_by": temp_silmatha.ts_updated_by,
+                "sil_version_number": 1,
+                "sil_created_by_district": None,
+                
+                # Keep temp_details for backward compatibility and additional temp-specific data
+                "temp_details": {
+                    "ts_id": temp_silmatha.ts_id,
+                    "ts_name": temp_silmatha.ts_name,
+                    "ts_nic": temp_silmatha.ts_nic,
+                    "ts_contact_number": temp_silmatha.ts_contact_number,
+                    "ts_address": temp_silmatha.ts_address,
+                    "ts_district": temp_silmatha.ts_district,
+                    "ts_province": temp_silmatha.ts_province,
+                    "ts_arama_name": temp_silmatha.ts_arama_name,
+                    "ts_ordained_date": temp_silmatha.ts_ordained_date,
+                    "ts_created_at": temp_silmatha.ts_created_at,
+                    "ts_created_by": temp_silmatha.ts_created_by,
+                    "ts_updated_at": temp_silmatha.ts_updated_at,
+                    "ts_updated_by": temp_silmatha.ts_updated_by,
+                }
+            }
+            silmatha_enriched.append(temp_silmatha_dict)
+        
+        # Total count includes both normal and temporary silmathas (already calculated above)
+        total_with_temp = total_count + temp_count
+        
+        return schemas.SilmathaRegistManagementResponse(
+            status="success",
+            message="Silmatha records retrieved successfully.",
+            data=silmatha_enriched,
+            totalRecords=total_with_temp,
+            page=page,
+            limit=limit,
+        )
+
+    elif action == schemas.CRUDAction.UPDATE:
+        if not payload or not hasattr(payload, 'sil_regn'):
+            raise validation_error(
+                [("payload.sil_regn", "sil_regn is required for UPDATE action")]
+            )
+        if not hasattr(payload, 'data'):
+            raise validation_error(
+                [("payload.data", "data is required for UPDATE action")]
+            )
+
+        update_payload: schemas.SilmathaRegistUpdate
+        if isinstance(payload.data, schemas.SilmathaRegistUpdate):
+            update_payload = payload.data
+        else:
+            raw_data = (
+                payload.data.model_dump()
+                if hasattr(payload.data, "model_dump")
+                else payload.data
+            )
+            try:
+                update_payload = schemas.SilmathaRegistUpdate(**raw_data)
+            except ValidationError as exc:
+                formatted_errors = []
+                for error in exc.errors():
+                    loc = ".".join(str(part) for part in error.get("loc", []))
+                    formatted_errors.append(
+                        (loc or None, error.get("msg", "Invalid data"))
+                    )
+                raise validation_error(formatted_errors) from exc
+
+        try:
+            updated_silmatha = silmatha_regist_service.update_silmatha(
+                db, sil_regn=payload.sil_regn, payload=update_payload, actor_id=user_id
+            )
+        except ValueError as exc:
+            message = str(exc)
+            if "not found" in message.lower():
+                raise HTTPException(status_code=404, detail=message) from exc
+            raise validation_error([(None, message)]) from exc
+        except RuntimeError as exc:
+            raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+        silmatha_enriched = silmatha_regist_service.enrich_silmatha_dict(updated_silmatha, db)
+        silmatha_schema = schemas.Silmatha.model_validate(silmatha_enriched)
+        return schemas.SilmathaRegistManagementResponse(
+            status="success",
+            message="Silmatha record updated successfully.",
+            data=silmatha_schema,
+        )
+
+    elif action == schemas.CRUDAction.DELETE:
+        if not payload or not hasattr(payload, 'sil_regn'):
+            raise validation_error(
+                [("payload.sil_regn", "sil_regn is required for DELETE action")]
+            )
+        
+        try:
+            silmatha_regist_service.delete_silmatha(
+                db, sil_regn=payload.sil_regn, actor_id=user_id
+            )
+        except ValueError as exc:
+            message = str(exc)
+            if "not found" in message.lower():
+                raise HTTPException(status_code=404, detail=message) from exc
+            raise validation_error([(None, message)]) from exc
+        except RuntimeError as exc:
+            raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+        return schemas.SilmathaRegistManagementResponse(
+            status="success",
+            message="Silmatha record deleted successfully.",
+            data=None,
+        )
+
+    elif action == schemas.CRUDAction.APPROVE:
+        if not payload or not hasattr(payload, 'sil_regn'):
+            raise validation_error(
+                [("payload.sil_regn", "sil_regn is required for APPROVE action")]
+            )
+        
+        try:
+            approved_silmatha = silmatha_regist_service.approve_silmatha(
+                db, sil_regn=payload.sil_regn, actor_id=user_id
+            )
+        except ValueError as exc:
+            message = str(exc)
+            if "not found" in message.lower():
+                raise HTTPException(status_code=404, detail=message) from exc
+            raise validation_error([(None, message)]) from exc
+        except RuntimeError as exc:
+            raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+        silmatha_enriched = silmatha_regist_service.enrich_silmatha_dict(approved_silmatha, db)
+        silmatha_schema = schemas.Silmatha.model_validate(silmatha_enriched)
+        return schemas.SilmathaRegistManagementResponse(
+            status="success",
+            message="Silmatha record approved successfully.",
+            data=silmatha_schema,
+        )
+
+    elif action == schemas.CRUDAction.REJECT:
+        if not payload or not hasattr(payload, 'sil_regn'):
+            raise validation_error(
+                [("payload.sil_regn", "sil_regn is required for REJECT action")]
+            )
+        if not hasattr(payload, 'rejection_reason'):
+            raise validation_error(
+                [("payload.rejection_reason", "rejection_reason is required for REJECT action")]
+            )
+        
+        try:
+            rejected_silmatha = silmatha_regist_service.reject_silmatha(
+                db, 
+                sil_regn=payload.sil_regn, 
+                rejection_reason=payload.rejection_reason,
+                actor_id=user_id
+            )
+        except ValueError as exc:
+            message = str(exc)
+            if "not found" in message.lower():
+                raise HTTPException(status_code=404, detail=message) from exc
+            raise validation_error([(None, message)]) from exc
+        except RuntimeError as exc:
+            raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+        silmatha_enriched = silmatha_regist_service.enrich_silmatha_dict(rejected_silmatha, db)
+        silmatha_schema = schemas.Silmatha.model_validate(silmatha_enriched)
+        return schemas.SilmathaRegistManagementResponse(
+            status="success",
+            message="Silmatha record rejected successfully.",
+            data=silmatha_schema,
+        )
+
+    elif action == schemas.CRUDAction.MARK_PRINTED:
+        if not payload or not hasattr(payload, 'sil_regn'):
+            raise validation_error(
+                [("payload.sil_regn", "sil_regn is required for MARK_PRINTED action")]
+            )
+        
+        try:
+            printed_silmatha = silmatha_regist_service.mark_printed(
+                db, sil_regn=payload.sil_regn, actor_id=user_id
+            )
+        except ValueError as exc:
+            message = str(exc)
+            if "not found" in message.lower():
+                raise HTTPException(status_code=404, detail=message) from exc
+            raise validation_error([(None, message)]) from exc
+        except RuntimeError as exc:
+            raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+        silmatha_enriched = silmatha_regist_service.enrich_silmatha_dict(printed_silmatha, db)
+        silmatha_schema = schemas.Silmatha.model_validate(silmatha_enriched)
+        return schemas.SilmathaRegistManagementResponse(
+            status="success",
+            message="Silmatha record marked as printed successfully.",
+            data=silmatha_schema,
+        )
+
+    elif action == schemas.CRUDAction.MARK_SCANNED:
+        if not payload or not hasattr(payload, 'sil_regn'):
+            raise validation_error(
+                [("payload.sil_regn", "sil_regn is required for MARK_SCANNED action")]
+            )
+        
+        # scanned_document_path is optional - can be empty string
+        scanned_path = payload.scanned_document_path if hasattr(payload, 'scanned_document_path') else ""
+        
+        try:
+            scanned_silmatha = silmatha_regist_service.mark_scanned(
+                db, 
+                sil_regn=payload.sil_regn, 
+                scanned_document_path=scanned_path,
+                actor_id=user_id
+            )
+        except ValueError as exc:
+            message = str(exc)
+            if "not found" in message.lower():
+                raise HTTPException(status_code=404, detail=message) from exc
+            raise validation_error([(None, message)]) from exc
+        except RuntimeError as exc:
+            raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+        silmatha_enriched = silmatha_regist_service.enrich_silmatha_dict(scanned_silmatha, db)
+        silmatha_schema = schemas.Silmatha.model_validate(silmatha_enriched)
+        return schemas.SilmathaRegistManagementResponse(
+            status="success",
+            message="Silmatha record marked as scanned successfully.",
+            data=silmatha_schema,
+        )
+
+    else:
+        raise HTTPException(status_code=400, detail=f"Invalid action: {action}")
+
+
+@router.post(
+    "/{sil_regn}/upload-scanned-document",
+    response_model=schemas.SilmathaRegistManagementResponse,
+    dependencies=[has_any_permission("silmatha:update")],
+)
+async def upload_scanned_document(
+    sil_regn: str,
+    file: UploadFile = File(..., description="Scanned document file (max 5MB, PDF, JPG, PNG)"),
+    db: Session = Depends(get_db),
+    current_user: UserAccount = Depends(get_current_user),
+):
+    """
+    Upload a scanned document for a Silmatha record.
+    
+    This endpoint allows uploading a scanned document (up to 5MB) for a specific silmatha registration.
+    The file will be stored at: `app/storage/silmatha_update/<year>/<month>/<day>/<sil_regn>/scanned_document_*.ext`
+    When the current workflow status is PRINTED, a successful upload will automatically transition the record to PEND-APPROVAL.
+    
+    **Requirements:**
+    - Maximum file size: 5MB
+    - Allowed formats: PDF, JPG, JPEG, PNG
+    - Requires: silmatha:update permission
+    
+    **Path Parameters:**
+    - sil_regn: Silmatha registration number (e.g., SIL2025000001)
+    
+    **Form Data:**
+    - file: The scanned document file to upload
+    
+    **Response:**
+    Returns the updated Silmatha record with the file path stored in sil_scanned_document_path
+    
+    **Example Usage (Postman):**
+    1. Method: POST
+    2. URL: {{base_url}}/api/v1/silmatha-regist/SIL2025000001/upload-scanned-document
+    3. Headers: Authorization: Bearer <token>
+    4. Body: form-data
+       - file: (select file)
+    """
+    username = current_user.ua_user_id if current_user else None
+    
+    try:
+        # Validate file size (5MB = 5 * 1024 * 1024 bytes)
+        MAX_FILE_SIZE = 5 * 1024 * 1024  # 5MB
+        
+        # Read file content to check size
+        file_content = await file.read()
+        file_size = len(file_content)
+        
+        if file_size > MAX_FILE_SIZE:
+            raise HTTPException(
+                status_code=400,
+                detail=f"File size ({file_size / 1024 / 1024:.2f}MB) exceeds maximum allowed size (5MB)"
+            )
+        
+        # Reset file pointer for later processing
+        await file.seek(0)
+        
+        # Upload the file and update the silmatha record
+        updated_silmatha = await silmatha_regist_service.upload_scanned_document(
+            db, sil_regn=sil_regn, file=file, actor_id=username
+        )
+        
+        # Return enriched data (matches bhikku upload response)
+        silmatha_enriched = silmatha_regist_service.enrich_silmatha_dict(updated_silmatha, db)
+        silmatha_schema = schemas.Silmatha.model_validate(silmatha_enriched)
+        
+        return schemas.SilmathaRegistManagementResponse(
+            status="success",
+            message="Scanned document uploaded successfully. Status automatically changed to PEND-APPROVAL when applicable.",
+            data=silmatha_schema,
+        )
+        
+    except ValueError as exc:
+        message = str(exc)
+        if "not found" in message.lower():
+            raise HTTPException(status_code=404, detail=message) from exc
+        raise HTTPException(status_code=400, detail=message) from exc
+    except RuntimeError as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+
+@router.post(
+    "/{sil_regn}/mark-printed",
+    response_model=schemas.SilmathaRegistWorkflowResponse,
+    dependencies=[has_any_permission("silmatha:update")],
+)
+def mark_silmatha_printed(
+    sil_regn: str,
+    db: Session = Depends(get_db),
+    current_user: UserAccount = Depends(get_current_user),
+):
+    """
+    Mark silmatha certificate as printed.
+    
+    Transitions: PENDING → PRINTED
+    
+    Indicates that the certificate has been physically printed.
+    This is the first action after creating a silmatha record.
+    
+    Requires: silmatha:update permission
+    """
+    user_id = current_user.ua_user_id
+    
+    try:
+        updated_silmatha = silmatha_regist_service.mark_printed(
+            db, sil_regn=sil_regn, actor_id=user_id
+        )
+    except ValueError as exc:
+        error_msg = str(exc)
+        if "not found" in error_msg.lower():
+            raise HTTPException(status_code=404, detail=error_msg) from exc
+        raise validation_error([(None, error_msg)]) from exc
+    except RuntimeError as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+    
+    silmatha_schema = schemas.SilmathaRegistInternal.model_validate(updated_silmatha)
+    return schemas.SilmathaRegistWorkflowResponse(
+        success=True,
+        message="Silmatha certificate marked as printed successfully.",
+        data=silmatha_schema,
+    )
+
+
+@router.post(
+    "/{sil_regn}/mark-scanned",
+    response_model=schemas.SilmathaRegistWorkflowResponse,
+    dependencies=[has_any_permission("silmatha:update")],
+)
+def mark_silmatha_scanned(
+    sil_regn: str,
+    db: Session = Depends(get_db),
+    current_user: UserAccount = Depends(get_current_user),
+):
+    """
+    Mark silmatha certificate as scanned.
+    
+    Transitions: PRINTED → PEND-APPROVAL
+    
+    Indicates that the printed certificate has been scanned back into the system.
+    After this step, the record can be approved or rejected.
+    
+    Requires: silmatha:update permission
+    """
+    user_id = current_user.ua_user_id
+    
+    try:
+        # Note: mark_scanned expects a document path, but this endpoint doesn't handle file upload
+        # Use the upload-scanned-document endpoint instead for auto-transition
+        updated_silmatha = silmatha_regist_service.mark_scanned(
+            db, 
+            sil_regn=sil_regn, 
+            scanned_document_path="",  # Empty path for manual marking
+            actor_id=user_id
+        )
+    except ValueError as exc:
+        error_msg = str(exc)
+        if "not found" in error_msg.lower():
+            raise HTTPException(status_code=404, detail=error_msg) from exc
+        raise validation_error([(None, error_msg)]) from exc
+    except RuntimeError as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+    
+    silmatha_schema = schemas.SilmathaRegistInternal.model_validate(updated_silmatha)
+    return schemas.SilmathaRegistWorkflowResponse(
+        success=True,
+        message="Silmatha certificate marked as scanned successfully.",
+        data=silmatha_schema,
+    )
+
+
+@router.post(
+    "/{sil_regn}/approve",
+    response_model=schemas.SilmathaRegistWorkflowResponse,
+    dependencies=[has_any_permission("silmatha:approve")],
+)
+def approve_silmatha_record(
+    sil_regn: str,
+    db: Session = Depends(get_db),
+    current_user: UserAccount = Depends(get_current_user),
+):
+    """
+    Approve silmatha registration.
+    
+    Transitions: PEND-APPROVAL → COMPLETED (with approval_status = APPROVED)
+    
+    Once approved, the workflow is completed. This is the final step for successful registrations.
+    
+    Requires: silmatha:approve permission
+    """
+    user_id = current_user.ua_user_id
+    
+    try:
+        updated_silmatha = silmatha_regist_service.approve_silmatha(
+            db, sil_regn=sil_regn, actor_id=user_id
+        )
+    except ValueError as exc:
+        error_msg = str(exc)
+        if "not found" in error_msg.lower():
+            raise HTTPException(status_code=404, detail=error_msg) from exc
+        raise validation_error([(None, error_msg)]) from exc
+    except RuntimeError as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+    
+    silmatha_schema = schemas.SilmathaRegistInternal.model_validate(updated_silmatha)
+    return schemas.SilmathaRegistWorkflowResponse(
+        success=True,
+        message="Silmatha registration approved and completed successfully.",
+        data=silmatha_schema,
+    )
+
+
+@router.post(
+    "/workflow",
+    response_model=schemas.SilmathaRegistWorkflowResponse,
+    dependencies=[has_any_permission("silmatha:approve", "silmatha:update")],
+)
+def update_silmatha_workflow(
+    request: schemas.SilmathaRegistWorkflowRequest,
+    db: Session = Depends(get_db),
+    current_user: UserAccount = Depends(get_current_user),
+):
+    """
+    Update workflow status of a silmatha record.
+    
+    Main Workflow Actions:
+    - APPROVE: Approve pending silmatha registration (PEND-APPROVAL → COMPLETED)
+    - REJECT: Reject pending silmatha registration (PEND-APPROVAL → REJECTED, requires rejection_reason)
+    - MARK_PRINTING: Mark as in printing process (PENDING → PRINTING)
+    - MARK_PRINTED: Mark certificate as printed (PENDING → PRINTED)
+    - MARK_SCANNED: Mark certificate as scanned (PRINTED → PEND-APPROVAL)
+    - RESET_TO_PENDING: Reset workflow to pending state (for corrections)
+    
+    Reprint Workflow Actions:
+    - REQUEST_REPRINT: Request a certificate reprint (requires reprint_reason, reprint_amount, optional reprint_remarks)
+    - ACCEPT_REPRINT: Accept a reprint request
+    - REJECT_REPRINT: Reject a reprint request (requires rejection_reason)
+    - COMPLETE_REPRINT: Mark reprint as completed
+    
+    Requires: silmatha:approve OR silmatha:update permission
+    """
+    user_id = current_user.ua_user_id
+    action = request.action
+    sil_regn = request.sil_regn
+
+    try:
+        if action == schemas.WorkflowActionType.APPROVE:
+            updated_silmatha = silmatha_regist_service.approve_silmatha(
+                db, sil_regn=sil_regn, actor_id=user_id
+            )
+            message = "Silmatha approved successfully."
+
+        elif action == schemas.WorkflowActionType.REJECT:
+            if not request.rejection_reason:
+                raise validation_error(
+                    [("rejection_reason", "Rejection reason is required when rejecting")]
+                )
+            updated_silmatha = silmatha_regist_service.reject_silmatha(
+                db, 
+                sil_regn=sil_regn, 
+                rejection_reason=request.rejection_reason,
+                actor_id=user_id
+            )
+            message = "Silmatha rejected successfully."
+
+        elif action == schemas.WorkflowActionType.MARK_PRINTING:
+            updated_silmatha = silmatha_regist_service.mark_printing(
+                db, sil_regn=sil_regn, actor_id=user_id
+            )
+            message = "Silmatha marked as printing successfully."
+
+        elif action == schemas.WorkflowActionType.MARK_PRINTED:
+            updated_silmatha = silmatha_regist_service.mark_printed(
+                db, sil_regn=sil_regn, actor_id=user_id
+            )
+            message = "Silmatha certificate marked as printed successfully."
+
+        elif action == schemas.WorkflowActionType.MARK_SCANNED:
+            updated_silmatha = silmatha_regist_service.mark_scanned(
+                db, sil_regn=sil_regn, scanned_document_path="", actor_id=user_id
+            )
+            message = "Silmatha certificate marked as scanned successfully."
+
+        elif action == schemas.WorkflowActionType.RESET_TO_PENDING:
+            updated_silmatha = silmatha_regist_service.reset_to_pending(
+                db, sil_regn=sil_regn, actor_id=user_id
+            )
+            message = "Silmatha workflow reset to pending successfully."
+
+        # Reprint workflow actions
+        elif action == schemas.WorkflowActionType.REQUEST_REPRINT:
+            if not request.reprint_reason:
+                raise validation_error(
+                    [("reprint_reason", "Reprint reason is required when requesting reprint")]
+                )
+            if not request.reprint_amount:
+                raise validation_error(
+                    [("reprint_amount", "Reprint amount is required when requesting reprint")]
+                )
+            updated_silmatha = silmatha_regist_service.request_reprint(
+                db, 
+                sil_regn=sil_regn, 
+                actor_id=user_id,
+                reprint_reason=request.reprint_reason,
+                reprint_amount=request.reprint_amount,
+                reprint_remarks=request.reprint_remarks
+            )
+            message = "Reprint request submitted successfully."
+
+        elif action == schemas.WorkflowActionType.ACCEPT_REPRINT:
+            updated_silmatha = silmatha_regist_service.accept_reprint(
+                db, sil_regn=sil_regn, actor_id=user_id
+            )
+            message = "Reprint request accepted successfully."
+
+        elif action == schemas.WorkflowActionType.REJECT_REPRINT:
+            if not request.rejection_reason:
+                raise validation_error(
+                    [("rejection_reason", "Rejection reason is required when rejecting reprint")]
+                )
+            updated_silmatha = silmatha_regist_service.reject_reprint(
+                db, 
+                sil_regn=sil_regn, 
+                actor_id=user_id,
+                rejection_reason=request.rejection_reason
+            )
+            message = "Reprint request rejected successfully."
+
+        elif action == schemas.WorkflowActionType.COMPLETE_REPRINT:
+            updated_silmatha = silmatha_regist_service.complete_reprint(
+                db, sil_regn=sil_regn, actor_id=user_id
+            )
+            message = "Reprint completed successfully."
+
+        else:
+            raise validation_error([("action", "Invalid workflow action")])
+
+    except ValueError as exc:
+        error_msg = str(exc)
+        if "not found" in error_msg.lower():
+            raise HTTPException(status_code=404, detail=error_msg) from exc
+        raise validation_error([(None, error_msg)]) from exc
+    except RuntimeError as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+    silmatha_schema = schemas.SilmathaRegistInternal.model_validate(updated_silmatha)
+    return schemas.SilmathaRegistWorkflowResponse(
+        success=True,
+        message=message,
+        data=silmatha_schema,
+    )
+
+
+@router.post(
+    "/arama-list",
+    response_model=schemas.AramaListResponse,
+    dependencies=[has_any_permission("silmatha:create", "silmatha:read", "silmatha:update")],
+)
+def get_arama_list_for_silmatha(
+    request: schemas.AramaListRequest,
+    db: Session = Depends(get_db),
+    current_user: UserAccount = Depends(get_current_user),
+):
+    """
+    Get a simplified list of aramas for silmatha users.
+    Returns only ar_trn, ar_vname, and ar_addrs.
+    
+    Requires: silmatha:read or silmatha:create or silmatha:update permission
+    """
+    if request.action != "READ_ALL":
+        raise validation_error([("action", "Only READ_ALL action is supported")])
+    
+    payload = request.payload
+    page = payload.page
+    limit = payload.limit
+    search = payload.search_key.strip() if payload.search_key else None
+    if search == "":
+        search = None
+    skip = payload.skip if payload.page == 1 else (page - 1) * limit
+    
+    # Get aramas using the arama service
+    aramas = arama_service.list_aramas(
+        db,
+        skip=skip,
+        limit=limit,
+        search=search,
+    )
+    
+    # Get total count
+    total = arama_service.count_aramas(
+        db,
+        search=search,
+    )
+    
+    # Map to simplified response
+    simple_aramas = [
+        schemas.AramaSimpleItem(
+            ar_trn=arama.ar_trn,
+            ar_vname=arama.ar_vname,
+            ar_addrs=arama.ar_addrs,
+        )
+        for arama in aramas
+    ]
+    
+    # Also fetch temporary aramas and include them in results
+    temp_aramas = temporary_arama_service.list_temporary_aramas(
+        db,
+        skip=0,  # Get all matching temp aramas
+        limit=200,  # Max allowed
+        search=search,
+    )
+    
+    # Convert temporary aramas to simplified format
+    for temp_arama in temp_aramas:
+        simple_aramas.append(
+            schemas.AramaSimpleItem(
+                ar_trn=f"TEMP-{temp_arama.ta_id}",
+                ar_vname=temp_arama.ta_name,
+                ar_addrs=temp_arama.ta_address or "",
+            )
+        )
+    
+    # Update total count to include temporary aramas
+    temp_count = temporary_arama_service.count_temporary_aramas(db, search=search)
+    total_with_temp = total + temp_count
+    
+    return schemas.AramaListResponse(
+        status="success",
+        message="Arama records retrieved successfully.",
+        data=simple_aramas,
+        totalRecords=total_with_temp,
+        page=page,
+        limit=limit,
+    )
+
+
+@router.post(
+    "/limited-list",
+    response_model=schemas.SilmathaLimitedListResponse,
+    dependencies=[has_any_permission("silmatha:read", "silmatha:create", "silmatha:update")],
+)
+def get_silmatha_limited_list(
+    request: schemas.SilmathaLimitedListRequest,
+    db: Session = Depends(get_db),
+    current_user: UserAccount = Depends(get_current_user),
+):
+    """
+    Get a limited list of silmathas for dropdown or selection purposes.
+    Returns only sil_regn and sil_mahananame fields.
+    
+    This endpoint is optimized for scenarios where you need to show a list of silmathas
+    for selection purposes (e.g., dropdowns, autocomplete) without loading all the details.
+    
+    Requires: silmatha:read or silmatha:create or silmatha:update permission
+    """
+    if request.action != "READ_ALL":
+        raise validation_error([("action", "Only READ_ALL action is supported")])
+    
+    payload = request.payload
+    page = payload.page
+    limit = payload.limit
+    search = payload.search_key.strip() if payload.search_key else None
+    if search == "":
+        search = None
+    skip = payload.skip if payload.page == 1 else (page - 1) * limit
+    
+    # Get silmatha records with limited fields
+    silmatha_records = silmatha_regist_repo.get_all(
+        db,
+        skip=skip,
+        limit=limit,
+        search_key=search,
+        current_user=current_user
+    )
+    
+    # Get total count
+    total_count = silmatha_regist_repo.get_total_count(
+        db,
+        search_key=search,
+        current_user=current_user
+    )
+    
+    # Map to limited response - only sil_regn and sil_mahananame
+    limited_silmathas = [
+        schemas.SilmathaLimitedItem(
+            sil_regn=record.sil_regn,
+            sil_mahananame=record.sil_mahananame,
+        )
+        for record in silmatha_records
+    ]
+    
+    return schemas.SilmathaLimitedListResponse(
+        status="success",
+        message="Silmatha records retrieved successfully.",
+        data=limited_silmathas,
+        totalRecords=total_count,
+        page=page,
+        limit=limit,
+    )
+
