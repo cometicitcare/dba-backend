@@ -110,6 +110,9 @@ class AramaData(Base):
     ar_updated_by = Column(String(25))
     ar_version_number = Column(Integer, nullable=False, server_default="1")
     
+    # Temporary record flag - identifies records created from temporary arama endpoint
+    ar_is_temporary_record = Column(Boolean, server_default=expression.false())
+    
     # Relationships
     arama_lands = relationship("AramaLand", back_populates="arama", cascade="all, delete-orphan")
     resident_silmathas = relationship("AramaResidentSilmatha", back_populates="arama", cascade="all, delete-orphan")

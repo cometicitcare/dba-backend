@@ -1,8 +1,9 @@
 # app/api/v1/routes/temporary_arama.py
-"""
+"""  
 API routes for Temporary Arama Management
 Provides CRUD operations for temporary arama records
 """
+from datetime import date
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
@@ -20,12 +21,85 @@ from app.schemas.temporary_arama import (
     ProvinceResponse,
     DistrictResponse,
 )
+from app.schemas.arama import AramaCreate, AramaOut
+from app.schemas.arama import (
+    ProvinceResponse as AramaProvinceResponse,
+    DistrictResponse as AramaDistrictResponse,
+    DivisionalSecretariatResponse,
+    GNDivisionResponse,
+    NikayaResponse,
+    ParshawaResponse,
+    SilmathaResponse,
+)
 from app.services.temporary_arama_service import temporary_arama_service
+from app.services.arama_service import arama_service
 from app.repositories.province_repo import province_repo
 from app.repositories.district_repo import district_repo
 from app.utils.http_exceptions import validation_error
 
 router = APIRouter()
+
+
+def _convert_arama_to_out(arama) -> AramaOut:
+    """Convert AramaData model to AramaOut schema with nested foreign key objects"""
+    arama_dict = {
+        **{col.name: getattr(arama, col.name) for col in arama.__table__.columns},
+        "arama_lands": getattr(arama, 'arama_lands', []),
+        "resident_silmathas": getattr(arama, 'resident_silmathas', []),
+    }
+    
+    # Convert foreign key relationships to nested response objects
+    if hasattr(arama, 'province_ref') and arama.province_ref:
+        arama_dict["ar_province"] = AramaProvinceResponse(
+            cp_code=arama.province_ref.cp_code,
+            cp_name=arama.province_ref.cp_name
+        )
+    
+    if hasattr(arama, 'district_ref') and arama.district_ref:
+        arama_dict["ar_district"] = AramaDistrictResponse(
+            dd_dcode=arama.district_ref.dd_dcode,
+            dd_dname=arama.district_ref.dd_dname
+        )
+    
+    if hasattr(arama, 'divisional_secretariat_ref') and arama.divisional_secretariat_ref:
+        arama_dict["ar_divisional_secretariat"] = DivisionalSecretariatResponse(
+            dv_dvcode=arama.divisional_secretariat_ref.dv_dvcode,
+            dv_dvname=arama.divisional_secretariat_ref.dv_dvname
+        )
+    
+    if hasattr(arama, 'gn_division_ref') and arama.gn_division_ref:
+        arama_dict["ar_gndiv"] = GNDivisionResponse(
+            gn_gnc=arama.gn_division_ref.gn_gnc,
+            gn_gnname=arama.gn_division_ref.gn_gnname
+        )
+    
+    if hasattr(arama, 'nikaya_ref') and arama.nikaya_ref:
+        arama_dict["ar_nikaya"] = NikayaResponse(
+            nk_nkn=arama.nikaya_ref.nk_nkn,
+            nk_nname=arama.nikaya_ref.nk_nname
+        )
+    
+    if hasattr(arama, 'parshawa_ref') and arama.parshawa_ref:
+        arama_dict["ar_parshawa"] = ParshawaResponse(
+            pr_prn=arama.parshawa_ref.pr_prn,
+            pr_pname=arama.parshawa_ref.pr_pname
+        )
+    
+    if hasattr(arama, 'owner_silmatha_ref') and arama.owner_silmatha_ref:
+        arama_dict["ar_ownercd"] = SilmathaResponse(
+            sil_regn=arama.owner_silmatha_ref.sil_regn,
+            sil_gihiname=arama.owner_silmatha_ref.sil_gihiname,
+            sil_mahananame=arama.owner_silmatha_ref.sil_mahananame
+        )
+    
+    if hasattr(arama, 'viharadhipathi_ref') and arama.viharadhipathi_ref:
+        arama_dict["ar_viharadhipathi_name"] = SilmathaResponse(
+            sil_regn=arama.viharadhipathi_ref.sil_regn,
+            sil_gihiname=arama.viharadhipathi_ref.sil_gihiname,
+            sil_mahananame=arama.viharadhipathi_ref.sil_mahananame
+        )
+    
+    return AramaOut.model_validate(arama_dict)
 
 
 def _convert_temp_arama_to_response(temp_arama, db: Session) -> TemporaryAramaResponse:
@@ -89,17 +163,51 @@ def manage_temporary_arama_records(
         if not payload.data:
             raise validation_error([("payload.data", "data is required for CREATE action")])
 
+        # Map temporary arama payload to aramadata payload
+        temp_data = payload.data
+        
+        # Create aramadata payload from temporary arama data
+        # Need to provide required fields for arama
+        arama_payload = AramaCreate(
+            ar_vname=temp_data.ta_name,
+            ar_addrs=temp_data.ta_address or "",
+            ar_mobile=temp_data.ta_contact_number or "0000000000",  # Default if not provided
+            ar_whtapp=temp_data.ta_contact_number or "0000000000",  # Same as mobile
+            ar_email=None,  # Email is optional - set to None for temporary records
+            ar_province=temp_data.ta_province if isinstance(temp_data.ta_province, str) else None,
+            ar_district=temp_data.ta_district if isinstance(temp_data.ta_district, str) else None,
+            ar_typ="01",  # Default arama type
+            ar_gndiv="0000000000",  # Default GN division (will need to be updated later)
+            ar_ownercd="SIL00000000",  # Default owner code (12 chars max - will need to be updated later)
+            ar_parshawa="0000000000",  # Default parshawa (will need to be updated later)
+            ar_is_temporary_record=True,  # Flag to identify temporary endpoint records
+        )
+        
+        # Add aramadhipathi info to remarks if provided
+        if temp_data.ta_aramadhipathi_name:
+            arama_payload.ar_minissecrmrks = f"Aramadhipathi: {temp_data.ta_aramadhipathi_name}"
+
         try:
-            created = temporary_arama_service.create_temporary_arama(
-                db, payload=payload.data, actor_id=user_id
+            # Use the arama service to create (auto-generates AR number)
+            created_arama = arama_service.create_arama(
+                db, payload=arama_payload, actor_id=user_id
             )
+            
+            # Refresh to load relationships
+            db.refresh(created_arama)
+            
+            # Convert to AramaOut with nested foreign key objects
+            created_out = _convert_arama_to_out(created_arama)
+            
             return TemporaryAramaManagementResponse(
                 status="success",
-                message="Temporary arama record created successfully.",
-                data=created,
+                message="Arama record created successfully.",
+                data=created_out.model_dump(),
             )
         except ValueError as exc:
             raise validation_error([(None, str(exc))]) from exc
+        except RuntimeError as exc:
+            raise HTTPException(status_code=500, detail=str(exc)) from exc
 
     # ==================== READ_ONE ====================
     if action == CRUDAction.READ_ONE:

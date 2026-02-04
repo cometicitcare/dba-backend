@@ -143,6 +143,9 @@ class AramaBase(BaseModel):
     ar_created_by: Annotated[Optional[str], Field(default=None, max_length=25)]
     ar_updated_by: Annotated[Optional[str], Field(default=None, max_length=25)]
     ar_version_number: Annotated[int, Field(ge=1)] = 1
+    
+    # Temporary record flag
+    ar_is_temporary_record: Optional[bool] = None
 
     @field_validator(
         "ar_trn",
