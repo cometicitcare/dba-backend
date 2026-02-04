@@ -23,6 +23,11 @@ class TemporaryBhikkuBase(BaseModel):
     tb_samanera_name: Optional[str] = Field(None, max_length=100, description="Samanera (novice) name")
     tb_address: Optional[str] = Field(None, max_length=500, description="Residential address")
     tb_living_temple: Optional[str] = Field(None, max_length=200, description="Current living temple/vihara")
+    # Additional fields from actual payload
+    tb_bname: Optional[str] = Field(None, max_length=100, description="Bhikku name (alternate field)")
+    tb_district: Optional[str] = Field(None, max_length=50, description="District")
+    tb_province: Optional[str] = Field(None, max_length=50, description="Province")
+    tb_vihara_name: Optional[str] = Field(None, max_length=200, description="Vihara name (alternate field)")
 
 
 # --- Create Schema ---

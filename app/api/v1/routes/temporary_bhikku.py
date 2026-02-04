@@ -61,32 +61,17 @@ def manage_temporary_bhikku_records(
 
         try:
             # Create bhikku registration (now saves to bhikku_regist table)
-            created_bhikku = temporary_bhikku_service.create_temporary_bhikku(
+            # Returns enriched bhikku data with nested objects for foreign keys
+            enriched_bhikku_data = temporary_bhikku_service.create_temporary_bhikku(
                 db, payload=payload.data, actor_id=user_id
             )
             
-            # Convert Bhikku model to TemporaryBhikku response format for backward compatibility
-            # This ensures the frontend receives the expected response structure
-            temp_bhikku_response = {
-                "tb_id": created_bhikku.br_id,  # Map br_id to tb_id
-                "tb_name": created_bhikku.br_mahananame or payload.data.tb_name,  # Main name
-                "tb_id_number": payload.data.tb_id_number,  # Keep original ID number
-                "tb_contact_number": created_bhikku.br_mobile or payload.data.tb_contact_number,
-                "tb_samanera_name": created_bhikku.br_gihiname or payload.data.tb_samanera_name,
-                "tb_address": created_bhikku.br_fathrsaddrs or payload.data.tb_address,
-                "tb_living_temple": payload.data.tb_living_temple,  # Keep original
-                "tb_created_at": created_bhikku.br_created_at,
-                "tb_created_by": created_bhikku.br_created_by,
-                "tb_updated_at": created_bhikku.br_updated_at,
-                "tb_updated_by": created_bhikku.br_updated_by,
-                # Add br_regn in response for reference (hidden field)
-                "br_regn": created_bhikku.br_regn,
-            }
-            
+            # Return enriched bhikku data in the response
+            # This includes all foreign keys as nested objects like normal bhikku create
             return TemporaryBhikkuManagementResponse(
                 status="success",
                 message="Temporary bhikku record created successfully.",
-                data=temp_bhikku_response,
+                data=enriched_bhikku_data,
             )
         except ValueError as exc:
             raise validation_error([(None, str(exc))]) from exc
