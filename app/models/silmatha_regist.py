@@ -97,6 +97,9 @@ class SilmathaRegist(Base):
     # Location-based access control - stores district code of creating user
     sil_created_by_district = Column(String(10), index=True)
     
+    # Temporary record flag - identifies records created from temporary silmatha endpoint
+    sil_is_temporary_record = Column(Boolean, server_default=text('false'))
+    
     # Relationships - SQLAlchemy ORM relationships for nested responses
     province_rel = relationship("Province", foreign_keys=[sil_province], lazy="joined")
     district_rel = relationship("District", foreign_keys=[sil_district], lazy="joined")
