@@ -136,6 +136,9 @@ class SilmathaRegistBase(BaseModel):
     sil_acharya_signature: Optional[bool] = None  # ආචාර්ය මෑණියන් වහන්සේගේ අත්සන
     sil_aramadhipathi_signature: Optional[bool] = None  # ආරාමාධිපති මෑණියන් වහන්සේගේ අත්සන
     sil_district_secretary_signature: Optional[bool] = None  # දිස්ත්‍රික් සිල්මාතා සංගමයේ ලේකම් අත්සන
+    
+    # Temporary record flag
+    sil_is_temporary_record: Optional[bool] = None
 
 
 class SilmathaRegistCreate(SilmathaRegistBase):

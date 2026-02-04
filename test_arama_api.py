@@ -5,10 +5,11 @@ Test the actual API endpoint with the user's payload
 import requests
 import json
 
-# User's payload
+# User's payload - UPDATE FULL
 payload = {
-    "action": "CREATE",
+    "action": "UPDATE",
     "payload": {
+        "ar_id": 1,
         "data": {
             "ar_mobile": "0784561234",
             "ar_whtapp": "0789456123",
