@@ -103,6 +103,7 @@ class AramaBase(BaseModel):
     ar_temple_working_committee: Annotated[Optional[str], Field(default=None, max_length=500)] = None
     ar_other_associations: Annotated[Optional[str], Field(default=None, max_length=500)] = None
     ar_land_info_certified: Optional[bool] = None
+    ar_resident_silmathas_certified: Optional[bool] = None
     ar_inspection_report: Annotated[Optional[str], Field(default=None, max_length=1000)] = None
     ar_inspection_code: Annotated[Optional[str], Field(default=None, max_length=100)] = None
     ar_grama_niladhari_division_ownership: Annotated[Optional[str], Field(default=None, max_length=200)] = None
@@ -308,6 +309,7 @@ class AramaUpdate(BaseModel):
     ar_temple_working_committee: Annotated[Optional[str], Field(default=None, max_length=500)] = None
     ar_other_associations: Annotated[Optional[str], Field(default=None, max_length=500)] = None
     ar_land_info_certified: Optional[bool] = None
+    ar_resident_silmathas_certified: Optional[bool] = None
     ar_inspection_report: Annotated[Optional[str], Field(default=None, max_length=1000)] = None
     ar_inspection_code: Annotated[Optional[str], Field(default=None, max_length=100)] = None
     ar_grama_niladhari_division_ownership: Annotated[Optional[str], Field(default=None, max_length=200)] = None
