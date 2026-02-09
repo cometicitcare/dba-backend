@@ -62,7 +62,7 @@ class SilmathaResponse(BaseModel):
 
 
 class AramaBase(BaseModel):
-    model_config = ConfigDict(extra="ignore")
+    model_config = ConfigDict(extra="ignore", populate_by_name=True)
     
     ar_trn: Annotated[str, Field(min_length=1, max_length=10)]
     ar_vname: Annotated[Optional[str], Field(default=None, max_length=200)]
@@ -120,6 +120,8 @@ class AramaBase(BaseModel):
     ar_annex2_divisional_secretary_recommendation: Optional[bool] = None
     ar_annex2_approval_construction: Optional[bool] = None
     ar_annex2_referral_resubmission: Optional[bool] = None
+    ar_landsize: Annotated[Optional[str], Field(default=None, max_length=200, alias="ar_landSize")] = None
+    ar_landownershiptype: Annotated[Optional[str], Field(default=None, max_length=500, alias="ar_landOwnerShipType")] = None
     
     # Document Storage
     ar_scanned_document_path: Annotated[Optional[str], Field(default=None, max_length=500)] = None
@@ -207,7 +209,7 @@ class AramaCreate(AramaBase):
     temple_owned_land: List[AramaLandCreate] = Field(default_factory=list)
     resident_silmathas: List[AramaResidentSilmathaCreate] = Field(default_factory=list)
     
-    model_config = ConfigDict(extra="ignore")
+    model_config = ConfigDict(extra="ignore", populate_by_name=True)
 
 
 class AramaCreatePayload(BaseModel):
@@ -326,6 +328,8 @@ class AramaUpdate(BaseModel):
     ar_annex2_divisional_secretary_recommendation: Optional[bool] = None
     ar_annex2_approval_construction: Optional[bool] = None
     ar_annex2_referral_resubmission: Optional[bool] = None
+    ar_landsize: Annotated[Optional[str], Field(default=None, max_length=200, alias="ar_landSize")] = None
+    ar_landownershiptype: Annotated[Optional[str], Field(default=None, max_length=500, alias="ar_landOwnerShipType")] = None
     
     # Document Storage
     ar_scanned_document_path: Annotated[Optional[str], Field(default=None, max_length=500)] = None
