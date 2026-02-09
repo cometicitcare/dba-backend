@@ -75,6 +75,8 @@ class AramaData(Base):
     ar_annex2_divisional_secretary_recommendation = Column(Boolean)
     ar_annex2_approval_construction = Column(Boolean)
     ar_annex2_referral_resubmission = Column(Boolean)
+    ar_landsize = Column(String(200))
+    ar_landownershiptype = Column(String(500))
     
     # Document Storage
     ar_scanned_document_path = Column(String(500))
