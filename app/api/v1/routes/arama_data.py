@@ -38,6 +38,7 @@ def _convert_arama_to_out(arama: AramaData) -> AramaOut:
     arama_dict = {
         **{col.name: getattr(arama, col.name) for col in arama.__table__.columns},
         "arama_lands": arama.arama_lands,
+        "temple_owned_land": arama.arama_lands,  # Alias for consistency with input payload
         "resident_silmathas": arama.resident_silmathas,
     }
     

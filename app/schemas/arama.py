@@ -404,6 +404,7 @@ class AramaOut(AramaBase):
 
     ar_id: int
     arama_lands: List[AramaLandInDB] = Field(default_factory=list)
+    temple_owned_land: List[AramaLandInDB] = Field(default_factory=list)  # Alias for consistency with input
     resident_silmathas: List[AramaResidentSilmathaInDB] = Field(default_factory=list)
     
     # Override base fields to use nested response objects
