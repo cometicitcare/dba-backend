@@ -23,6 +23,7 @@ from app.schemas.arama import (
     NikayaResponse,
     ParshawaResponse,
     SilmathaResponse,
+    SasanarakshakaBalaMandalayaResponse,
 )
 from app.services.arama_service import arama_service
 from app.services.silmatha_regist_service import silmatha_regist_service
@@ -59,6 +60,12 @@ def _convert_arama_to_out(arama: AramaData) -> AramaOut:
         arama_dict["ar_divisional_secretariat"] = DivisionalSecretariatResponse(
             dv_dvcode=arama.divisional_secretariat_ref.dv_dvcode,
             dv_dvname=arama.divisional_secretariat_ref.dv_dvname
+        )
+    
+    if arama.pradeshya_sabha_ref:
+        arama_dict["ar_pradeshya_sabha"] = SasanarakshakaBalaMandalayaResponse(
+            sr_ssbmcode=arama.pradeshya_sabha_ref.sr_ssbmcode,
+            sr_ssbname=arama.pradeshya_sabha_ref.sr_ssbname
         )
     
     if arama.gn_division_ref:

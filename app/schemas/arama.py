@@ -60,6 +60,11 @@ class SilmathaResponse(BaseModel):
     sil_gihiname: Optional[str] = None
     sil_mahananame: Optional[str] = None
 
+class SasanarakshakaBalaMandalayaResponse(BaseModel):
+    """Nested response for pradeshya sabha / sasanarakshaka bala mandalaya"""
+    sr_ssbmcode: str
+    sr_ssbname: Optional[str] = None
+
 
 class AramaBase(BaseModel):
     model_config = ConfigDict(extra="ignore", populate_by_name=True)
@@ -415,6 +420,7 @@ class AramaOut(AramaBase):
     ar_province: Optional[Union[ProvinceResponse, str]] = None
     ar_district: Optional[Union[DistrictResponse, str]] = None
     ar_divisional_secretariat: Optional[Union[DivisionalSecretariatResponse, str]] = None
+    ar_pradeshya_sabha: Optional[Union[SasanarakshakaBalaMandalayaResponse, str]] = None
     ar_gndiv: Union[GNDivisionResponse, str]
     ar_nikaya: Optional[Union[NikayaResponse, str]] = None
     ar_parshawa: Union[ParshawaResponse, str]
