@@ -79,6 +79,25 @@ class SasanarakshakaBalaMandalayaRepository:
 
         return records, total
 
+    def get_by_divisional_secretariat(
+        self,
+        db: Session,
+        sr_dvcd: str,
+    ) -> List[SasanarakshakaBalaMandalaya]:
+        """
+        Get all Sasanarakshaka records for a given divisional secretariat code.
+        Returns all records (no pagination) with relationships eagerly loaded.
+        """
+        return (
+            db.query(SasanarakshakaBalaMandalaya)
+            .filter(
+                SasanarakshakaBalaMandalaya.sr_dvcd == sr_dvcd,
+                SasanarakshakaBalaMandalaya.sr_is_deleted.is_(False),
+            )
+            .order_by(SasanarakshakaBalaMandalaya.sr_id.asc())
+            .all()
+        )
+
     def create(
         self, 
         db: Session, 

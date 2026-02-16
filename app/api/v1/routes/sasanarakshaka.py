@@ -76,6 +76,43 @@ def list_sasanarakshaka(
 
 
 @router.get(
+    "/hierarchy/{dv_dvcode}",
+    response_model=schemas.SasanarakshakaBalaMandalayaListResponseWithNested,
+    dependencies=[has_permission("sasanarakshaka:read")],
+)
+def get_sasanarakshaka_hierarchy(
+    dv_dvcode: str,
+    db: Session = Depends(get_db),
+    current_user: UserAccount = Depends(get_current_user),
+):
+    """
+    Get all Sasanarakshaka records for a given divisional secretariat.
+    Returns records with nested foreign key objects (divisional secretariat and nayakahimi).
+    Requires: sasanarakshaka:read permission
+    
+    Args:
+        dv_dvcode: Divisional Secretariat Code
+    
+    Returns:
+        List of Sasanarakshaka records with nested objects for the specified divisional secretariat
+    """
+    try:
+        records = sasanarakshaka_service.get_sasanarakshaka_by_divisional_secretariat(
+            db, sr_dvcd=dv_dvcode
+        )
+        return {
+            "status": "success",
+            "message": f"Sasanarakshaka records retrieved successfully for divisional secretariat {dv_dvcode}.",
+            "data": records,
+            "total": len(records),
+            "page": 1,
+            "limit": len(records),
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+
+
+@router.get(
     "/{sr_id}",
     response_model=schemas.SasanarakshakaBalaMandalayaSingleResponse,
     dependencies=[has_permission("sasanarakshaka:read")],
