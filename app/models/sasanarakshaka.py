@@ -1,5 +1,6 @@
 # app/models/sasanarakshaka.py
 from sqlalchemy import Boolean, Column, Integer, String, TIMESTAMP, ForeignKey, text
+from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from app.db.base import Base
 
@@ -40,3 +41,7 @@ class SasanarakshakaBalaMandalaya(Base):
     sr_created_by = Column(String(25), nullable=True, comment="User who created the record")
     sr_updated_by = Column(String(25), nullable=True, comment="User who last updated the record")
     sr_version_number = Column(Integer, server_default=text('1'), nullable=True, comment="Version number for optimistic locking")
+    
+    # Relationships - use lazy="joined" for eager loading to support nested responses
+    divisional_secretariat_ref = relationship("DivisionalSecretariat", foreign_keys=[sr_dvcd], lazy="joined")
+    bhikku_nayakahimi_ref = relationship("Bhikku", foreign_keys=[sr_sbmnayakahimi], lazy="joined")

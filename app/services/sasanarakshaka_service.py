@@ -8,6 +8,9 @@ from app.repositories.sasanarakshaka_repo import sasanarakshaka_repo
 from app.schemas.sasanarakshaka import (
     SasanarakshakaBalaMandalayaCreate,
     SasanarakshakaBalaMandalayaUpdate,
+    SasanarakshakaBalaMandalayaResponseWithNested,
+    DivisionalSecretariatResponse,
+    BhikkuNayakahimiResponse,
 )
 
 
@@ -45,6 +48,47 @@ class SasanarakshakaBalaMandalayaService:
         existing = sasanarakshaka_repo.get_by_code(db, sr_ssbmcode)
         if existing and (current_id is None or existing.sr_id != current_id):
             raise ValueError(f"Sasanarakshaka Bala Mandalaya code '{sr_ssbmcode}' already exists.")
+
+    def _convert_to_response_with_nested(
+        self, record: SasanarakshakaBalaMandalaya
+    ) -> SasanarakshakaBalaMandalayaResponseWithNested:
+        """Convert a model record to response schema with nested objects"""
+        # Get base dict from model
+        response_dict = {
+            "sr_id": record.sr_id,
+            "sr_ssbmcode": record.sr_ssbmcode,
+            "sr_dvcd": record.sr_dvcd,
+            "sr_ssbname": record.sr_ssbname,
+            "sr_sbmnayakahimi": record.sr_sbmnayakahimi,
+            "sr_version": record.sr_version,
+            "sr_is_deleted": record.sr_is_deleted,
+            "sr_created_at": record.sr_created_at,
+            "sr_updated_at": record.sr_updated_at,
+            "sr_created_by": record.sr_created_by,
+            "sr_updated_by": record.sr_updated_by,
+            "sr_version_number": record.sr_version_number,
+        }
+        
+        # Add nested divisional secretariat object
+        if record.divisional_secretariat_ref:
+            response_dict["sr_divisional_secretariat"] = DivisionalSecretariatResponse(
+                dv_dvcode=record.divisional_secretariat_ref.dv_dvcode,
+                dv_dvname=record.divisional_secretariat_ref.dv_dvname,
+            )
+        else:
+            response_dict["sr_divisional_secretariat"] = None
+        
+        # Add nested bhikku nayakahimi object
+        if record.bhikku_nayakahimi_ref:
+            response_dict["sr_nayakahimi"] = BhikkuNayakahimiResponse(
+                br_regn=record.bhikku_nayakahimi_ref.br_regn,
+                br_gihiname=record.bhikku_nayakahimi_ref.br_gihiname,
+                br_mobile=record.bhikku_nayakahimi_ref.br_mobile,
+            )
+        else:
+            response_dict["sr_nayakahimi"] = None
+        
+        return SasanarakshakaBalaMandalayaResponseWithNested(**response_dict)
 
     def create_sasanarakshaka(
         self,
@@ -96,6 +140,18 @@ class SasanarakshakaBalaMandalayaService:
         return sasanarakshaka_repo.get_all(
             db, skip=skip, limit=limit, search_key=search_key, sr_dvcd=sr_dvcd
         )
+
+    def get_sasanarakshaka_by_divisional_secretariat(
+        self,
+        db: Session,
+        sr_dvcd: str,
+    ) -> List[SasanarakshakaBalaMandalayaResponseWithNested]:
+        """
+        Get all Sasanarakshaka records for a given divisional secretariat code.
+        Returns records with nested foreign key objects.
+        """
+        records = sasanarakshaka_repo.get_by_divisional_secretariat(db, sr_dvcd)
+        return [self._convert_to_response_with_nested(record) for record in records]
 
     def update_sasanarakshaka(
         self,
