@@ -87,17 +87,26 @@ class BhikkuIDCardRepository:
         db_bhikku_id_card = BhikkuIDCard(
             bic_br_regn=bhikku_id_card.bic_br_regn,
             bic_form_no=form_no,
+            bic_category=bhikku_id_card.bic_category,
             bic_divisional_secretariat=bhikku_id_card.bic_divisional_secretariat,
+            bic_division_s=bhikku_id_card.bic_division_s,
             bic_district=bhikku_id_card.bic_district,
+            bic_district_s=bhikku_id_card.bic_district_s,
             bic_full_bhikku_name=bhikku_id_card.bic_full_bhikku_name,
+            bic_name_s=bhikku_id_card.bic_name_s,
             bic_title_post=bhikku_id_card.bic_title_post,
+            bic_padawiya_s=bhikku_id_card.bic_padawiya_s,
             bic_lay_name_full=bhikku_id_card.bic_lay_name_full,
             bic_dob=bhikku_id_card.bic_dob,
             bic_birth_place=bhikku_id_card.bic_birth_place,
             bic_robing_date=bhikku_id_card.bic_robing_date,
             bic_robing_place=bhikku_id_card.bic_robing_place,
             bic_robing_nikaya=bhikku_id_card.bic_robing_nikaya,
+            bic_nikaya_s=bhikku_id_card.bic_nikaya_s,
             bic_robing_parshawaya=bhikku_id_card.bic_robing_parshawaya,
+            bic_parshwaya_s=bhikku_id_card.bic_parshwaya_s,
+            bic_temple_name_e=bhikku_id_card.bic_temple_name_e,
+            bic_temple_name_s=bhikku_id_card.bic_temple_name_s,
             bic_samanera_reg_no=bhikku_id_card.bic_samanera_reg_no,
             bic_upasampada_reg_no=bhikku_id_card.bic_upasampada_reg_no,
             bic_higher_ord_date=bhikku_id_card.bic_higher_ord_date,
@@ -105,6 +114,7 @@ class BhikkuIDCardRepository:
             bic_perm_residence=bhikku_id_card.bic_perm_residence,
             bic_national_id=bhikku_id_card.bic_national_id,
             bic_stay_history=stay_history_data,
+            bic_issue_date=bhikku_id_card.bic_issue_date,
             bic_workflow_status="PENDING",  # Default status
             bic_created_by=created_by,
         )
@@ -414,17 +424,21 @@ class BhikkuIDCardRepository:
         db: Session,
         bic_id: int,
         thumbprint_url: Optional[str] = None,
-        photo_url: Optional[str] = None
+        photo_url: Optional[str] = None,
+        signature_url: Optional[bool] = None,
+        authorized_signature_url: Optional[bool] = None,
     ) -> Optional[BhikkuIDCard]:
         """
         Update file paths for uploaded images.
-        
+
         Args:
             db: Database session
             bic_id: ID of the record
             thumbprint_url: Path to thumbprint image
             photo_url: Path to applicant photo
-            
+            signature_url: Whether signature has been uploaded (true/false)
+            authorized_signature_url: Whether authorized signature has been uploaded (true/false)
+
         Returns:
             Updated BhikkuIDCard instance or None if not found
         """
@@ -437,6 +451,12 @@ class BhikkuIDCardRepository:
         
         if photo_url is not None:
             db_record.bic_applicant_photo_url = photo_url
+
+        if signature_url is not None:
+            db_record.bic_signature_url = signature_url
+
+        if authorized_signature_url is not None:
+            db_record.bic_authorized_signature_url = authorized_signature_url
         
         db_record.bic_updated_at = datetime.utcnow()
         

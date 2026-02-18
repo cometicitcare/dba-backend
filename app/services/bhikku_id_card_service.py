@@ -444,6 +444,70 @@ class BhikkuIDCardService:
         
         return updated_card
 
+    async def upload_signature(
+        self,
+        db: Session,
+        bic_id: int,
+        file: UploadFile
+    ) -> BhikkuIDCard:
+        """Mark applicant signature as uploaded for a Bhikku ID Card."""
+        card = self.get_bhikku_id_card_by_id(db, bic_id)
+        
+        # Save file
+        _ , _ = await self.file_storage.save_file(
+            file,
+            card.bic_br_regn,
+            "signature",
+            subdirectory="bhikku_id"
+        )
+        
+        # Update database to mark signature as uploaded
+        updated_card = self.repository.update_file_paths(
+            db,
+            bic_id,
+            signature_url=True
+        )
+        
+        if not updated_card:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Bhikku ID Card with ID {bic_id} not found"
+            )
+        
+        return updated_card
+
+    async def upload_authorized_signature(
+        self,
+        db: Session,
+        bic_id: int,
+        file: UploadFile
+    ) -> BhikkuIDCard:
+        """Mark authorized signature as uploaded for a Bhikku ID Card."""
+        card = self.get_bhikku_id_card_by_id(db, bic_id)
+        
+        # Save file
+        _ , _ = await self.file_storage.save_file(
+            file,
+            card.bic_br_regn,
+            "authorized_signature",
+            subdirectory="bhikku_id"
+        )
+        
+        # Update database to mark authorized signature as uploaded
+        updated_card = self.repository.update_file_paths(
+            db,
+            bic_id,
+            authorized_signature_url=True
+        )
+        
+        if not updated_card:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Bhikku ID Card with ID {bic_id} not found"
+            )
+        
+        return updated_card
+
 
     # ===== Workflow Methods =====
 

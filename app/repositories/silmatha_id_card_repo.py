@@ -98,6 +98,17 @@ class SilmathaIDCardRepository:
             sic_perm_residence=silmatha_id_card.sic_perm_residence,
             sic_national_id=silmatha_id_card.sic_national_id,
             sic_stay_history=stay_history_data,
+            # New ID Card Print Fields
+            sic_category=silmatha_id_card.sic_category,
+            sic_name_s=silmatha_id_card.sic_name_s,
+            sic_arama_name_e=silmatha_id_card.sic_arama_name_e,
+            sic_arama_name_s=silmatha_id_card.sic_arama_name_s,
+            sic_sasun_date=silmatha_id_card.sic_sasun_date,
+            sic_district_s=silmatha_id_card.sic_district_s,
+            sic_division_s=silmatha_id_card.sic_division_s,
+            sic_reg_no=silmatha_id_card.sic_reg_no,
+            sic_reg_date=silmatha_id_card.sic_reg_date,
+            sic_issue_date=silmatha_id_card.sic_issue_date,
             sic_workflow_status="PENDING",  # Default status
             sic_created_by=created_by,
         )
@@ -421,6 +432,48 @@ class SilmathaIDCardRepository:
         db.commit()
         db.refresh(db_record)
         
+        return db_record
+
+
+    def update_file_paths(
+        self,
+        db: Session,
+        sic_id: int,
+        thumbprint_url: Optional[str] = None,
+        photo_url: Optional[str] = None,
+        signature_url: Optional[bool] = None,
+        authorized_signature_url: Optional[bool] = None,
+    ) -> Optional[SilmathaIDCard]:
+        """
+        Update file/boolean fields for an ID card after creation or update.
+
+        Args:
+            db: Database session
+            sic_id: ID of the card
+            thumbprint_url: URL of left thumbprint (optional)
+            photo_url: URL of applicant photo (optional)
+            signature_url: Signature present boolean (optional)
+            authorized_signature_url: Authorized signature present boolean (optional)
+
+        Returns:
+            Updated SilmathaIDCard instance or None
+        """
+        db_record = self.get_by_id(db, sic_id)
+        if not db_record:
+            return None
+
+        if thumbprint_url is not None:
+            db_record.sic_left_thumbprint_url = thumbprint_url
+        if photo_url is not None:
+            db_record.sic_applicant_photo_url = photo_url
+        if signature_url is not None:
+            db_record.sic_signature_url = signature_url
+        if authorized_signature_url is not None:
+            db_record.sic_authorized_signature_url = authorized_signature_url
+
+        db.commit()
+        db.refresh(db_record)
+
         return db_record
 
 

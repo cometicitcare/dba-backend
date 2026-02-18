@@ -233,9 +233,11 @@ class SilmathaIDCardService:
         
         # 2. Upload file
         try:
-            file_url = await self.file_storage.save_file(
+            relative_path, _ = await self.file_storage.save_file(
                 file,
-                folder="silmatha_id_cards/thumbprints"
+                id_card.sic_sil_regn,
+                "left_thumbprint",
+                subdirectory="silmatha_id"
             )
         except Exception as e:
             raise HTTPException(
@@ -244,7 +246,7 @@ class SilmathaIDCardService:
             )
         
         # 3. Update database
-        updated_card = self.repository.update_thumbprint_url(db, sic_id, file_url)
+        updated_card = self.repository.update_thumbprint_url(db, sic_id, relative_path)
         if not updated_card:
             raise HTTPException(
                 status_code=404,
@@ -278,9 +280,11 @@ class SilmathaIDCardService:
         
         # 2. Upload file
         try:
-            file_url = await self.file_storage.save_file(
+            relative_path, _ = await self.file_storage.save_file(
                 file,
-                folder="silmatha_id_cards/photos"
+                id_card.sic_sil_regn,
+                "applicant_photo",
+                subdirectory="silmatha_id"
             )
         except Exception as e:
             raise HTTPException(
@@ -289,7 +293,7 @@ class SilmathaIDCardService:
             )
         
         # 3. Update database
-        updated_card = self.repository.update_photo_url(db, sic_id, file_url)
+        updated_card = self.repository.update_photo_url(db, sic_id, relative_path)
         if not updated_card:
             raise HTTPException(
                 status_code=404,

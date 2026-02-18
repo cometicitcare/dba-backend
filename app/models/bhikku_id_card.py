@@ -36,13 +36,20 @@ class BhikkuIDCard(Base):
         comment="Auto-generated unique form number (e.g., FORM-2025-0001)"
     )
     
+    # Category
+    bic_category = Column(String(100), comment="Category of ID card")
+
     # Top Section Fields
-    bic_divisional_secretariat = Column(String(100), comment="District")
-    bic_district = Column(String(100), comment="District")
-    
+    bic_divisional_secretariat = Column(String(100), comment="Division (English)")
+    bic_division_s = Column(String(100), comment="Division (Sinhala)")
+    bic_district = Column(String(100), comment="District (English)")
+    bic_district_s = Column(String(100), comment="District (Sinhala)")
+
     # 01. Declaration Full Name
-    bic_full_bhikku_name = Column(String(200), nullable=False, comment="Full Bhikku Name")
-    bic_title_post = Column(String(100), comment="Title/Post")
+    bic_full_bhikku_name = Column(String(200), nullable=False, comment="Full Bhikku Name (English / nameE)")
+    bic_name_s = Column(String(200), comment="Full Bhikku Name (Sinhala / nameS)")
+    bic_title_post = Column(String(100), comment="Title/Post (English / padawiyaE)")
+    bic_padawiya_s = Column(String(100), comment="Title/Post (Sinhala / padawiyaS)")
     
     # 02. As per birth certificate
     bic_lay_name_full = Column(String(200), nullable=False, comment="Gihi/Lay Name in full")
@@ -52,8 +59,14 @@ class BhikkuIDCard(Base):
     # 03. Ordination details
     bic_robing_date = Column(Date, comment="Date of Robing")
     bic_robing_place = Column(String(200), comment="Place of Robing")
-    bic_robing_nikaya = Column(String(100), comment="Nikaya at robing")
-    bic_robing_parshawaya = Column(String(100), comment="Parshawaya at robing")
+    bic_robing_nikaya = Column(String(100), comment="Nikaya (English / nikayaE)")
+    bic_nikaya_s = Column(String(100), comment="Nikaya (Sinhala / nikayaS)")
+    bic_robing_parshawaya = Column(String(100), comment="Parshwaya (English / parshwayaE)")
+    bic_parshwaya_s = Column(String(100), comment="Parshwaya (Sinhala / parshwayaS)")
+
+    # Temple Name (current/main temple)
+    bic_temple_name_e = Column(String(200), comment="Temple Name (English / templeE)")
+    bic_temple_name_s = Column(String(200), comment="Temple Name (Sinhala / templeS)")
     
     # 04. Registration numbers & higher ordination
     bic_samanera_reg_no = Column(String(50), comment="Samanera Registration Number")
@@ -75,6 +88,9 @@ class BhikkuIDCard(Base):
         comment="Array of stay history: [{temple_name, temple_address, from_date, to_date}]"
     )
     
+    # Issue Date
+    bic_issue_date = Column(Date, comment="ID Card issue date")
+
     # File Upload Fields (storing file paths on disk)
     bic_left_thumbprint_url = Column(
         String(500), 
@@ -83,6 +99,18 @@ class BhikkuIDCard(Base):
     bic_applicant_photo_url = Column(
         String(500), 
         comment="File path for applicant photo (3cm x 2.5cm)"
+    )
+    bic_signature_url = Column(
+        Boolean,
+        server_default=text('false'),
+        nullable=False,
+        comment="Whether applicant signature has been uploaded (true/false)"
+    )
+    bic_authorized_signature_url = Column(
+        Boolean,
+        server_default=text('false'),
+        nullable=False,
+        comment="Whether authorized signature has been uploaded (true/false)"
     )
     
     # Workflow Status - defaults to PENDING

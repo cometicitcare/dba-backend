@@ -35,30 +35,44 @@ async def manage_bhikku_id_card(
     bic_br_regn: Optional[str] = Form(None, description="Bhikku registration number (for READ_ONE or CREATE)"),
     
     # For CREATE - Required fields
-    bic_full_bhikku_name: Optional[str] = Form(None, description="Full Bhikku Name"),
+    bic_full_bhikku_name: Optional[str] = Form(None, description="Full Bhikku Name (English / nameE)"),
     bic_lay_name_full: Optional[str] = Form(None, description="Lay name in full"),
     bic_dob: Optional[str] = Form(None, description="Date of birth (YYYY-MM-DD)"),
     
     # For CREATE/UPDATE - Optional fields
-    bic_divisional_secretariat: Optional[str] = Form(None),
-    bic_district: Optional[str] = Form(None),
-    bic_title_post: Optional[str] = Form(None),
+    bic_category: Optional[str] = Form(None, description="Category of ID card"),
+    bic_divisional_secretariat: Optional[str] = Form(None, description="Division (English / divisionE)"),
+    bic_division_s: Optional[str] = Form(None, description="Division (Sinhala / divisionS)"),
+    bic_district: Optional[str] = Form(None, description="District (English / districtE)"),
+    bic_district_s: Optional[str] = Form(None, description="District (Sinhala / districtS)"),
+    bic_name_s: Optional[str] = Form(None, description="Full Bhikku Name (Sinhala / nameS)"),
+    bic_title_post: Optional[str] = Form(None, description="Title/Post (English / padawiyaE)"),
+    bic_padawiya_s: Optional[str] = Form(None, description="Title/Post (Sinhala / padawiyaS)"),
     bic_birth_place: Optional[str] = Form(None),
     bic_robing_date: Optional[str] = Form(None, description="Date (YYYY-MM-DD)"),
     bic_robing_place: Optional[str] = Form(None),
-    bic_robing_nikaya: Optional[str] = Form(None),
-    bic_robing_parshawaya: Optional[str] = Form(None),
-    bic_samanera_reg_no: Optional[str] = Form(None),
-    bic_upasampada_reg_no: Optional[str] = Form(None),
+    bic_robing_nikaya: Optional[str] = Form(None, description="Nikaya (English / nikayaE)"),
+    bic_nikaya_s: Optional[str] = Form(None, description="Nikaya (Sinhala / nikayaS)"),
+    bic_robing_parshawaya: Optional[str] = Form(None, description="Parshwaya (English / parshwayaE)"),
+    bic_parshwaya_s: Optional[str] = Form(None, description="Parshwaya (Sinhala / parshwayaS)"),
+    bic_temple_name_e: Optional[str] = Form(None, description="Temple Name (English / templeE)"),
+    bic_temple_name_s: Optional[str] = Form(None, description="Temple Name (Sinhala / templeS)"),
+    bic_samanera_reg_no: Optional[str] = Form(None, description="Samanera Registration No (samaneraNoS)"),
+    bic_upasampada_reg_no: Optional[str] = Form(None, description="Upasampada Registration No (upasampadaNoS)"),
     bic_higher_ord_date: Optional[str] = Form(None, description="Date (YYYY-MM-DD)"),
     bic_higher_ord_name: Optional[str] = Form(None),
     bic_perm_residence: Optional[str] = Form(None),
-    bic_national_id: Optional[str] = Form(None),
+    bic_national_id: Optional[str] = Form(None, description="NIC number"),
     bic_stay_history: Optional[str] = Form(None, description="JSON array of stay history"),
+    bic_issue_date: Optional[str] = Form(None, description="ID Card issue date (YYYY-MM-DD)"),
     
     # File uploads (optional)
     left_thumbprint: Optional[UploadFile] = File(None, description="Left thumbprint image"),
     applicant_photo: Optional[UploadFile] = File(None, description="Applicant photo"),
+
+    # Signature flags (Boolean: true or false)
+    bic_signature_url: Optional[bool] = Form(None, description="Signature present: true or false"),
+    bic_authorized_signature_url: Optional[bool] = Form(None, description="Authorized signature present: true or false"),
     
     # For REJECT
     rejection_reason: Optional[str] = Form(None),
@@ -146,23 +160,33 @@ async def manage_bhikku_id_card(
                 dob_date = date.fromisoformat(bic_dob)
                 robing_date_parsed = date.fromisoformat(bic_robing_date) if bic_robing_date else None
                 higher_ord_date_parsed = date.fromisoformat(bic_higher_ord_date) if bic_higher_ord_date else None
+                issue_date_parsed = date.fromisoformat(bic_issue_date) if bic_issue_date else None
             except ValueError as e:
                 raise HTTPException(status_code=400, detail=f"Invalid date format: {str(e)}")
             
             # Create schema object
             create_data = BhikkuIDCardCreate(
                 bic_br_regn=bic_br_regn,
+                bic_category=bic_category,
                 bic_divisional_secretariat=bic_divisional_secretariat,
+                bic_division_s=bic_division_s,
                 bic_district=bic_district,
+                bic_district_s=bic_district_s,
                 bic_full_bhikku_name=bic_full_bhikku_name,
+                bic_name_s=bic_name_s,
                 bic_title_post=bic_title_post,
+                bic_padawiya_s=bic_padawiya_s,
                 bic_lay_name_full=bic_lay_name_full,
                 bic_dob=dob_date,
                 bic_birth_place=bic_birth_place,
                 bic_robing_date=robing_date_parsed,
                 bic_robing_place=bic_robing_place,
                 bic_robing_nikaya=bic_robing_nikaya,
+                bic_nikaya_s=bic_nikaya_s,
                 bic_robing_parshawaya=bic_robing_parshawaya,
+                bic_parshwaya_s=bic_parshwaya_s,
+                bic_temple_name_e=bic_temple_name_e,
+                bic_temple_name_s=bic_temple_name_s,
                 bic_samanera_reg_no=bic_samanera_reg_no,
                 bic_upasampada_reg_no=bic_upasampada_reg_no,
                 bic_higher_ord_date=higher_ord_date_parsed,
@@ -170,6 +194,7 @@ async def manage_bhikku_id_card(
                 bic_perm_residence=bic_perm_residence,
                 bic_national_id=bic_national_id,
                 bic_stay_history=stay_history_list,
+                bic_issue_date=issue_date_parsed,
             )
             
             # Create the record
@@ -188,6 +213,14 @@ async def manage_bhikku_id_card(
             if applicant_photo:
                 created_card = await bhikku_id_card_service.upload_applicant_photo(
                     db, created_card.bic_id, applicant_photo
+                )
+
+            if bic_signature_url is not None or bic_authorized_signature_url is not None:
+                created_card = bhikku_id_card_service.repository.update_file_paths(
+                    db,
+                    created_card.bic_id,
+                    signature_url=bic_signature_url,
+                    authorized_signature_url=bic_authorized_signature_url,
                 )
             
             return BhikkuIDCardManageResponse(
@@ -238,14 +271,24 @@ async def manage_bhikku_id_card(
             
             # Build update dict from provided fields
             update_dict = {}
+            if bic_category is not None:
+                update_dict["bic_category"] = bic_category
             if bic_divisional_secretariat is not None:
                 update_dict["bic_divisional_secretariat"] = bic_divisional_secretariat
+            if bic_division_s is not None:
+                update_dict["bic_division_s"] = bic_division_s
             if bic_district is not None:
                 update_dict["bic_district"] = bic_district
+            if bic_district_s is not None:
+                update_dict["bic_district_s"] = bic_district_s
             if bic_full_bhikku_name is not None:
                 update_dict["bic_full_bhikku_name"] = bic_full_bhikku_name
+            if bic_name_s is not None:
+                update_dict["bic_name_s"] = bic_name_s
             if bic_title_post is not None:
                 update_dict["bic_title_post"] = bic_title_post
+            if bic_padawiya_s is not None:
+                update_dict["bic_padawiya_s"] = bic_padawiya_s
             if bic_lay_name_full is not None:
                 update_dict["bic_lay_name_full"] = bic_lay_name_full
             if bic_dob is not None:
@@ -264,8 +307,16 @@ async def manage_bhikku_id_card(
                 update_dict["bic_robing_place"] = bic_robing_place
             if bic_robing_nikaya is not None:
                 update_dict["bic_robing_nikaya"] = bic_robing_nikaya
+            if bic_nikaya_s is not None:
+                update_dict["bic_nikaya_s"] = bic_nikaya_s
             if bic_robing_parshawaya is not None:
                 update_dict["bic_robing_parshawaya"] = bic_robing_parshawaya
+            if bic_parshwaya_s is not None:
+                update_dict["bic_parshwaya_s"] = bic_parshwaya_s
+            if bic_temple_name_e is not None:
+                update_dict["bic_temple_name_e"] = bic_temple_name_e
+            if bic_temple_name_s is not None:
+                update_dict["bic_temple_name_s"] = bic_temple_name_s
             if bic_samanera_reg_no is not None:
                 update_dict["bic_samanera_reg_no"] = bic_samanera_reg_no
             if bic_upasampada_reg_no is not None:
@@ -287,6 +338,11 @@ async def manage_bhikku_id_card(
                     update_dict["bic_stay_history"] = [StayHistoryItem(**item) for item in stay_history_data]
                 except Exception as e:
                     raise HTTPException(status_code=400, detail=f"Error parsing stay_history: {str(e)}")
+            if bic_issue_date is not None:
+                try:
+                    update_dict["bic_issue_date"] = date.fromisoformat(bic_issue_date)
+                except ValueError:
+                    raise HTTPException(status_code=400, detail="Invalid date format for bic_issue_date")
             
             # Create update schema
             update_data = BhikkuIDCardUpdate(**update_dict)
@@ -309,13 +365,21 @@ async def manage_bhikku_id_card(
                 updated_card = await bhikku_id_card_service.upload_applicant_photo(
                     db, bic_id, applicant_photo
                 )
-            
+
+            if bic_signature_url is not None or bic_authorized_signature_url is not None:
+                updated_card = bhikku_id_card_service.repository.update_file_paths(
+                    db,
+                    bic_id,
+                    signature_url=bic_signature_url,
+                    authorized_signature_url=bic_authorized_signature_url,
+                )
+
             return BhikkuIDCardManageResponse(
                 status="success",
-                message="Bhikku ID Card updated successfully",
+                message=f"Bhikku ID Card updated successfully",
                 data=BhikkuIDCardResponse.from_orm(updated_card)
             )
-        
+
         # --- DELETE ---
         elif action_enum == BhikkuIDCardAction.DELETE:
             if not bic_id:
