@@ -14,10 +14,20 @@ class CRUDAction(str, Enum):
     DELETE = "DELETE"
 
 
+# --- Nested Vihara Schema (returned in response) ---
+class ViharaNestedResponse(BaseModel):
+    """Minimal vihara info nested inside the response"""
+    vh_trn: str
+    vh_vname: Optional[str] = None
+    vh_addrs: Optional[str] = None
+
+    model_config = ConfigDict(from_attributes=True)
+
+
 # --- Base Schema ---
 class SasanarakshanaRegistBase(BaseModel):
     """Base schema for Sasanaarakshana Registration with common fields"""
-    temple_name: str
+    temple_trn: str  # FK: vihara TRN (vh_trn from vihaddata)
     temple_address: Optional[str] = None
     mandala_name: Optional[str] = None
     bank_name: Optional[str] = None
@@ -49,7 +59,7 @@ class SasanarakshanaRegistCreate(SasanarakshanaRegistBase):
 # --- Update Schema ---
 class SasanarakshanaRegistUpdate(BaseModel):
     """Schema for updating a Sasanaarakshana Registration record - all fields optional"""
-    temple_name: Optional[str] = None
+    temple_trn: Optional[str] = None  # FK: vihara TRN
     temple_address: Optional[str] = None
     mandala_name: Optional[str] = None
     bank_name: Optional[str] = None
@@ -73,9 +83,31 @@ class SasanarakshanaRegistUpdate(BaseModel):
 
 
 # --- Response Schema ---
-class SasanarakshanaRegistResponse(SasanarakshanaRegistBase):
+class SasanarakshanaRegistResponse(BaseModel):
     """Schema for Sasanaarakshana Registration responses"""
     sar_id: int
+    temple_trn: str                             # raw FK stored
+    temple: Optional[ViharaNestedResponse] = None  # nested vihara object
+    temple_address: Optional[str] = None
+    mandala_name: Optional[str] = None
+    bank_name: Optional[str] = None
+    account_number: Optional[str] = None
+    president_name: Optional[str] = None
+    deputy_president_name: Optional[str] = None
+    vice_president_1_name: Optional[str] = None
+    vice_president_2_name: Optional[str] = None
+    general_secretary_name: Optional[str] = None
+    deputy_secretary_name: Optional[str] = None
+    treasurer_name: Optional[str] = None
+    committee_member_1: Optional[str] = None
+    committee_member_2: Optional[str] = None
+    committee_member_3: Optional[str] = None
+    committee_member_4: Optional[str] = None
+    committee_member_5: Optional[str] = None
+    committee_member_6: Optional[str] = None
+    committee_member_7: Optional[str] = None
+    committee_member_8: Optional[str] = None
+    chief_organizer_name: Optional[str] = None
     sar_is_deleted: Optional[bool] = False
     sar_created_at: Optional[datetime] = None
     sar_updated_at: Optional[datetime] = None
@@ -87,10 +119,16 @@ class SasanarakshanaRegistResponse(SasanarakshanaRegistBase):
 
     @classmethod
     def from_orm_map(cls, obj) -> "SasanarakshanaRegistResponse":
-        """Map DB model (sar_ prefixed) to flat response schema"""
+        """Map DB model (sar_ prefixed) to flat response schema with nested vihara"""
+        vihara = obj.temple  # loaded via relationship (lazy="joined")
         return cls(
             sar_id=obj.sar_id,
-            temple_name=obj.sar_temple_name,
+            temple_trn=obj.sar_temple_trn,
+            temple=ViharaNestedResponse(
+                vh_trn=vihara.vh_trn,
+                vh_vname=vihara.vh_vname,
+                vh_addrs=vihara.vh_addrs,
+            ) if vihara else None,
             temple_address=obj.sar_temple_address,
             mandala_name=obj.sar_mandala_name,
             bank_name=obj.sar_bank_name,
@@ -118,6 +156,7 @@ class SasanarakshanaRegistResponse(SasanarakshanaRegistBase):
             sar_updated_by=obj.sar_updated_by,
             sar_version_number=obj.sar_version_number,
         )
+
 
 
 # --- List Response Schema ---
