@@ -57,6 +57,20 @@ async def manage_silmatha_id_card(
     sic_national_id: Optional[str] = Form(None),
     sic_stay_history: Optional[str] = Form(None, description="JSON array of stay history"),
     
+    # New ID Card Print Fields
+    sic_category: Optional[str] = Form(None, description="ID Card category"),
+    sic_name_s: Optional[str] = Form(None, description="Silmatha name in Sinhala"),
+    sic_arama_name_e: Optional[str] = Form(None, description="Arama name in English"),
+    sic_arama_name_s: Optional[str] = Form(None, description="Arama name in Sinhala"),
+    sic_sasun_date: Optional[str] = Form(None, description="Date entered the Order (YYYY-MM-DD)"),
+    sic_district_s: Optional[str] = Form(None, description="District in Sinhala"),
+    sic_division_s: Optional[str] = Form(None, description="Division in Sinhala"),
+    sic_reg_no: Optional[str] = Form(None, description="Registration number printed on card"),
+    sic_reg_date: Optional[str] = Form(None, description="Registration date (YYYY-MM-DD)"),
+    sic_issue_date: Optional[str] = Form(None, description="Card issue date (YYYY-MM-DD)"),
+    sic_signature_url: Optional[bool] = Form(None, description="Signature present: true or false"),
+    sic_authorized_signature_url: Optional[bool] = Form(None, description="Authorized signature present: true or false"),
+    
     # File uploads (optional)
     left_thumbprint: Optional[UploadFile] = File(None, description="Left thumbprint image"),
     applicant_photo: Optional[UploadFile] = File(None, description="Applicant photo"),
@@ -147,6 +161,9 @@ async def manage_silmatha_id_card(
                 dob_date = date.fromisoformat(sic_dob)
                 robing_date_parsed = date.fromisoformat(sic_robing_date) if sic_robing_date else None
                 higher_ord_date_parsed = date.fromisoformat(sic_higher_ord_date) if sic_higher_ord_date else None
+                sasun_date_parsed = date.fromisoformat(sic_sasun_date) if sic_sasun_date else None
+                reg_date_parsed = date.fromisoformat(sic_reg_date) if sic_reg_date else None
+                issue_date_parsed = date.fromisoformat(sic_issue_date) if sic_issue_date else None
             except ValueError as e:
                 raise HTTPException(status_code=400, detail=f"Invalid date format: {str(e)}")
             
@@ -171,6 +188,17 @@ async def manage_silmatha_id_card(
                 sic_perm_residence=sic_perm_residence,
                 sic_national_id=sic_national_id,
                 sic_stay_history=stay_history_list,
+                # New ID Card Print Fields
+                sic_category=sic_category,
+                sic_name_s=sic_name_s,
+                sic_arama_name_e=sic_arama_name_e,
+                sic_arama_name_s=sic_arama_name_s,
+                sic_sasun_date=sasun_date_parsed,
+                sic_district_s=sic_district_s,
+                sic_division_s=sic_division_s,
+                sic_reg_no=sic_reg_no,
+                sic_reg_date=reg_date_parsed,
+                sic_issue_date=issue_date_parsed,
             )
             
             # Create the record
@@ -189,6 +217,15 @@ async def manage_silmatha_id_card(
             if applicant_photo:
                 created_card = await silmatha_id_card_service.upload_applicant_photo(
                     db, created_card.sic_id, applicant_photo
+                )
+            
+            # Set signature boolean flags if provided
+            if sic_signature_url is not None or sic_authorized_signature_url is not None:
+                created_card = silmatha_id_card_service.repository.update_file_paths(
+                    db,
+                    created_card.sic_id,
+                    signature_url=sic_signature_url,
+                    authorized_signature_url=sic_authorized_signature_url,
                 )
             
             return SilmathaIDCardManageResponse(
@@ -390,6 +427,36 @@ async def manage_silmatha_id_card(
                     update_dict["sic_stay_history"] = [StayHistoryItem(**item) for item in stay_history_data]
                 except Exception as e:
                     raise HTTPException(status_code=400, detail=f"Error parsing stay_history: {str(e)}")
+            # New ID Card Print Fields
+            if sic_category is not None:
+                update_dict["sic_category"] = sic_category
+            if sic_name_s is not None:
+                update_dict["sic_name_s"] = sic_name_s
+            if sic_arama_name_e is not None:
+                update_dict["sic_arama_name_e"] = sic_arama_name_e
+            if sic_arama_name_s is not None:
+                update_dict["sic_arama_name_s"] = sic_arama_name_s
+            if sic_sasun_date is not None:
+                try:
+                    update_dict["sic_sasun_date"] = date.fromisoformat(sic_sasun_date)
+                except ValueError:
+                    raise HTTPException(status_code=400, detail="Invalid date format for sic_sasun_date")
+            if sic_district_s is not None:
+                update_dict["sic_district_s"] = sic_district_s
+            if sic_division_s is not None:
+                update_dict["sic_division_s"] = sic_division_s
+            if sic_reg_no is not None:
+                update_dict["sic_reg_no"] = sic_reg_no
+            if sic_reg_date is not None:
+                try:
+                    update_dict["sic_reg_date"] = date.fromisoformat(sic_reg_date)
+                except ValueError:
+                    raise HTTPException(status_code=400, detail="Invalid date format for sic_reg_date")
+            if sic_issue_date is not None:
+                try:
+                    update_dict["sic_issue_date"] = date.fromisoformat(sic_issue_date)
+                except ValueError:
+                    raise HTTPException(status_code=400, detail="Invalid date format for sic_issue_date")
             
             # Create update schema
             update_data = SilmathaIDCardUpdate(**update_dict)
@@ -411,6 +478,15 @@ async def manage_silmatha_id_card(
             if applicant_photo:
                 updated_card = await silmatha_id_card_service.upload_applicant_photo(
                     db, updated_card.sic_id, applicant_photo
+                )
+            
+            # Set signature boolean flags if provided
+            if sic_signature_url is not None or sic_authorized_signature_url is not None:
+                updated_card = silmatha_id_card_service.repository.update_file_paths(
+                    db,
+                    updated_card.sic_id,
+                    signature_url=sic_signature_url,
+                    authorized_signature_url=sic_authorized_signature_url,
                 )
             
             return SilmathaIDCardManageResponse(

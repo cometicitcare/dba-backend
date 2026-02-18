@@ -51,13 +51,20 @@ class StayHistoryItem(BaseModel):
 class BhikkuIDCardBase(BaseModel):
     """Base schema with all fields from the form"""
     
+    # Category
+    bic_category: Optional[str] = Field(None, max_length=100, description="Category of ID card")
+
     # Top Section
-    bic_divisional_secretariat: Optional[str] = Field(None, max_length=100, description="District")
-    bic_district: Optional[str] = Field(None, max_length=100, description="District")
+    bic_divisional_secretariat: Optional[str] = Field(None, max_length=100, description="Division (English / divisionE)")
+    bic_division_s: Optional[str] = Field(None, max_length=100, description="Division (Sinhala / divisionS)")
+    bic_district: Optional[str] = Field(None, max_length=100, description="District (English / districtE)")
+    bic_district_s: Optional[str] = Field(None, max_length=100, description="District (Sinhala / districtS)")
     
     # 01. Declaration Full Name
-    bic_full_bhikku_name: str = Field(..., max_length=200, description="Full Bhikku Name")
-    bic_title_post: Optional[str] = Field(None, max_length=100, description="Title/Post")
+    bic_full_bhikku_name: str = Field(..., max_length=200, description="Full Bhikku Name (English / nameE)")
+    bic_name_s: Optional[str] = Field(None, max_length=200, description="Full Bhikku Name (Sinhala / nameS)")
+    bic_title_post: Optional[str] = Field(None, max_length=100, description="Title/Post (English / padawiyaE)")
+    bic_padawiya_s: Optional[str] = Field(None, max_length=100, description="Title/Post (Sinhala / padawiyaS)")
     
     # 02. As per birth certificate
     bic_lay_name_full: str = Field(..., max_length=200, description="Gihi/Lay Name in full")
@@ -67,8 +74,14 @@ class BhikkuIDCardBase(BaseModel):
     # 03. Ordination details
     bic_robing_date: Optional[date] = Field(None, description="Date of Robing (YYYY-MM-DD)")
     bic_robing_place: Optional[str] = Field(None, max_length=200, description="Place of Robing")
-    bic_robing_nikaya: Optional[str] = Field(None, max_length=100, description="Nikaya at robing")
-    bic_robing_parshawaya: Optional[str] = Field(None, max_length=100, description="Parshawaya at robing")
+    bic_robing_nikaya: Optional[str] = Field(None, max_length=100, description="Nikaya (English / nikayaE)")
+    bic_nikaya_s: Optional[str] = Field(None, max_length=100, description="Nikaya (Sinhala / nikayaS)")
+    bic_robing_parshawaya: Optional[str] = Field(None, max_length=100, description="Parshwaya (English / parshwayaE)")
+    bic_parshwaya_s: Optional[str] = Field(None, max_length=100, description="Parshwaya (Sinhala / parshwayaS)")
+
+    # Temple Name (current/main temple)
+    bic_temple_name_e: Optional[str] = Field(None, max_length=200, description="Temple Name (English / templeE)")
+    bic_temple_name_s: Optional[str] = Field(None, max_length=200, description="Temple Name (Sinhala / templeS)")
     
     # 04. Registration numbers & higher ordination
     bic_samanera_reg_no: Optional[str] = Field(None, max_length=50, description="Samanera Registration Number")
@@ -89,6 +102,9 @@ class BhikkuIDCardBase(BaseModel):
         None, 
         description="Array of stay history entries"
     )
+
+    # Issue Date
+    bic_issue_date: Optional[date] = Field(None, description="ID Card issue date (YYYY-MM-DD)")
 
 
 # --- Create Schema ---
@@ -141,13 +157,20 @@ class BhikkuIDCardUpdate(BaseModel):
     Schema for updating an existing Bhikku ID Card.
     All fields are optional.
     """
+    # Category
+    bic_category: Optional[str] = Field(None, max_length=100)
+
     # Top Section
     bic_divisional_secretariat: Optional[str] = Field(None, max_length=100)
+    bic_division_s: Optional[str] = Field(None, max_length=100)
     bic_district: Optional[str] = Field(None, max_length=100)
+    bic_district_s: Optional[str] = Field(None, max_length=100)
     
-    # 01. Declaration Full Name
+    # 01. Name
     bic_full_bhikku_name: Optional[str] = Field(None, max_length=200)
+    bic_name_s: Optional[str] = Field(None, max_length=200)
     bic_title_post: Optional[str] = Field(None, max_length=100)
+    bic_padawiya_s: Optional[str] = Field(None, max_length=100)
     
     # 02. As per birth certificate
     bic_lay_name_full: Optional[str] = Field(None, max_length=200)
@@ -158,7 +181,13 @@ class BhikkuIDCardUpdate(BaseModel):
     bic_robing_date: Optional[date] = None
     bic_robing_place: Optional[str] = Field(None, max_length=200)
     bic_robing_nikaya: Optional[str] = Field(None, max_length=100)
+    bic_nikaya_s: Optional[str] = Field(None, max_length=100)
     bic_robing_parshawaya: Optional[str] = Field(None, max_length=100)
+    bic_parshwaya_s: Optional[str] = Field(None, max_length=100)
+
+    # Temple Name
+    bic_temple_name_e: Optional[str] = Field(None, max_length=200)
+    bic_temple_name_s: Optional[str] = Field(None, max_length=200)
     
     # 04. Registration numbers & higher ordination
     bic_samanera_reg_no: Optional[str] = Field(None, max_length=50)
@@ -176,6 +205,9 @@ class BhikkuIDCardUpdate(BaseModel):
     
     # 08. Places stayed so far
     bic_stay_history: Optional[List[StayHistoryItem]] = None
+
+    # Issue Date
+    bic_issue_date: Optional[date] = None
     
     class Config:
         json_schema_extra = {
@@ -213,6 +245,8 @@ class BhikkuIDCardResponse(BhikkuIDCardBase):
     # File paths
     bic_left_thumbprint_url: Optional[str] = None
     bic_applicant_photo_url: Optional[str] = None
+    bic_signature_url: Optional[bool] = None
+    bic_authorized_signature_url: Optional[bool] = None
     
     # Workflow fields
     bic_workflow_status: str

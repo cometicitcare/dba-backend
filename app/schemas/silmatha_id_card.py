@@ -90,6 +90,20 @@ class SilmathaIDCardBase(BaseModel):
         None, 
         description="Array of stay history entries"
     )
+    
+    # --- New ID Card Print Fields ---
+    sic_category: Optional[str] = Field(None, max_length=100, description="ID Card category")
+    sic_name_s: Optional[str] = Field(None, max_length=200, description="Silmatha name in Sinhala")
+    sic_arama_name_e: Optional[str] = Field(None, max_length=200, description="Arama name in English")
+    sic_arama_name_s: Optional[str] = Field(None, max_length=200, description="Arama name in Sinhala")
+    sic_sasun_date: Optional[date] = Field(None, description="Date entered the Order (YYYY-MM-DD)")
+    sic_district_s: Optional[str] = Field(None, max_length=100, description="District in Sinhala")
+    sic_division_s: Optional[str] = Field(None, max_length=100, description="Division in Sinhala")
+    sic_reg_no: Optional[str] = Field(None, max_length=50, description="Registration number printed on card")
+    sic_reg_date: Optional[date] = Field(None, description="Registration date (YYYY-MM-DD)")
+    sic_issue_date: Optional[date] = Field(None, description="Card issue date (YYYY-MM-DD)")
+    sic_signature_url: Optional[bool] = Field(None, description="Signature present: true or false")
+    sic_authorized_signature_url: Optional[bool] = Field(None, description="Authorized signature present: true or false")
 
 
 # --- Create Schema ---
@@ -179,6 +193,20 @@ class SilmathaIDCardUpdate(BaseModel):
     # 08. Places stayed so far
     sic_stay_history: Optional[List[StayHistoryItem]] = Field(None)
     
+    # New ID Card Print Fields
+    sic_category: Optional[str] = Field(None, max_length=100)
+    sic_name_s: Optional[str] = Field(None, max_length=200)
+    sic_arama_name_e: Optional[str] = Field(None, max_length=200)
+    sic_arama_name_s: Optional[str] = Field(None, max_length=200)
+    sic_sasun_date: Optional[date] = Field(None)
+    sic_district_s: Optional[str] = Field(None, max_length=100)
+    sic_division_s: Optional[str] = Field(None, max_length=100)
+    sic_reg_no: Optional[str] = Field(None, max_length=50)
+    sic_reg_date: Optional[date] = Field(None)
+    sic_issue_date: Optional[date] = Field(None)
+    sic_signature_url: Optional[bool] = Field(None)
+    sic_authorized_signature_url: Optional[bool] = Field(None)
+    
     model_config = ConfigDict(
         json_schema_extra={
             "example": {
@@ -242,6 +270,19 @@ class SilmathaIDCardResponse(BaseModel):
     sic_stay_history: Optional[List[StayHistoryItem]] = None
     sic_left_thumbprint_url: Optional[str] = None
     sic_applicant_photo_url: Optional[str] = None
+    # New ID Card Print Fields
+    sic_category: Optional[str] = None
+    sic_name_s: Optional[str] = None
+    sic_arama_name_e: Optional[str] = None
+    sic_arama_name_s: Optional[str] = None
+    sic_sasun_date: Optional[date] = None
+    sic_district_s: Optional[str] = None
+    sic_division_s: Optional[str] = None
+    sic_reg_no: Optional[str] = None
+    sic_reg_date: Optional[date] = None
+    sic_issue_date: Optional[date] = None
+    sic_signature_url: Optional[bool] = None
+    sic_authorized_signature_url: Optional[bool] = None
     sic_workflow_status: str
     sic_approved_by: Optional[str] = None
     sic_approved_at: Optional[datetime] = None

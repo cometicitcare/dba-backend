@@ -1,7 +1,7 @@
 # app/models/silmatha_id_card.py
-from sqlalchemy import Column, Integer, String, DateTime, Date, Text, ForeignKey, JSON
+from sqlalchemy import Column, Integer, String, DateTime, Date, Text, ForeignKey, JSON, Boolean
 from sqlalchemy.orm import relationship
-from sqlalchemy.sql import func
+from sqlalchemy.sql import func, text
 from app.db.base import Base
 
 
@@ -69,6 +69,26 @@ class SilmathaIDCard(Base):
     # --- File Upload URLs ---
     sic_left_thumbprint_url = Column(String, nullable=True)
     sic_applicant_photo_url = Column(String, nullable=True)
+    
+    # --- New ID Card Print Fields ---
+    sic_category = Column(String(100), nullable=True)
+    # sic_sil_regn already exists above (FK) — maps to silmathaID on the card
+    # sic_national_id already exists above — maps to nic on the card
+    # sic_full_silmatha_name already exists above — maps to nameE
+    sic_name_s = Column(String(200), nullable=True)       # Sinhala name
+    sic_arama_name_e = Column(String(200), nullable=True) # Arama name (English)
+    sic_arama_name_s = Column(String(200), nullable=True) # Arama name (Sinhala)
+    # sic_dob already exists above — maps to birthdate on the card
+    sic_sasun_date = Column(Date, nullable=True)           # Date entered sasun (ordained)
+    sic_district_s = Column(String(100), nullable=True)   # District (Sinhala)
+    # sic_district already exists above — maps to districtE
+    sic_division_s = Column(String(100), nullable=True)   # Division (Sinhala)
+    # sic_divisional_secretariat already exists above — maps to divisionE
+    sic_reg_no = Column(String(50), nullable=True)        # Registration number on card
+    sic_reg_date = Column(Date, nullable=True)             # Registration date
+    sic_issue_date = Column(Date, nullable=True)           # Card issue date
+    sic_signature_url = Column(Boolean, server_default=text('false'), nullable=False)
+    sic_authorized_signature_url = Column(Boolean, server_default=text('false'), nullable=False)
     
     # --- Workflow Status ---
     sic_workflow_status = Column(String(50), nullable=False, default="PENDING")
