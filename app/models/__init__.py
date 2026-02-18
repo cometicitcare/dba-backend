@@ -52,6 +52,9 @@ from app.models.silmatha_id_card import SilmathaIDCard
 from app.models.objection import Objection
 from app.models.objection_type import ObjectionType
 
+# Sasanaarakshana Registration
+from app.models.sasanarakshana_regist import SasanarakshanaRegist
+
 # Other models
 from app.models.status import StatusData
 # from app.models.certificate import Certificate
