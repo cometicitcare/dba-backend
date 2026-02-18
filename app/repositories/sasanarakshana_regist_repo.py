@@ -42,7 +42,7 @@ class SasanarakshanaRegistRepository:
             pattern = f"%{search_key.strip()}%"
             query = query.filter(
                 or_(
-                    SasanarakshanaRegist.sar_temple_name.ilike(pattern),
+                    SasanarakshanaRegist.sar_temple_trn.ilike(pattern),
                     SasanarakshanaRegist.sar_mandala_name.ilike(pattern),
                     SasanarakshanaRegist.sar_president_name.ilike(pattern),
                     SasanarakshanaRegist.sar_general_secretary_name.ilike(pattern),
@@ -67,7 +67,7 @@ class SasanarakshanaRegistRepository:
     ) -> SasanarakshanaRegist:
         """Create a new record"""
         db_obj = SasanarakshanaRegist(
-            sar_temple_name=obj_in.temple_name,
+            sar_temple_trn=obj_in.temple_trn,
             sar_temple_address=obj_in.temple_address,
             sar_mandala_name=obj_in.mandala_name,
             sar_bank_name=obj_in.bank_name,
@@ -106,7 +106,7 @@ class SasanarakshanaRegistRepository:
     ) -> SasanarakshanaRegist:
         """Update an existing record"""
         field_map = {
-            "temple_name": "sar_temple_name",
+            "temple_trn": "sar_temple_trn",
             "temple_address": "sar_temple_address",
             "mandala_name": "sar_mandala_name",
             "bank_name": "sar_bank_name",

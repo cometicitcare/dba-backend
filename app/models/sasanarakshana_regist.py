@@ -1,12 +1,13 @@
 # app/models/sasanarakshana_regist.py
-from sqlalchemy import Boolean, Column, Integer, String, TIMESTAMP, text
+from sqlalchemy import Boolean, Column, ForeignKey, Integer, String, TIMESTAMP, text
+from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from app.db.base import Base
 
 
 class SasanarakshanaRegist(Base):
     """
-    Model for Sasanaarakshana Registration Management (cmm_sasanarakshana_regist table).
+    Model for Sasanaarakshana Registration Management (sasanarakshana_regist table).
     Stores information about Sasanaarakshana organization registrations including
     temple details, bank details, and committee members.
     """
@@ -15,8 +16,9 @@ class SasanarakshanaRegist(Base):
     # Primary Key
     sar_id = Column(Integer, primary_key=True, index=True, autoincrement=True)
 
-    # Temple / Organization Details
-    sar_temple_name = Column(String(255), nullable=False, comment="Temple Name")
+    # Temple / Organization Details — FK to vihaddata.vh_trn
+    sar_temple_trn = Column(String(255), ForeignKey("vihaddata.vh_trn", ondelete="RESTRICT"), nullable=False, comment="Vihara TRN (FK to vihaddata)")
+    temple = relationship("ViharaData", primaryjoin="foreign(SasanarakshanaRegist.sar_temple_trn) == ViharaData.vh_trn", viewonly=True, lazy="joined")
     sar_temple_address = Column(String(500), nullable=True, comment="Temple Address")
     sar_mandala_name = Column(String(255), nullable=True, comment="Mandala Name")
 
