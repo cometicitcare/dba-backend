@@ -1004,12 +1004,26 @@ class ViharaService:
     # =================================================================
 
     def _validate_foreign_keys(self, db: Session, values: Dict[str, Any]) -> None:
+        # Known FK mappings as fallback (column -> (schema, table, ref_column))
+        # These are used if the DB introspection cache doesn't include them
+        KNOWN_FK_MAP = {
+            "vh_gndiv": (None, "cmm_gndata", "gn_gnc"),
+            "vh_province": (None, "cmm_province", "cp_code"),
+            "vh_district": (None, "cmm_districtdata", "dd_dcode"),
+            "vh_divisional_secretariat": (None, "cmm_dvsec", "dv_dvcode"),
+            "vh_nikaya": (None, "cmm_nikayadata", "nk_nkn"),
+        }
+        
         try:
             fk_targets = self._get_foreign_key_targets(db)
         except OperationalError as exc:
             raise ValueError(
                 "Unable to verify references due to temporary database connectivity issues."
             ) from exc
+        
+        # Merge known FK map with DB-introspected FK targets (DB takes precedence)
+        merged_targets = {**KNOWN_FK_MAP, **fk_targets}
+        
         fields_to_validate = {
             "vh_gndiv": values.get("vh_gndiv"),
             "vh_ownercd": values.get("vh_ownercd"),
@@ -1051,7 +1065,7 @@ class ViharaService:
                             raise
                         raise ValueError(f"Invalid TEMP reference format: {value}")
 
-            target = fk_targets.get(field)
+            target = merged_targets.get(field)
             if not target:
                 continue
 

@@ -585,7 +585,12 @@ class ViharaRepository:
             return "vh_trn already exists. Please retry."
         if constraint == self.EMAIL_UNIQUE_CONSTRAINT:
             return "vh_email already exists."
-        return "Failed to persist vihara record due to a database constraint violation."
+        # Include actual constraint and DB error for diagnostics
+        origin = getattr(error, "orig", None)
+        detail = str(origin) if origin else str(error)
+        if constraint:
+            return f"Database constraint violation ({constraint}): {detail}"
+        return f"Database constraint violation: {detail}"
 
 
 vihara_repo = ViharaRepository()
