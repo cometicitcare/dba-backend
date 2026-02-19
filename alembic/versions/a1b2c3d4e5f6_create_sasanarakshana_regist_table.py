@@ -7,6 +7,7 @@ Create Date: 2026-02-18 00:00:00
 """
 from alembic import op
 import sqlalchemy as sa
+from sqlalchemy import text
 
 # revision identifiers, used by Alembic.
 revision = 'a1b2c3d4e5f6'
@@ -17,6 +18,15 @@ depends_on = None
 
 def upgrade() -> None:
     """Create the cmm_sasanarakshana_regist table."""
+    conn = op.get_bind()
+    table_exists = conn.execute(text(
+        "SELECT 1 FROM information_schema.tables "
+        "WHERE table_name='sasanarakshana_regist'"
+    )).fetchone()
+
+    if table_exists:
+        return
+
     op.create_table(
         'sasanarakshana_regist',
         sa.Column('sar_id', sa.Integer(), autoincrement=True, nullable=False),
