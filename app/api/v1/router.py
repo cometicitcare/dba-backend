@@ -36,6 +36,7 @@ import app.api.v1.routes.province as province
 import app.api.v1.routes.reprint as reprint
 import app.api.v1.routes.reprint_search as reprint_search
 import app.api.v1.routes.rbac_admin as rbac_admin
+import app.api.v1.routes.nikaya_manage as nikaya_manage
 import app.api.v1.routes.religion as religion
 import app.api.v1.routes.roles as roles
 import app.api.v1.routes.sasanarakshaka as sasanarakshaka
@@ -246,6 +247,11 @@ api_router.include_router(
 api_router.include_router(
     bhikku_nikaya_data.router,
     prefix="/bhikku-nikaya-data",
+    tags=["🏛️ Vihara & Religious Data"]
+)
+api_router.include_router(
+    nikaya_manage.router,
+    prefix="/nikaya-manage",
     tags=["🏛️ Vihara & Religious Data"]
 )
 api_router.include_router(
