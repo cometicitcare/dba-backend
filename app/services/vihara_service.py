@@ -836,8 +836,9 @@ class ViharaService:
         update_data["vh_updated_by"] = actor_id
         update_data["vh_updated_at"] = datetime.utcnow()
 
-        fk_values = self._build_fk_validation_payload(entity, update_data)
-        self._validate_foreign_keys(db, fk_values)
+        # Only validate FK fields that are actually being updated
+        # (don't re-validate existing entity values - they're already in DB)
+        self._validate_foreign_keys(db, update_data)
 
         patched_payload = ViharaUpdate(**update_data)
         return vihara_repo.update(db, entity=entity, data=patched_payload)
@@ -1069,7 +1070,7 @@ class ViharaService:
                 ) from exc
 
             if not exists:
-                raise ValueError(f"Invalid reference: {field} not found")
+                raise ValueError(f"Invalid reference: {field} value '{value}' not found in lookup table")
 
     def _build_fk_validation_payload(
         self, entity: ViharaData, update_values: Dict[str, Any]
