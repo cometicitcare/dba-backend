@@ -1,9 +1,9 @@
 from datetime import date, datetime
 import re
 from enum import Enum
-from typing import Annotated, Optional, Union, List, Any
+from typing import Annotated, ClassVar, Optional, Union, List, Any, Dict
 
-from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator, model_validator
 
 from app.schemas.temple_land import TempleLandCreate, TempleLandInDB
 from app.schemas.resident_bhikkhu import ResidentBhikkhuCreate, ResidentBhikkhuInDB
@@ -66,9 +66,24 @@ class NikayaNested(BaseModel):
 
 class ParshawaNested(BaseModel):
     model_config = ConfigDict(from_attributes=True)
-    pr_prcd: Optional[str] = None
-    pr_prname: Optional[str] = None
-    pr_nkn: Optional[str] = None
+    pr_prn: Optional[str] = None
+    pr_pname: Optional[str] = None
+    pr_nikayacd: Optional[str] = None
+
+
+class SsbmNested(BaseModel):
+    """Nested response schema for Sasanarakshaka Bala Mandalaya"""
+    model_config = ConfigDict(from_attributes=True)
+    sr_ssbmcode: Optional[str] = None
+    sr_ssbname: Optional[str] = None
+
+
+class OwnerBhikkuNested(BaseModel):
+    """Nested response schema for owner bhikku"""
+    model_config = ConfigDict(from_attributes=True)
+    br_regn: Optional[str] = None
+    br_gihiname: Optional[str] = None
+    br_nikaya: Optional[str] = None
 
 
 class TemporaryViharaNested(BaseModel):
@@ -648,19 +663,19 @@ class ViharaOut(ViharaBase):
     vh_whtapp: Optional[str] = None
     vh_email: Optional[str] = None
     vh_typ: Optional[str] = None
-    vh_gndiv: Optional[str] = None
-    vh_ownercd: Optional[str] = None
-    vh_parshawa: Optional[str] = None
+    
+    # FK fields: nested objects appear directly in these fields
+    vh_province: Optional[Union[ProvinceNested, str]] = None
+    vh_district: Optional[Union[DistrictNested, str]] = None
+    vh_divisional_secretariat: Optional[Union[DivisionalSecretariatNested, str]] = None
+    vh_gndiv: Optional[Union[GNDivisionNested, str]] = None
+    vh_nikaya: Optional[Union[NikayaNested, str]] = None
+    vh_parshawa: Optional[Union[ParshawaNested, str]] = None
+    vh_ssbmcode: Optional[Union[SsbmNested, str]] = None
+    vh_ownercd: Optional[Union[OwnerBhikkuNested, str]] = None
     
     temple_lands: List[TempleLandInDB] = Field(default_factory=list)
     resident_bhikkhus: List[ResidentBhikkhuInDB] = Field(default_factory=list)
-    
-    # Nested foreign key objects - only for fields with ForeignKey constraints
-    province_info: Optional[ProvinceNested] = None
-    district_info: Optional[DistrictNested] = None
-    divisional_secretariat_info: Optional[DivisionalSecretariatNested] = None
-    gn_division_info: Optional[GNDivisionNested] = None
-    nikaya_info: Optional[NikayaNested] = None
     
     # Viharanga nested objects (parsed from buildings_description)
     viharanga_list: List[ViharangaNested] = Field(default_factory=list)
@@ -668,6 +683,42 @@ class ViharaOut(ViharaBase):
     # Temporary entity nested objects (for TEMP- references)
     owner_temp_vihara_info: Optional[TemporaryViharaNested] = None
     viharadhipathi_temp_bhikku_info: Optional[TemporaryBhikkuNested] = None
+    
+    # ---------- FK nesting validator ----------
+    _FK_INFO_MAP: ClassVar[Dict[str, str]] = {
+        "vh_province": "province_info",
+        "vh_district": "district_info",
+        "vh_divisional_secretariat": "divisional_secretariat_info",
+        "vh_gndiv": "gn_division_info",
+        "vh_nikaya": "nikaya_info",
+        "vh_parshawa": "parshawa_info",
+        "vh_ssbmcode": "ssbm_info",
+        "vh_ownercd": "owner_bhikku_info",
+    }
+
+    @model_validator(mode="before")
+    @classmethod
+    def _nest_fk_into_fields(cls, data):
+        """Replace raw FK string values with their nested relationship objects."""
+        fk_map = cls._FK_INFO_MAP
+        if isinstance(data, dict):
+            for fk_field, info_key in fk_map.items():
+                info_val = data.pop(info_key, None)
+                if info_val is not None:
+                    data[fk_field] = info_val
+            return data
+        # SQLAlchemy model: build a dict, overriding FK fields with relationship data
+        obj = {}
+        for field_name, field_info in cls.model_fields.items():
+            val = getattr(data, field_name, None)
+            if val is not None:
+                obj[field_name] = val
+            # skip None so Pydantic uses the field default (e.g. [] for lists)
+        for fk_field, info_attr in fk_map.items():
+            info_val = getattr(data, info_attr, None)
+            if info_val is not None:
+                obj[fk_field] = info_val
+        return obj
     
     # Override validators to allow None/empty for output - these run AFTER parent validators
     # Use wrap validator to intercept validation errors

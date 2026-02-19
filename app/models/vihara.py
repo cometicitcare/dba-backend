@@ -154,3 +154,26 @@ class ViharaData(Base):
     divisional_secretariat_info = relationship("DivisionalSecretariat", foreign_keys=[vh_divisional_secretariat], lazy="joined")
     gn_division_info = relationship("Gramasewaka", foreign_keys=[vh_gndiv], lazy="joined")
     nikaya_info = relationship("NikayaData", foreign_keys=[vh_nikaya], lazy="joined")
+    
+    # Additional FK relationships (DB-level FKs exist, using explicit primaryjoin)
+    parshawa_info = relationship(
+        "ParshawaData",
+        primaryjoin="ViharaData.vh_parshawa == ParshawaData.pr_prn",
+        foreign_keys="[ViharaData.vh_parshawa]",
+        lazy="joined",
+        viewonly=True,
+    )
+    ssbm_info = relationship(
+        "SasanarakshakaBalaMandalaya",
+        primaryjoin="ViharaData.vh_ssbmcode == SasanarakshakaBalaMandalaya.sr_ssbmcode",
+        foreign_keys="[ViharaData.vh_ssbmcode]",
+        lazy="joined",
+        viewonly=True,
+    )
+    owner_bhikku_info = relationship(
+        "Bhikku",
+        primaryjoin="ViharaData.vh_ownercd == Bhikku.br_regn",
+        foreign_keys="[ViharaData.vh_ownercd]",
+        lazy="joined",
+        viewonly=True,
+    )

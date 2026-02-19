@@ -78,12 +78,7 @@ def _build_temp_vihara_dict(temp_vihara) -> dict:
         "temple_lands": [],
         "resident_bhikkhus": [],
         
-        # Optional nested info fields (matching ViharaOut)
-        "province_info": None,
-        "district_info": None,
-        "divisional_secretariat_info": None,
-        "gn_division_info": None,
-        "nikaya_info": None,
+        # Viharanga and temporary entity nested objects
         "viharanga_list": [],
         "owner_temp_vihara_info": None,
         "viharadhipathi_temp_bhikku_info": None,
