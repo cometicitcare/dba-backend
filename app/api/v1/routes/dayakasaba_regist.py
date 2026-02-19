@@ -8,7 +8,8 @@ from app.api.auth_dependencies import has_any_permission, get_user_permissions, 
 from app.models.user import UserAccount
 from app.schemas import dayakasaba_regist as schemas
 from app.services.dayakasaba_regist_service import dayakasaba_regist_service
-from app.utils.http_exceptions import validation_error
+from pydantic import ValidationError
+from app.utils.http_exceptions import validation_error, format_pydantic_errors
 
 router = APIRouter()
 
@@ -85,6 +86,8 @@ def manage_dayakasaba_regist(
 
         try:
             create_payload = schemas.DayakasabaRegistCreate(**payload.data.model_dump())
+        except ValidationError as exc:
+            raise validation_error(format_pydantic_errors(exc))
         except Exception as exc:
             raise validation_error(str(exc))
 
@@ -163,6 +166,8 @@ def manage_dayakasaba_regist(
             update_payload = schemas.DayakasabaRegistUpdate(
                 **payload.data.model_dump(exclude_unset=True)
             )
+        except ValidationError as exc:
+            raise validation_error(format_pydantic_errors(exc))
         except Exception as exc:
             raise validation_error(str(exc))
 

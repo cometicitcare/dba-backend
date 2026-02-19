@@ -4,6 +4,17 @@ from collections.abc import Iterable
 from typing import Any
 
 from fastapi import HTTPException, status
+from pydantic import ValidationError
+
+
+def format_pydantic_errors(exc: ValidationError) -> list[tuple[str | None, str]]:
+    """Convert a Pydantic ValidationError into a list of (field, message) tuples."""
+    results: list[tuple[str | None, str]] = []
+    for error in exc.errors():
+        loc = ".".join(str(item) for item in error.get("loc", []))
+        msg = error.get("msg", "")
+        results.append((loc or None, msg))
+    return results or [(None, "Invalid payload data")]
 
 
 def validation_error(
