@@ -9,6 +9,7 @@ from typing import Sequence, Union
 
 import sqlalchemy as sa
 from alembic import op
+from sqlalchemy import text
 
 # revision identifiers, used by Alembic.
 revision: str = "20260218000001"
@@ -18,6 +19,12 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
+    conn = op.get_bind()
+    if conn.execute(text(
+        "SELECT 1 FROM information_schema.tables WHERE table_name='dayakasaba_regist'"
+    )).fetchone():
+        return
+
     op.create_table(
         "dayakasaba_regist",
         # ── Primary Key ──────────────────────────────────────────────────────
