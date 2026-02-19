@@ -1012,6 +1012,8 @@ class ViharaService:
             "vh_district": (None, "cmm_districtdata", "dd_dcode"),
             "vh_divisional_secretariat": (None, "cmm_dvsec", "dv_dvcode"),
             "vh_nikaya": (None, "cmm_nikayadata", "nk_nkn"),
+            "vh_parshawa": (None, "cmm_parshawadata", "pr_prn"),
+            "vh_ssbmcode": (None, "cmm_sasanarbm", "sr_ssbmcode"),
         }
         
         try:

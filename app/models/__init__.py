@@ -54,6 +54,7 @@ from app.models.objection_type import ObjectionType
 
 # Sasanaarakshana Registration
 from app.models.sasanarakshana_regist import SasanarakshanaRegist
+from app.models.sasanarakshaka import SasanarakshakaBalaMandalaya
 
 # Other models
 from app.models.status import StatusData
