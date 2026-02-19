@@ -7,6 +7,7 @@ Create Date: 2026-02-05 00:00:01.000000
 """
 from alembic import op
 import sqlalchemy as sa
+from sqlalchemy import text
 
 
 # revision identifiers, used by Alembic.
@@ -18,7 +19,13 @@ depends_on = None
 
 def upgrade():
     """Add sil_is_temporary_record flag to silmatha_regist table"""
-    op.add_column('silmatha_regist', sa.Column('sil_is_temporary_record', sa.Boolean(), nullable=True, server_default=sa.text('false'), comment='Flag to identify records created from temporary silmatha endpoint'))
+    conn = op.get_bind()
+    result = conn.execute(text(
+        "SELECT 1 FROM information_schema.columns "
+        "WHERE table_name='silmatha_regist' AND column_name='sil_is_temporary_record'"
+    ))
+    if result.fetchone() is None:
+        op.add_column('silmatha_regist', sa.Column('sil_is_temporary_record', sa.Boolean(), nullable=True, server_default=sa.text('false'), comment='Flag to identify records created from temporary silmatha endpoint'))
 
 
 def downgrade():
