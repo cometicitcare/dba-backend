@@ -408,7 +408,11 @@ class ViharaRepository:
 
         entity.vh_version_number = (entity.vh_version_number or 1) + 1
 
-        db.commit()
+        try:
+            db.commit()
+        except IntegrityError as exc:
+            db.rollback()
+            raise ValueError(self._translate_integrity_error(exc)) from exc
         db.refresh(entity)
         return entity
 

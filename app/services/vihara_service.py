@@ -2,7 +2,7 @@ from datetime import datetime
 from typing import Any, Dict, Optional
 
 from sqlalchemy import MetaData, Table, inspect, select
-from sqlalchemy.exc import OperationalError
+from sqlalchemy.exc import IntegrityError, OperationalError
 from sqlalchemy.orm import Session
 
 from app.models.vihara import ViharaData
@@ -54,15 +54,22 @@ class ViharaService:
             if entity.vh_workflow_status not in ["S1_PENDING", "S1_REJECTED", "PENDING"]:
                 raise ValueError(f"Cannot update Stage 1 when status is {entity.vh_workflow_status}. Must be S1_PENDING or S1_REJECTED.")
             
-            # Only update stage one fields
+            # Validate foreign keys before applying changes
+            self._validate_foreign_keys(db, payload_data)
+            
+            # Only update stage one fields (skip None values to avoid overwriting existing data)
             for key, value in payload_data.items():
-                if hasattr(entity, key):
+                if hasattr(entity, key) and key not in ('vh_id', 'vh_created_at', 'vh_created_by'):
                     setattr(entity, key, value)
             
             entity.vh_updated_by = actor_id
             entity.vh_updated_at = now
             entity.vh_workflow_status = "S1_PENDING"  # Reset to pending on update
-            db.commit()
+            try:
+                db.commit()
+            except IntegrityError as exc:
+                db.rollback()
+                raise ValueError("Failed to update Stage 1 due to a database constraint violation. Please check province, district, and GN division values.") from exc
             db.refresh(entity)
             return entity
         else:
@@ -407,7 +414,11 @@ class ViharaService:
                 bhikkhu = ResidentBhikkhu(vh_id=vh_id, **snake_case_bhikkhu)
                 entity.resident_bhikkhus.append(bhikkhu)
         
-        db.commit()
+        try:
+            db.commit()
+        except IntegrityError as exc:
+            db.rollback()
+            raise ValueError("Failed to save Stage 2 due to a database constraint violation.") from exc
         db.refresh(entity)
         return entity
 
@@ -1003,6 +1014,10 @@ class ViharaService:
             "vh_ownercd": values.get("vh_ownercd"),
             "vh_parshawa": values.get("vh_parshawa"),
             "vh_ssbmcode": values.get("vh_ssbmcode"),
+            "vh_province": values.get("vh_province"),
+            "vh_district": values.get("vh_district"),
+            "vh_divisional_secretariat": values.get("vh_divisional_secretariat"),
+            "vh_nikaya": values.get("vh_nikaya"),
         }
 
         for field, raw_value in fields_to_validate.items():
@@ -1059,7 +1074,7 @@ class ViharaService:
     def _build_fk_validation_payload(
         self, entity: ViharaData, update_values: Dict[str, Any]
     ) -> Dict[str, Any]:
-        fk_fields = ["vh_gndiv", "vh_ownercd", "vh_parshawa", "vh_ssbmcode"]
+        fk_fields = ["vh_gndiv", "vh_ownercd", "vh_parshawa", "vh_ssbmcode", "vh_province", "vh_district", "vh_divisional_secretariat", "vh_nikaya"]
         payload: Dict[str, Any] = {}
         for field in fk_fields:
             if field in update_values:

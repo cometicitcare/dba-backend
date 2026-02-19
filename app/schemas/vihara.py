@@ -145,6 +145,10 @@ class ViharaBase(BaseModel):
     vh_mahanayake_letter_nu: Annotated[Optional[str], Field(default=None, max_length=50)] = None
     vh_mahanayake_remarks: Annotated[Optional[str], Field(default=None, max_length=500)] = None
     
+    # File / Code fields
+    vh_file_number: Annotated[Optional[str], Field(default=None, max_length=50)] = None
+    vh_vihara_code: Annotated[Optional[str], Field(default=None, max_length=50)] = None
+    
     # Extended Fields
     vh_province: Annotated[Optional[str], Field(default=None, max_length=100)] = None
     vh_district: Annotated[Optional[str], Field(default=None, max_length=100)] = None
@@ -393,6 +397,10 @@ class ViharaUpdate(BaseModel):
     vh_mahanayake_letter_nu: Annotated[Optional[str], Field(default=None, max_length=50)] = None
     vh_mahanayake_remarks: Annotated[Optional[str], Field(default=None, max_length=500)] = None
     
+    # File / Code fields
+    vh_file_number: Annotated[Optional[str], Field(default=None, max_length=50)] = None
+    vh_vihara_code: Annotated[Optional[str], Field(default=None, max_length=50)] = None
+    
     # Extended Fields
     vh_province: Annotated[Optional[str], Field(default=None, max_length=100)] = None
     vh_district: Annotated[Optional[str], Field(default=None, max_length=100)] = None
@@ -534,6 +542,8 @@ class ViharaStageOneData(BaseModel):
     vh_mobile: Optional[str] = Field(default=None, min_length=10, max_length=10)
     vh_whtapp: Optional[str] = Field(default=None, min_length=10, max_length=10)
     vh_email: Optional[EmailStr] = None
+    vh_file_number: Optional[str] = Field(default=None, max_length=50)
+    vh_vihara_code: Optional[str] = Field(default=None, max_length=50)
     vh_province: Optional[str] = Field(default=None, max_length=100)
     vh_district: Optional[str] = Field(default=None, max_length=100)
     vh_divisional_secretariat: Optional[str] = Field(default=None, max_length=100)
@@ -550,7 +560,8 @@ class ViharaStageOneData(BaseModel):
     vh_mahanayake_remarks: Optional[str] = Field(default=None, max_length=500)
 
     @field_validator(
-        "vh_typ", "vh_ownercd", "vh_vname", "vh_addrs", "vh_province", 
+        "vh_typ", "vh_ownercd", "vh_vname", "vh_addrs", "vh_file_number",
+        "vh_vihara_code", "vh_province", 
         "vh_district", "vh_divisional_secretariat", "vh_pradeshya_sabha", 
         "vh_gndiv", "vh_nikaya", "vh_parshawa", "vh_viharadhipathi_name", 
         "vh_viharadhipathi_regn", "vh_period_established", "vh_mahanayake_letter_nu", 
