@@ -24,7 +24,14 @@ router = APIRouter()  # Tags defined in router.py
 @router.post(
     "/manage",
     response_model=NikayaManagementResponse,
-    dependencies=[has_any_permission("system:create", "system:update", "system:delete")],
+    dependencies=[has_any_permission(
+        # System / super-admin
+        "system:create", "system:update", "system:delete",
+        # Vihara Admin & Vihara Data Entry
+        "vihara:create", "vihara:read", "vihara:update", "vihara:delete",
+        # Bhikku Admin & Bhikku Data Entry
+        "bhikku:create", "bhikku:read", "bhikku:update", "bhikku:delete",
+    )],
 )
 def manage_nikaya_records(
     request: NikayaManagementRequest,

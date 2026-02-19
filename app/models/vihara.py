@@ -46,6 +46,10 @@ class ViharaData(Base):
     vh_mahanayake_letter_nu = Column(String(50))
     vh_mahanayake_remarks = Column(String(500))
     
+    # File / Code fields
+    vh_file_number = Column(String(50))
+    vh_vihara_code = Column(String(50))
+    
     # Extended Fields
     vh_province = Column(String(100), ForeignKey('cmm_province.cp_code', ondelete='SET NULL'))
     vh_district = Column(String(100), ForeignKey('cmm_districtdata.dd_dcode', ondelete='SET NULL'))

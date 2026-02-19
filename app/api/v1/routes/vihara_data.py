@@ -50,6 +50,8 @@ def _build_temp_vihara_dict(temp_vihara) -> dict:
         "vh_gndiv": "TEMP",
         "vh_ownercd": "TEMP",
         "vh_parshawa": "TEMP",
+        "vh_file_number": None,
+        "vh_vihara_code": None,
         
         # Location fields
         "vh_province": temp_vihara.tv_province,
@@ -197,7 +199,7 @@ def manage_vihara_records(
         vh_id = payload.vh_id
         raw_data = payload.data
         if isinstance(raw_data, BaseModel):
-            raw_data = raw_data.model_dump()
+            raw_data = raw_data.model_dump(exclude_unset=True)
         
         try:
             result = vihara_service.save_stage_one(
@@ -226,7 +228,7 @@ def manage_vihara_records(
         
         raw_data = payload.data
         if isinstance(raw_data, BaseModel):
-            raw_data = raw_data.model_dump()
+            raw_data = raw_data.model_dump(exclude_unset=True)
         
         try:
             result = vihara_service.save_stage_one(
@@ -352,7 +354,7 @@ def manage_vihara_records(
         
         raw_data = payload.data
         if isinstance(raw_data, BaseModel):
-            raw_data = raw_data.model_dump()
+            raw_data = raw_data.model_dump(exclude_unset=True)
         
         try:
             result = vihara_service.save_stage_two(
@@ -383,7 +385,7 @@ def manage_vihara_records(
         
         raw_data = payload.data
         if isinstance(raw_data, BaseModel):
-            raw_data = raw_data.model_dump()
+            raw_data = raw_data.model_dump(exclude_unset=True)
         
         try:
             result = vihara_service.save_stage_two(
