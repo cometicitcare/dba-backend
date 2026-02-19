@@ -12,6 +12,10 @@ def validation_error(
     status_code: int = status.HTTP_400_BAD_REQUEST,
 ) -> HTTPException:
     """Create an HTTPException with a consistent validation error payload."""
+    # A bare string is iterable but should be treated as a single error message,
+    # not iterated character-by-character.
+    if isinstance(errors, str):
+        errors = [errors]
     formatted = [_format_error(item) for item in errors]
     return HTTPException(
         status_code=status_code,
