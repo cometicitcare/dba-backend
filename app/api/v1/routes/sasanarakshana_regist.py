@@ -8,7 +8,8 @@ from app.api.auth_dependencies import has_any_permission, get_user_permissions, 
 from app.models.user import UserAccount
 from app.schemas import sasanarakshana_regist as schemas
 from app.services.sasanarakshana_regist_service import sasanarakshana_regist_service
-from app.utils.http_exceptions import validation_error
+from pydantic import ValidationError
+from app.utils.http_exceptions import validation_error, format_pydantic_errors
 
 router = APIRouter()
 
@@ -63,6 +64,8 @@ def manage_sasanarakshana_regist(
 
         try:
             create_payload = schemas.SasanarakshanaRegistCreate(**payload.data.model_dump())
+        except ValidationError as exc:
+            raise validation_error(format_pydantic_errors(exc))
         except Exception as exc:
             raise validation_error(str(exc))
 
@@ -136,6 +139,8 @@ def manage_sasanarakshana_regist(
             update_payload = schemas.SasanarakshanaRegistUpdate(
                 **payload.data.model_dump(exclude_unset=True)
             )
+        except ValidationError as exc:
+            raise validation_error(format_pydantic_errors(exc))
         except Exception as exc:
             raise validation_error(str(exc))
 
