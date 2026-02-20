@@ -703,16 +703,19 @@ class ViharaOut(ViharaBase):
         """Replace raw FK string values with their nested relationship objects.
         
         NOTE: We exclude administrative division fields (vh_province, vh_district, 
-        vh_divisional_secretariat, vh_gndiv) because the frontend LocationPicker 
-        expects simple string codes for these fields, not nested objects.
+        vh_divisional_secretariat, vh_gndiv) and religious affiliation fields 
+        (vh_nikaya, vh_parshawa) because the frontend expects simple string codes 
+        for these fields, not nested objects.
         """
         # Fields that should NOT be nested - these should remain as simple string codes
-        # for the frontend LocationPicker component which uses them for lookup
+        # for the frontend components which use them for lookup in static data
         EXCLUDE_FROM_NESTING = {
             "vh_province",
             "vh_district", 
             "vh_divisional_secretariat",
             "vh_gndiv",
+            "vh_nikaya",
+            "vh_parshawa",
         }
         
         fk_map = cls._FK_INFO_MAP
