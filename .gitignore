@@ -93,6 +93,9 @@ storage/
 # Archive folders - temporary development documentation
 archive_temp_docs/
 todel/
+
+# Notes and test documentation folder
+notes_test/
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
