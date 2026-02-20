@@ -212,7 +212,7 @@ def manage_vihara_records(
                 message="Stage 1 (Basic Profile) saved. Status: S1_PENDING. Next: Mark as printed.",
                 data=result_dict,
             )
-        except ValueError as exc:
+        except (ValueError, ValidationError) as exc:
             raise validation_error([(None, str(exc))]) from exc
 
     if action == CRUDAction.UPDATE_STAGE_ONE:
@@ -243,7 +243,7 @@ def manage_vihara_records(
                 message="Stage 1 (Basic Profile) updated successfully.",
                 data=result_dict,
             )
-        except ValueError as exc:
+        except (ValueError, ValidationError) as exc:
             raise validation_error([(None, str(exc))]) from exc
 
     if action == CRUDAction.MARK_S1_PRINTED:
@@ -293,7 +293,7 @@ def manage_vihara_records(
                 message="Stage 1 approved. Status: S1_APPROVED. Ready for Stage 2 input.",
                 data=result_dict,
             )
-        except ValueError as exc:
+        except (ValueError, ValidationError) as exc:
             message = str(exc)
             if "not found" in message.lower():
                 raise HTTPException(
@@ -329,7 +329,7 @@ def manage_vihara_records(
                 message="Stage 1 rejected. Status: S1_REJECTED.",
                 data=result_dict,
             )
-        except ValueError as exc:
+        except (ValueError, ValidationError) as exc:
             message = str(exc)
             if "not found" in message.lower():
                 raise HTTPException(
@@ -369,7 +369,7 @@ def manage_vihara_records(
                 message="Stage 2 (Assets & Certification) saved. Status: S2_PENDING. Next: Upload scanned document.",
                 data=result_dict,
             )
-        except ValueError as exc:
+        except (ValueError, ValidationError) as exc:
             raise validation_error([(None, str(exc))]) from exc
 
     if action == CRUDAction.UPDATE_STAGE_TWO:
@@ -400,7 +400,7 @@ def manage_vihara_records(
                 message="Stage 2 (Assets & Certification) updated successfully.",
                 data=result_dict,
             )
-        except ValueError as exc:
+        except (ValueError, ValidationError) as exc:
             raise validation_error([(None, str(exc))]) from exc
 
     if action == CRUDAction.MARK_S2_PRINTED:
@@ -450,7 +450,7 @@ def manage_vihara_records(
                 message="Stage 2 approved. Vihara registration COMPLETED!",
                 data=result_dict,
             )
-        except ValueError as exc:
+        except (ValueError, ValidationError) as exc:
             message = str(exc)
             if "not found" in message.lower():
                 raise HTTPException(
@@ -486,7 +486,7 @@ def manage_vihara_records(
                 message="Stage 2 rejected. Status: REJECTED.",
                 data=result_dict,
             )
-        except ValueError as exc:
+        except (ValueError, ValidationError) as exc:
             message = str(exc)
             if "not found" in message.lower():
                 raise HTTPException(

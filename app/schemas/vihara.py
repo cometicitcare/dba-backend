@@ -664,11 +664,12 @@ class ViharaOut(ViharaBase):
     vh_email: Optional[str] = None
     vh_typ: Optional[str] = None
     
-    # FK fields: nested objects appear directly in these fields
-    vh_province: Optional[Union[ProvinceNested, str]] = None
-    vh_district: Optional[Union[DistrictNested, str]] = None
-    vh_divisional_secretariat: Optional[Union[DivisionalSecretariatNested, str]] = None
-    vh_gndiv: Optional[Union[GNDivisionNested, str]] = None
+    # FK fields: Always return simple string codes, not nested objects
+    # The frontend uses these codes to look up in STATIC_PROVINCES and expects simple string codes
+    vh_province: Optional[str] = None  # Province code like "CP01"
+    vh_district: Optional[str] = None  # District code like "DD01"
+    vh_divisional_secretariat: Optional[str] = None  # Divisional Secretariat code like "DV01"
+    vh_gndiv: Optional[str] = None  # GN Division code like "GN01"
     vh_nikaya: Optional[Union[NikayaNested, str]] = None
     vh_parshawa: Optional[Union[ParshawaNested, str]] = None
     vh_ssbmcode: Optional[Union[SsbmNested, str]] = None
@@ -699,10 +700,28 @@ class ViharaOut(ViharaBase):
     @model_validator(mode="before")
     @classmethod
     def _nest_fk_into_fields(cls, data):
-        """Replace raw FK string values with their nested relationship objects."""
+        """Replace raw FK string values with their nested relationship objects.
+        
+        NOTE: We exclude administrative division fields (vh_province, vh_district, 
+        vh_divisional_secretariat, vh_gndiv) because the frontend LocationPicker 
+        expects simple string codes for these fields, not nested objects.
+        """
+        # Fields that should NOT be nested - these should remain as simple string codes
+        # for the frontend LocationPicker component which uses them for lookup
+        EXCLUDE_FROM_NESTING = {
+            "vh_province",
+            "vh_district", 
+            "vh_divisional_secretariat",
+            "vh_gndiv",
+        }
+        
         fk_map = cls._FK_INFO_MAP
         if isinstance(data, dict):
             for fk_field, info_key in fk_map.items():
+                # Skip nesting for administrative division fields
+                if fk_field in EXCLUDE_FROM_NESTING:
+                    data.pop(info_key, None)  # Remove the relationship data key
+                    continue
                 info_val = data.pop(info_key, None)
                 if info_val is not None:
                     data[fk_field] = info_val
@@ -715,6 +734,9 @@ class ViharaOut(ViharaBase):
                 obj[field_name] = val
             # skip None so Pydantic uses the field default (e.g. [] for lists)
         for fk_field, info_attr in fk_map.items():
+            # Skip nesting for administrative division fields
+            if fk_field in EXCLUDE_FROM_NESTING:
+                continue
             info_val = getattr(data, info_attr, None)
             if info_val is not None:
                 obj[fk_field] = info_val
