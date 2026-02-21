@@ -133,6 +133,20 @@ class CRUDAction(str, Enum):
 
 
 class ViharaBase(BaseModel):
+    # Validator to convert date strings from YYYY/MM/DD to YYYY-MM-DD for parsing
+    @field_validator(
+        'vh_bgndate', 'vh_syojakarmdate', 'vh_pralesigdate', 'vh_bacgrcmdate',
+        'vh_minissecrsigdate', 'vh_ssbmsigdate', 'vh_mahanayake_date',
+        mode='before'
+    )
+    @classmethod
+    def normalize_date_format(cls, v):
+        """Convert YYYY/MM/DD to YYYY-MM-DD for proper date parsing."""
+        if isinstance(v, str) and v:
+            # Replace slashes with dashes to convert YYYY/MM/DD to YYYY-MM-DD
+            v = v.strip().replace('/', '-')
+        return v
+    
     vh_trn: Annotated[str, Field(min_length=1, max_length=10)]
     vh_vname: Annotated[Optional[str], Field(default=None, max_length=200)]
     vh_addrs: Annotated[Optional[str], Field(default=None, max_length=200)]
@@ -423,6 +437,7 @@ class ViharaUpdate(BaseModel):
     vh_pradeshya_sabha: Annotated[Optional[str], Field(default=None, max_length=100)] = None
     vh_nikaya: Annotated[Optional[str], Field(default=None, max_length=50)] = None
     vh_viharadhipathi_name: Annotated[Optional[str], Field(default=None, max_length=200)] = None
+    vh_viharadhipathi_regn: Annotated[Optional[str], Field(default=None, max_length=50)] = None
     vh_period_established: Annotated[Optional[str], Field(default=None, max_length=100)] = None
     vh_buildings_description: Annotated[Optional[str], Field(default=None, max_length=1000)] = None
     vh_dayaka_families_count: Annotated[Optional[str], Field(default=None, max_length=50)] = None

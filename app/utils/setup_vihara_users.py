@@ -13,6 +13,7 @@ from app.models.role_permissions import RolePermission
 from app.models.group import Group
 from app.models.user import UserAccount
 from app.models.user_roles import UserRole
+from app.models.user_group import UserGroup
 from app.core.security import get_password_hash, generate_salt
 from datetime import datetime
 
@@ -201,7 +202,7 @@ def assign_permissions_to_roles(db: Session, permissions: dict, roles: dict):
     db.commit()
 
 
-def setup_users(db: Session):
+def setup_users(db: Session, group: Group):
     """Create users and assign roles"""
     print("\n[5/5] Setting up Users...")
     
@@ -286,6 +287,29 @@ def setup_users(db: Session):
                 print(f"        ✓ Re-activated role: {role_id}")
             else:
                 print(f"        - Role already assigned: {role_id}")
+        
+        # Assign user to Vihara Department group
+        existing_group = db.query(UserGroup).filter(
+            UserGroup.user_id == user.ua_user_id,
+            UserGroup.group_id == group.group_id
+        ).first()
+        
+        if not existing_group:
+            db.add(UserGroup(
+                user_id=user.ua_user_id,
+                group_id=group.group_id,
+                is_active=True,
+                assigned_by="SYSTEM"
+            ))
+            db.commit()
+            print(f"        ✓ Assigned to Vihara Department group")
+        else:
+            if not existing_group.is_active:
+                existing_group.is_active = True
+                db.commit()
+                print(f"        ✓ Re-activated group assignment")
+            else:
+                print(f"        - Already member of Vihara Department")
     
     return created_users
 
@@ -316,7 +340,7 @@ def main():
         permissions = seed_vihara_permissions(db, group.group_id)
         roles = seed_vihara_roles(db, group.group_id)
         assign_permissions_to_roles(db, permissions, roles)
-        created_users = setup_users(db)
+        created_users = setup_users(db, group)
         
         print("\n" + "=" * 70)
         print("    ✅ SETUP COMPLETED SUCCESSFULLY!")
