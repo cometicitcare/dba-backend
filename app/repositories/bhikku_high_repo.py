@@ -166,15 +166,14 @@ class BhikkuHighRepository:
                 or_(
                     BhikkuHighRegist.bhr_regn.ilike(term),
                     BhikkuHighRegist.bhr_samanera_serial_no.ilike(term),
-                    BhikkuHighRegist.bhr_mahanaacharyacd.ilike(term),
-                    BhikkuHighRegist.bhr_karmacharya.ilike(term),
-                    BhikkuHighRegist.bhr_mahananame.ilike(term),
-                    BhikkuHighRegist.bhr_ordination_temple.ilike(term),
+                    BhikkuHighRegist.bhr_candidate_regn.ilike(term),
+                    BhikkuHighRegist.bhr_assumed_name.ilike(term),
+                    BhikkuHighRegist.bhr_karmacharya_name.ilike(term),
+                    BhikkuHighRegist.bhr_upaddhyaya_name.ilike(term),
+                    BhikkuHighRegist.bhr_higher_ordination_place.ilike(term),
                     BhikkuHighRegist.bhr_currstat.ilike(term),
                     BhikkuHighRegist.bhr_parshawaya.ilike(term),
                     BhikkuHighRegist.bhr_livtemple.ilike(term),
-                    BhikkuHighRegist.bhr_mobile.ilike(term),
-                    BhikkuHighRegist.bhr_email.ilike(term),
                 )
             )
         
@@ -304,15 +303,14 @@ class BhikkuHighRepository:
                 or_(
                     BhikkuHighRegist.bhr_regn.ilike(term),
                     BhikkuHighRegist.bhr_samanera_serial_no.ilike(term),
-                    BhikkuHighRegist.bhr_mahanaacharyacd.ilike(term),
-                    BhikkuHighRegist.bhr_karmacharya.ilike(term),
-                    BhikkuHighRegist.bhr_mahananame.ilike(term),
-                    BhikkuHighRegist.bhr_ordination_temple.ilike(term),
+                    BhikkuHighRegist.bhr_candidate_regn.ilike(term),
+                    BhikkuHighRegist.bhr_assumed_name.ilike(term),
+                    BhikkuHighRegist.bhr_karmacharya_name.ilike(term),
+                    BhikkuHighRegist.bhr_upaddhyaya_name.ilike(term),
+                    BhikkuHighRegist.bhr_higher_ordination_place.ilike(term),
                     BhikkuHighRegist.bhr_currstat.ilike(term),
                     BhikkuHighRegist.bhr_parshawaya.ilike(term),
                     BhikkuHighRegist.bhr_livtemple.ilike(term),
-                    BhikkuHighRegist.bhr_mobile.ilike(term),
-                    BhikkuHighRegist.bhr_email.ilike(term),
                 )
             )
         
