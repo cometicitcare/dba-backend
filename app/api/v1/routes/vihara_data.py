@@ -1,14 +1,12 @@
 from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File, Query
 from pydantic import BaseModel, ValidationError
 from sqlalchemy.orm import Session
-from datetime import date, datetime
+from datetime import date
 
 from app.api.auth_middleware import get_current_user
 from app.api.auth_dependencies import has_permission, has_any_permission
 from app.api.deps import get_db
 from app.models.user import UserAccount
-from app.models.user_roles import UserRole
-from app.models.roles import Role
 from app.schemas.vihara import (
     CRUDAction,
     ViharaCreate,
@@ -19,136 +17,10 @@ from app.schemas.vihara import (
     ViharaUpdate,
 )
 from app.services.vihara_service import vihara_service
-from app.services.temporary_vihara_service import temporary_vihara_service
 from app.utils.http_exceptions import validation_error
 
 router = APIRouter()  # Tags defined in router.py
 
-
-# =============================================================================
-# HELPER FUNCTION
-# =============================================================================
-def _build_temp_vihara_dict(temp_vihara) -> dict:
-    """
-    Convert a temporary vihara record to a complete vihara-compatible dictionary.
-    Matches the structure of ViharaOut for consistency in response format.
-    """
-    mobile = temp_vihara.tv_contact_number[:10] if temp_vihara.tv_contact_number and len(temp_vihara.tv_contact_number) > 10 else (temp_vihara.tv_contact_number or "0000000000")
-    if not mobile or len(mobile) < 10:
-        mobile = "0000000000"
-    
-    return {
-        # Required fields
-        "vh_id": -temp_vihara.tv_id,
-        "vh_trn": f"TEMP-{temp_vihara.tv_id}",
-        "vh_vname": temp_vihara.tv_name,
-        "vh_addrs": temp_vihara.tv_address,
-        "vh_mobile": mobile,
-        "vh_whtapp": mobile,
-        "vh_email": f"temp{temp_vihara.tv_id}@temporary.local",
-        "vh_typ": "TEMP",
-        "vh_gndiv": "TEMP",
-        "vh_ownercd": "TEMP",
-        "vh_parshawa": "TEMP",
-        "vh_file_number": None,
-        "vh_vihara_code": None,
-        
-        # Location fields
-        "vh_province": temp_vihara.tv_province,
-        "vh_district": temp_vihara.tv_district,
-        "vh_divisional_secretariat": None,
-        "vh_pradeshya_sabha": None,
-        
-        # Person fields
-        "vh_viharadhipathi_name": temp_vihara.tv_viharadhipathi_name,
-        "vh_viharadhipathi_regn": None,
-        
-        # Status and workflow
-        "vh_workflow_status": "TEMPORARY",
-        "vh_is_deleted": False,
-        "vh_version_number": 1,
-        
-        # Audit fields
-        "vh_created_at": temp_vihara.tv_created_at,
-        "vh_created_by": temp_vihara.tv_created_by,
-        "vh_updated_at": temp_vihara.tv_updated_at,
-        "vh_updated_by": temp_vihara.tv_updated_by,
-        
-        # Relationships
-        "temple_lands": [],
-        "resident_bhikkhus": [],
-        
-        # Viharanga and temporary entity nested objects
-        "viharanga_list": [],
-        "owner_temp_vihara_info": None,
-        "viharadhipathi_temp_bhikku_info": None,
-        
-        # All other optional fields set to None
-        "vh_ssbmcode": None,
-        "vh_syojakarmakrs": None,
-        "vh_landownrship": None,
-        "vh_pralename": None,
-        "vh_bacgrecmn": None,
-        "vh_minissecrmrks": None,
-        "vh_mahanayake_letter_nu": None,
-        "vh_mahanayake_remarks": None,
-        "vh_nikaya": None,
-        "vh_period_established": None,
-        "vh_bgndate": None,
-        "vh_mahanayake_date": None,
-        "vh_buildings_description": None,
-        "vh_building_plan_attached": None,
-        "vh_extent": None,
-        "vh_extent_unit": None,
-        "vh_land_boundary": None,
-        "vh_land_ownership_docs": None,
-        "vh_sanghika_donation_deed": None,
-        "vh_government_donation_deed": None,
-        "vh_government_donation_deed_in_progress": None,
-        "vh_authority_consent_attached": None,
-        "vh_recommend_new_center": None,
-        "vh_recommend_registered_temple": None,
-        "vh_annex2_recommend_construction": None,
-        "vh_annex2_land_ownership_docs": None,
-        "vh_annex2_chief_incumbent_letter": None,
-        "vh_annex2_coordinator_recommendation": None,
-        "vh_annex2_divisional_secretary_recommendation": None,
-        "vh_annex2_approval_construction": None,
-        "vh_annex2_referral_resubmission": None,
-        "vh_form_id": None,
-        "vh_stage1_document_path": None,
-        "vh_stage2_document_path": None,
-        "vh_s1_printed_at": None,
-        "vh_s1_printed_by": None,
-        "vh_s1_scanned_at": None,
-        "vh_s1_scanned_by": None,
-        "vh_s1_approved_by": None,
-        "vh_s1_approved_at": None,
-        "vh_s1_rejected_by": None,
-        "vh_s1_rejected_at": None,
-        "vh_s1_rejection_reason": None,
-        "vh_s2_scanned_at": None,
-        "vh_s2_scanned_by": None,
-        "vh_s2_approved_by": None,
-        "vh_s2_approved_at": None,
-        "vh_s2_rejected_by": None,
-        "vh_s2_rejected_at": None,
-        "vh_s2_rejection_reason": None,
-        "vh_approved_by": None,
-        "vh_approved_at": None,
-        "vh_rejected_by": None,
-        "vh_rejected_at": None,
-        "vh_rejection_reason": None,
-        "vh_printed_at": None,
-        "vh_printed_by": None,
-        "vh_scanned_at": None,
-        "vh_scanned_by": None,
-    }
-
-
-# =============================================================================
-# MAIN MANAGE ENDPOINT
-# =============================================================================
 
 @router.post("/manage", response_model=ViharaManagementResponse, dependencies=[has_any_permission("vihara:create", "vihara:read", "vihara:update", "vihara:delete")])
 def manage_vihara_records(
@@ -611,23 +483,6 @@ def manage_vihara_records(
         records = vihara_service.list_viharas(db, **filters)
         total = vihara_service.count_viharas(db, **{k: v for k, v in filters.items() if k not in ["skip", "limit"]})
         
-        # Check if current user is vihara_admin (VIHA_ADM role)
-        is_vihara_admin = False
-        now = datetime.utcnow()
-        vihara_admin_role = (
-            db.query(UserRole)
-            .join(Role, Role.ro_role_id == UserRole.ur_role_id)
-            .filter(
-                UserRole.ur_user_id == current_user.ua_user_id,
-                UserRole.ur_is_active.is_(True),
-                (UserRole.ur_expires_date.is_(None) | (UserRole.ur_expires_date > now)),
-                Role.ro_role_id == "VIHA_ADM",
-            )
-            .first()
-        )
-        if vihara_admin_role:
-            is_vihara_admin = True
-        
         # Convert records to list of dicts for modification (serialize SQLAlchemy models)
         records_list = []
         for record in records:
@@ -640,60 +495,11 @@ def manage_vihara_records(
             record_dict.update(viharanga_data)
             records_list.append(record_dict)
         
-        # For vihara_admin: Handle temporary viharas with proper pagination
-        # Temp viharas should only appear after ALL regular records
-        temp_count = temporary_vihara_service.count_temporary_viharas(db, search=search)
-        total_with_temp = total + temp_count
-        
-        if is_vihara_admin:
-            # Only include temp viharas if we've paginated past all regular records
-            # skip = starting position, total = total regular records
-            if skip >= total:
-                # We're past all regular records, now show temp viharas
-                temp_skip = skip - total
-                temp_viharas = temporary_vihara_service.list_temporary_viharas(
-                    db,
-                    skip=temp_skip,
-                    limit=limit,
-                    search=search
-                )
-                
-                # Convert temporary viharas to Vihara-compatible format
-                for temp_vihara in temp_viharas:
-                    temp_vihara_dict = _build_temp_vihara_dict(temp_vihara)
-                    records_list.append(temp_vihara_dict)
-            elif skip + limit > total:
-                # We're partially in regular records and need some temp viharas to fill
-                remaining_slots = limit - len(records_list)
-                if remaining_slots > 0:
-                    temp_viharas = temporary_vihara_service.list_temporary_viharas(
-                        db,
-                        skip=0,
-                        limit=remaining_slots,
-                        search=search
-                    )
-                    
-                    for temp_vihara in temp_viharas:
-                        temp_vihara_dict = _build_temp_vihara_dict(temp_vihara)
-                        records_list.append(temp_vihara_dict)
-        else:
-            # Non-vihara_admin users: append temp viharas as before
-            temp_viharas = temporary_vihara_service.list_temporary_viharas(
-                db,
-                skip=0,
-                limit=200,
-                search=search
-            )
-            
-            for temp_vihara in temp_viharas:
-                temp_vihara_dict = _build_temp_vihara_dict(temp_vihara)
-                records_list.append(temp_vihara_dict)
-        
         return ViharaManagementResponse(
             status="success",
             message="Vihara records retrieved successfully.",
             data=records_list,
-            totalRecords=total_with_temp,
+            totalRecords=total,
             page=page,
             limit=limit,
         )
