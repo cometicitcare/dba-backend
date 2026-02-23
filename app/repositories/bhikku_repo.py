@@ -100,7 +100,8 @@ class BhikkuRepository:
         date_to: Optional[str] = None,
         current_user: Optional[UserAccount] = None,
     ):
-        """Get paginated bhikkus with optional search functionality across all text fields."""
+        """Get paginated bhikkus with optional search functionality across all text fields and temple names."""
+        from app.models.vihara import ViharaData
         query = db.query(models.Bhikku).filter(models.Bhikku.br_is_deleted.is_(False))
 
         # Apply location-based filtering for all workflow stages except COMPLETED
@@ -114,10 +115,17 @@ class BhikkuRepository:
                 workflow_status_field_name='br_workflow_status'
             )
 
-        # Apply search filter
+        # Apply search filter - includes temple names via join
         if search_key and search_key.strip():
             search_pattern = f"%{search_key.strip()}%"
-            query = query.filter(
+            # Join with ViharaData to search temple names
+            query = query.outerjoin(
+                ViharaData, 
+                or_(
+                    models.Bhikku.br_livtemple == ViharaData.vh_trn,
+                    models.Bhikku.br_mahanatemple == ViharaData.vh_trn
+                )
+            ).filter(
                 or_(
                     models.Bhikku.br_regn.ilike(search_pattern),
                     models.Bhikku.br_upasampada_serial_no.ilike(search_pattern),
@@ -142,6 +150,8 @@ class BhikkuRepository:
                     models.Bhikku.br_mahanaacharyacd.ilike(search_pattern),
                     models.Bhikku.br_currstat.ilike(search_pattern),
                     models.Bhikku.br_cat.ilike(search_pattern),
+                    ViharaData.vh_vname.ilike(search_pattern),  # Search by temple name
+                    ViharaData.vh_addrs.ilike(search_pattern),  # Search by temple address
                 )
             )
 
@@ -239,6 +249,7 @@ class BhikkuRepository:
         current_user: Optional[UserAccount] = None,
     ):
         """Get total count of non-deleted bhikkus for pagination with optional search."""
+        from app.models.vihara import ViharaData
         query = db.query(func.count(models.Bhikku.br_id)).filter(
             models.Bhikku.br_is_deleted.is_(False)
         )
@@ -249,10 +260,17 @@ class BhikkuRepository:
         # Base query for count
         base_query = db.query(models.Bhikku).filter(models.Bhikku.br_is_deleted.is_(False))
 
-        # Apply search filter
+        # Apply search filter - includes temple names via join
         if search_key and search_key.strip():
             search_pattern = f"%{search_key.strip()}%"
-            base_query = base_query.filter(
+            # Join with ViharaData to search temple names
+            base_query = base_query.outerjoin(
+                ViharaData, 
+                or_(
+                    models.Bhikku.br_livtemple == ViharaData.vh_trn,
+                    models.Bhikku.br_mahanatemple == ViharaData.vh_trn
+                )
+            ).filter(
                 or_(
                     models.Bhikku.br_regn.ilike(search_pattern),
                     models.Bhikku.br_upasampada_serial_no.ilike(search_pattern),
@@ -277,6 +295,8 @@ class BhikkuRepository:
                     models.Bhikku.br_mahanaacharyacd.ilike(search_pattern),
                     models.Bhikku.br_currstat.ilike(search_pattern),
                     models.Bhikku.br_cat.ilike(search_pattern),
+                    ViharaData.vh_vname.ilike(search_pattern),  # Search by temple name
+                    ViharaData.vh_addrs.ilike(search_pattern),  # Search by temple address
                 )
             )
 

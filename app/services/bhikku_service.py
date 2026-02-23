@@ -838,11 +838,13 @@ class BhikkuService:
             } if bhikku.parshawaya_rel else bhikku.br_parshawaya,
             "br_livtemple": temp_livtemple_data if temp_livtemple_data else ({
                 "vh_trn": bhikku.livtemple_rel.vh_trn,
-                "vh_vname": bhikku.livtemple_rel.vh_vname
+                "vh_vname": bhikku.livtemple_rel.vh_vname,
+                "vh_addrs": bhikku.livtemple_rel.vh_addrs
             } if bhikku.livtemple_rel else bhikku.br_livtemple),
             "br_mahanatemple": temp_mahanatemple_data if temp_mahanatemple_data else ({
                 "vh_trn": bhikku.mahanatemple_rel.vh_trn,
-                "vh_vname": bhikku.mahanatemple_rel.vh_vname
+                "vh_vname": bhikku.mahanatemple_rel.vh_vname,
+                "vh_addrs": bhikku.mahanatemple_rel.vh_addrs
             } if bhikku.mahanatemple_rel else bhikku.br_mahanatemple),
             "br_mahanaacharyacd": temp_mahanaacharyacd_data if temp_mahanaacharyacd_data else ({
                 "br_regn": bhikku.mahanaacharyacd_rel.br_regn,
@@ -871,11 +873,13 @@ class BhikkuService:
             "br_declaration_date": bhikku.br_declaration_date,
             "br_robing_tutor_residence": temp_robing_tutor_residence_data if temp_robing_tutor_residence_data else ({
                 "vh_trn": bhikku.robing_tutor_residence_rel.vh_trn,
-                "vh_vname": bhikku.robing_tutor_residence_rel.vh_vname
+                "vh_vname": bhikku.robing_tutor_residence_rel.vh_vname,
+                "vh_addrs": bhikku.robing_tutor_residence_rel.vh_addrs
             } if bhikku.robing_tutor_residence_rel else bhikku.br_robing_tutor_residence),
             "br_robing_after_residence_temple": temp_robing_after_residence_temple_data if temp_robing_after_residence_temple_data else ({
                 "vh_trn": bhikku.robing_after_residence_temple_rel.vh_trn,
-                "vh_vname": bhikku.robing_after_residence_temple_rel.vh_vname
+                "vh_vname": bhikku.robing_after_residence_temple_rel.vh_vname,
+                "vh_addrs": bhikku.robing_after_residence_temple_rel.vh_addrs
             } if bhikku.robing_after_residence_temple_rel else bhikku.br_robing_after_residence_temple),
             "br_mobile": bhikku.br_mobile,
             "br_email": bhikku.br_email,
