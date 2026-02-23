@@ -42,6 +42,7 @@ class SasanarakshakaBalaMandalaya(Base):
     sr_updated_by = Column(String(25), nullable=True, comment="User who last updated the record")
     sr_version_number = Column(Integer, server_default=text('1'), nullable=True, comment="Version number for optimistic locking")
     
-    # Relationships - use lazy="joined" for eager loading to support nested responses
-    divisional_secretariat_ref = relationship("DivisionalSecretariat", foreign_keys=[sr_dvcd], lazy="joined")
-    bhikku_nayakahimi_ref = relationship("Bhikku", foreign_keys=[sr_sbmnayakahimi], lazy="joined")
+    # Relationships - Changed from lazy="joined" to lazy="select" to prevent circular joins
+    # These avoid exponential join explosion when loading nested relationships
+    divisional_secretariat_ref = relationship("DivisionalSecretariat", foreign_keys=[sr_dvcd], lazy="select")
+    bhikku_nayakahimi_ref = relationship("Bhikku", foreign_keys=[sr_sbmnayakahimi], lazy="select")
