@@ -9,8 +9,6 @@ from app.models.user import UserAccount
 from app.schemas import silmatha_regist as schemas
 from app.services.silmatha_regist_service import silmatha_regist_service
 from app.services.arama_service import arama_service
-from app.services.temporary_silmatha_service import temporary_silmatha_service
-from app.services.temporary_arama_service import temporary_arama_service
 from app.repositories.silmatha_regist_repo import silmatha_regist_repo
 from app.utils.http_exceptions import validation_error
 from pydantic import ValidationError
@@ -164,172 +162,14 @@ def manage_silmatha_records(
             current_user=current_user
         )
         
-        # Get temporary silmathas count for proper pagination
-        temp_count = temporary_silmatha_service.count_temporary_silmathas(db, search=search_key)
-        
-        # Calculate how to handle pagination with both normal and temp records
-        # We need to fetch temp records with proper pagination consideration
-        normal_count = len(silmatha_records)
-        remaining_limit = max(0, limit - normal_count) if normal_count < limit else 0
-        
-        # Calculate skip for temp records based on overall pagination
-        temp_skip = max(0, skip - total_count) if skip > total_count else 0
-        
-        # Fetch temporary silmathas with proper pagination
-        temp_silmathas = []
-        if remaining_limit > 0 or skip >= total_count:
-            temp_silmathas = temporary_silmatha_service.list_temporary_silmathas(
-                db,
-                skip=temp_skip,
-                limit=remaining_limit if remaining_limit > 0 else limit,
-                search=search_key
-            )
-        
         # Enrich each normal record with nested FK objects
         silmatha_enriched = [silmatha_regist_service.enrich_silmatha_dict(record, db) for record in silmatha_records]
-        
-        # Convert temporary silmathas to Silmatha-compatible format with complete structure
-        for temp_silmatha in temp_silmathas:
-            # Try to resolve province as nested object
-            province_value = temp_silmatha.ts_province
-            if temp_silmatha.ts_province:
-                from app.models.province import Province
-                province_obj = db.query(Province).filter(
-                    Province.cp_code == temp_silmatha.ts_province
-                ).first()
-                if province_obj:
-                    province_value = {
-                        "pr_code": province_obj.cp_code,
-                        "pr_name": province_obj.cp_name
-                    }
-            
-            # Try to resolve district as nested object
-            district_value = temp_silmatha.ts_district
-            if temp_silmatha.ts_district:
-                from app.models.district import District
-                district_obj = db.query(District).filter(
-                    District.dd_dcode == temp_silmatha.ts_district
-                ).first()
-                if district_obj:
-                    district_value = {
-                        "ds_code": district_obj.dd_dcode,
-                        "ds_name": district_obj.dd_dname
-                    }
-            
-            temp_silmatha_dict = {
-                # Core identification
-                "sil_id": -temp_silmatha.ts_id,  # Negative ID to distinguish from real records
-                "sil_regn": f"TEMP-{temp_silmatha.ts_id}",  # Use TEMP prefix for identification
-                "sil_reqstdate": None,
-                
-                # Personal Information - map temp fields to main fields where possible
-                "sil_gihiname": temp_silmatha.ts_name,  # Map ts_name to sil_gihiname
-                "sil_dofb": None,
-                "sil_fathrname": None,
-                "sil_email": None,
-                "sil_mobile": temp_silmatha.ts_contact_number,  # Map ts_contact_number to sil_mobile
-                "sil_fathrsaddrs": temp_silmatha.ts_address,  # Map ts_address to sil_fathrsaddrs
-                "sil_fathrsmobile": None,
-                
-                # Geographic/Birth Information with nested objects
-                "sil_birthpls": None,
-                "sil_province": province_value,
-                "sil_district": district_value,
-                "sil_korale": None,
-                "sil_pattu": None,
-                "sil_division": None,
-                "sil_vilage": None,
-                "sil_gndiv": None,
-                
-                # Temple/Religious Information with nested objects
-                "sil_viharadhipathi": None,
-                "sil_aramadhipathi": None,
-                "sil_cat": None,
-                "sil_currstat": None,
-                "sil_declaration_date": temp_silmatha.ts_ordained_date,  # Map ts_ordained_date to sil_declaration_date
-                "sil_remarks": None,
-                "sil_mahanadate": None,
-                "sil_mahananame": None,
-                "sil_mahanaacharyacd": None,
-                "sil_robing_tutor_residence": None,
-                "sil_mahanatemple": None,
-                "sil_robing_after_residence_temple": None,
-                
-                # Form ID
-                "sil_form_id": None,
-                
-                # Signature Fields (Boolean) - all false for temp records
-                "sil_student_signature": False,
-                "sil_acharya_signature": False,
-                "sil_aramadhipathi_signature": False,
-                "sil_district_secretary_signature": False,
-                
-                # Document Storage
-                "sil_scanned_document_path": None,
-                
-                # Workflow Fields
-                "sil_workflow_status": "TEMPORARY",  # Mark workflow as temporary
-                "sil_approval_status": None,
-                "sil_approved_by": None,
-                "sil_approved_at": None,
-                "sil_rejected_by": None,
-                "sil_rejected_at": None,
-                "sil_rejection_reason": None,
-                "sil_printed_at": None,
-                "sil_printed_by": None,
-                "sil_scanned_at": None,
-                "sil_scanned_by": None,
-                
-                # Reprint Workflow Fields
-                "sil_reprint_status": None,
-                "sil_reprint_requested_by": None,
-                "sil_reprint_requested_at": None,
-                "sil_reprint_request_reason": None,
-                "sil_reprint_approved_by": None,
-                "sil_reprint_approved_at": None,
-                "sil_reprint_rejected_by": None,
-                "sil_reprint_rejected_at": None,
-                "sil_reprint_rejection_reason": None,
-                "sil_reprint_completed_by": None,
-                "sil_reprint_completed_at": None,
-                
-                # Audit Fields
-                "sil_version": temp_silmatha.ts_created_at,  # Use created timestamp as version
-                "sil_is_deleted": False,
-                "sil_created_at": temp_silmatha.ts_created_at,
-                "sil_updated_at": temp_silmatha.ts_updated_at,
-                "sil_created_by": temp_silmatha.ts_created_by,
-                "sil_updated_by": temp_silmatha.ts_updated_by,
-                "sil_version_number": 1,
-                "sil_created_by_district": None,
-                
-                # Keep temp_details for backward compatibility and additional temp-specific data
-                "temp_details": {
-                    "ts_id": temp_silmatha.ts_id,
-                    "ts_name": temp_silmatha.ts_name,
-                    "ts_nic": temp_silmatha.ts_nic,
-                    "ts_contact_number": temp_silmatha.ts_contact_number,
-                    "ts_address": temp_silmatha.ts_address,
-                    "ts_district": temp_silmatha.ts_district,
-                    "ts_province": temp_silmatha.ts_province,
-                    "ts_arama_name": temp_silmatha.ts_arama_name,
-                    "ts_ordained_date": temp_silmatha.ts_ordained_date,
-                    "ts_created_at": temp_silmatha.ts_created_at,
-                    "ts_created_by": temp_silmatha.ts_created_by,
-                    "ts_updated_at": temp_silmatha.ts_updated_at,
-                    "ts_updated_by": temp_silmatha.ts_updated_by,
-                }
-            }
-            silmatha_enriched.append(temp_silmatha_dict)
-        
-        # Total count includes both normal and temporary silmathas (already calculated above)
-        total_with_temp = total_count + temp_count
         
         return schemas.SilmathaRegistManagementResponse(
             status="success",
             message="Silmatha records retrieved successfully.",
             data=silmatha_enriched,
-            totalRecords=total_with_temp,
+            totalRecords=total_count,
             page=page,
             limit=limit,
         )
@@ -933,33 +773,11 @@ def get_arama_list_for_silmatha(
         for arama in aramas
     ]
     
-    # Also fetch temporary aramas and include them in results
-    temp_aramas = temporary_arama_service.list_temporary_aramas(
-        db,
-        skip=0,  # Get all matching temp aramas
-        limit=200,  # Max allowed
-        search=search,
-    )
-    
-    # Convert temporary aramas to simplified format
-    for temp_arama in temp_aramas:
-        simple_aramas.append(
-            schemas.AramaSimpleItem(
-                ar_trn=f"TEMP-{temp_arama.ta_id}",
-                ar_vname=temp_arama.ta_name,
-                ar_addrs=temp_arama.ta_address or "",
-            )
-        )
-    
-    # Update total count to include temporary aramas
-    temp_count = temporary_arama_service.count_temporary_aramas(db, search=search)
-    total_with_temp = total + temp_count
-    
     return schemas.AramaListResponse(
         status="success",
         message="Arama records retrieved successfully.",
         data=simple_aramas,
-        totalRecords=total_with_temp,
+        totalRecords=total,
         page=page,
         limit=limit,
     )

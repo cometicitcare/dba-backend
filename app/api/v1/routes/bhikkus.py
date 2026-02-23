@@ -12,7 +12,6 @@ from app.schemas import bhikku as schemas
 from app.schemas.vihara import BhikkuViharaListResponse, BhikkuViharaManagementRequest
 from app.services.bhikku_service import bhikku_service
 from app.services.vihara_service import vihara_service
-from app.services.temporary_bhikku_service import temporary_bhikku_service
 from app.services.temporary_vihara_service import temporary_vihara_service
 from app.utils.http_exceptions import validation_error
 from pydantic import ValidationError
@@ -931,46 +930,11 @@ def manage_bhikku_records(
         # Convert SQLAlchemy models to Pydantic schemas with enriched data (names replace codes)
         bhikku_schemas = [schemas.Bhikku(**bhikku_service.enrich_bhikku_dict(bhikku, db=db)) for bhikku in bhikkus]
         
-        # Also fetch temporary bhikkus and include them in results
-        # NOTE: As of the recent update, new temp-bhikku records are saved directly to bhikku_regist table
-        # This code still fetches from temporary_bhikku table for backward compatibility with any old records
-        # New temp-bhikku records will appear in the main bhikkus list above (not in temp list)
-        # Only apply search filter for temporary bhikkus (other filters don't apply to them)
-        temp_bhikkus = temporary_bhikku_service.list_temporary_bhikkus(
-            db,
-            skip=0,  # Get all matching temp bhikkus
-            limit=200,  # Max allowed
-            search=search_key
-        )
-        
-        # Convert temporary bhikkus to Bhikku-compatible format
-        for temp_bhikku in temp_bhikkus:
-            # Truncate mobile to 10 chars if needed (br_mobile max is 10)
-            mobile = temp_bhikku.tb_contact_number[:10] if temp_bhikku.tb_contact_number and len(temp_bhikku.tb_contact_number) > 10 else temp_bhikku.tb_contact_number
-            temp_bhikku_dict = {
-                "br_regn": f"TEMP-{temp_bhikku.tb_id}",  # Use TEMP prefix for identification
-                "br_reqstdate": temp_bhikku.tb_created_at.date() if temp_bhikku.tb_created_at else date.today(),
-                "br_mahananame": temp_bhikku.tb_name,
-                "br_gihiname": temp_bhikku.tb_samanera_name,
-                "br_mobile": mobile,
-                "br_fathrsaddrs": temp_bhikku.tb_address,
-                "br_mahanatemple": temp_bhikku.tb_living_temple,
-                "br_currstat": "TEMPORARY",  # Mark as temporary status
-                "br_parshawaya": "N/A",  # Not applicable for temporary
-                "br_workflow_status": "TEMPORARY",  # Mark workflow as temporary
-                "br_remarks": f"Temporary Bhikku Record (ID: {temp_bhikku.tb_id_number})" if temp_bhikku.tb_id_number else "Temporary Bhikku Record",
-            }
-            bhikku_schemas.append(schemas.Bhikku(**temp_bhikku_dict))
-        
-        # Update total count to include temporary bhikkus
-        temp_count = temporary_bhikku_service.count_temporary_bhikkus(db, search=search_key)
-        total_count_with_temp = total_count + temp_count
-        
         return schemas.BhikkuManagementResponse(
             status="success",
             message="Bhikkus retrieved successfully.",
             data=bhikku_schemas,
-            totalRecords=total_count_with_temp,
+            totalRecords=total_count,
             page=page,
             limit=limit,
         )

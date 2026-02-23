@@ -125,6 +125,11 @@ class CRUDAction(str, Enum):
     MARK_S2_PRINTED = "MARK_S2_PRINTED"
     APPROVE_STAGE_TWO = "APPROVE_STAGE_TWO"
     REJECT_STAGE_TWO = "REJECT_STAGE_TWO"
+    # Stage B: Bypass Actions
+    BYPASS_NO_DETAIL = "BYPASS_NO_DETAIL"        # Religious Affiliation → S1_NO_DETAIL_COMP
+    BYPASS_NO_CHIEF = "BYPASS_NO_CHIEF"          # Leadership → S1_NO_CHIEF_COMP
+    BYPASS_LTR_CERT = "BYPASS_LTR_CERT"          # Mahanyake → S1_LTR_CERT_DONE
+    UNLOCK_BYPASS = "UNLOCK_BYPASS"              # Admin only: reset status → S1_PENDING
     # Legacy actions (kept for backward compatibility)
     APPROVE = "APPROVE"
     REJECT = "REJECT"
@@ -258,6 +263,30 @@ class ViharaBase(BaseModel):
     vh_created_by: Annotated[Optional[str], Field(default=None, max_length=25)]
     vh_updated_by: Annotated[Optional[str], Field(default=None, max_length=25)]
     vh_version_number: Annotated[int, Field(ge=1)] = 1
+    
+    # Stage F / Stage B: Bypass Toggle Fields
+    vh_bypass_no_detail: Optional[bool] = None
+    vh_bypass_no_chief: Optional[bool] = None
+    vh_bypass_ltr_cert: Optional[bool] = None
+    # Stage B: Bypass Audit Fields
+    vh_bypass_no_detail_by: Annotated[Optional[str], Field(default=None, max_length=25)] = None
+    vh_bypass_no_detail_at: Optional[datetime] = None
+    vh_bypass_no_chief_by: Annotated[Optional[str], Field(default=None, max_length=25)] = None
+    vh_bypass_no_chief_at: Optional[datetime] = None
+    vh_bypass_ltr_cert_by: Annotated[Optional[str], Field(default=None, max_length=25)] = None
+    vh_bypass_ltr_cert_at: Optional[datetime] = None
+    vh_bypass_unlocked_by: Annotated[Optional[str], Field(default=None, max_length=25)] = None
+    vh_bypass_unlocked_at: Optional[datetime] = None
+
+    # Stage F: Historical Period Fields
+    vh_period_era: Annotated[Optional[str], Field(default=None, max_length=50)] = None  # "AD" | "BC" | "BUDDHIST_ERA"
+    vh_period_year: Annotated[Optional[str], Field(default=None, max_length=10)] = None  # free text e.g. '1890', '~600'
+    vh_period_month: Annotated[Optional[str], Field(default=None, max_length=2)] = None  # 01-12
+    vh_period_day: Annotated[Optional[str], Field(default=None, max_length=2)] = None  # 01-31
+    vh_period_notes: Annotated[Optional[str], Field(default=None, max_length=500)] = None  # Optional notes
+
+    # Stage F: Date Fields
+    viharadhipathi_date: Optional[date] = None
 
     @field_validator(
         "vh_trn",
@@ -316,6 +345,19 @@ class ViharaBase(BaseModel):
         if isinstance(value, str) and len(value) > 12:
             return value[:12]
         return value
+
+    # C-5: Cross-field validation for historical period fields
+    @model_validator(mode="after")
+    def _validate_period_fields(self) -> "ViharaBase":
+        era = self.vh_period_era
+        year = self.vh_period_year
+        month = self.vh_period_month
+        day = self.vh_period_day
+        if era and not year:
+            raise ValueError("vh_period_year is required when vh_period_era is set.")
+        if day and not month:
+            raise ValueError("vh_period_month is required when vh_period_day is set.")
+        return self
 
 
 class ViharaCreate(ViharaBase):
