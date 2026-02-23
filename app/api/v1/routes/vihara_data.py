@@ -1,12 +1,14 @@
 from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File, Query
 from pydantic import BaseModel, ValidationError
 from sqlalchemy.orm import Session
-from datetime import date
+from datetime import date, datetime
 
 from app.api.auth_middleware import get_current_user
 from app.api.auth_dependencies import has_permission, has_any_permission
 from app.api.deps import get_db
 from app.models.user import UserAccount
+from app.models.user_roles import UserRole
+from app.models.roles import Role
 from app.schemas.vihara import (
     CRUDAction,
     ViharaCreate,
@@ -53,6 +55,8 @@ def manage_vihara_records(
     - MARK_S2_PRINTED (✨ NEW - can be done even when Stage 1 is pending)
     - APPROVE_STAGE_TWO, REJECT_STAGE_TWO
     - CREATE, READ_ONE, READ_ALL, UPDATE, DELETE (legacy)
+    - BYPASS_NO_DETAIL, BYPASS_NO_CHIEF, BYPASS_LTR_CERT (Stage B bypass)
+    - UNLOCK_BYPASS (Admin only)
     """
     action = request.action
     payload = request.payload
@@ -698,6 +702,110 @@ def manage_vihara_records(
                 raise HTTPException(
                     status_code=status.HTTP_404_NOT_FOUND, detail=message
                 ) from exc
+            raise validation_error([(None, message)]) from exc
+
+    # =================================================================
+    # STAGE B: BYPASS ACTIONS
+    # =================================================================
+
+    if action == CRUDAction.BYPASS_NO_DETAIL:
+        if payload.vh_id is None:
+            raise validation_error([("payload.vh_id", "vh_id is required for BYPASS_NO_DETAIL action")])
+        try:
+            result = vihara_service.set_no_detail_complete(db, vh_id=payload.vh_id, actor_id=user_id)
+            temp_data = vihara_service.enrich_with_temp_entities(db, result)
+            viharanga_data = vihara_service.enrich_with_viharanga_data(db, result)
+            result_dict = ViharaOut.model_validate(result).model_dump()
+            result_dict.update(temp_data)
+            result_dict.update(viharanga_data)
+            return ViharaManagementResponse(
+                status="success",
+                message="Religious Affiliation bypass applied. Status: S1_NO_DETAIL_COMP.",
+                data=result_dict,
+            )
+        except ValueError as exc:
+            message = str(exc)
+            if "not found" in message.lower():
+                raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=message) from exc
+            raise validation_error([(None, message)]) from exc
+
+    if action == CRUDAction.BYPASS_NO_CHIEF:
+        if payload.vh_id is None:
+            raise validation_error([("payload.vh_id", "vh_id is required for BYPASS_NO_CHIEF action")])
+        try:
+            result = vihara_service.set_no_chief_complete(db, vh_id=payload.vh_id, actor_id=user_id)
+            temp_data = vihara_service.enrich_with_temp_entities(db, result)
+            viharanga_data = vihara_service.enrich_with_viharanga_data(db, result)
+            result_dict = ViharaOut.model_validate(result).model_dump()
+            result_dict.update(temp_data)
+            result_dict.update(viharanga_data)
+            return ViharaManagementResponse(
+                status="success",
+                message="Leadership bypass applied. Status: S1_NO_CHIEF_COMP.",
+                data=result_dict,
+            )
+        except ValueError as exc:
+            message = str(exc)
+            if "not found" in message.lower():
+                raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=message) from exc
+            raise validation_error([(None, message)]) from exc
+
+    if action == CRUDAction.BYPASS_LTR_CERT:
+        if payload.vh_id is None:
+            raise validation_error([("payload.vh_id", "vh_id is required for BYPASS_LTR_CERT action")])
+        try:
+            result = vihara_service.set_letter_cert_done(db, vh_id=payload.vh_id, actor_id=user_id)
+            temp_data = vihara_service.enrich_with_temp_entities(db, result)
+            viharanga_data = vihara_service.enrich_with_viharanga_data(db, result)
+            result_dict = ViharaOut.model_validate(result).model_dump()
+            result_dict.update(temp_data)
+            result_dict.update(viharanga_data)
+            return ViharaManagementResponse(
+                status="success",
+                message="Mahanyake letter & certificate bypass applied. Status: S1_LTR_CERT_DONE.",
+                data=result_dict,
+            )
+        except ValueError as exc:
+            message = str(exc)
+            if "not found" in message.lower():
+                raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=message) from exc
+            raise validation_error([(None, message)]) from exc
+
+    if action == CRUDAction.UNLOCK_BYPASS:
+        if payload.vh_id is None:
+            raise validation_error([("payload.vh_id", "vh_id is required for UNLOCK_BYPASS action")])
+        # Determine whether the current user has an ADMIN-level active role
+        _now = datetime.utcnow()
+        _admin_role = (
+            db.query(UserRole)
+            .join(Role, Role.ro_role_id == UserRole.ur_role_id)
+            .filter(
+                UserRole.ur_user_id == user_id,
+                UserRole.ur_is_active.is_(True),
+                (UserRole.ur_expires_date.is_(None) | (UserRole.ur_expires_date > _now)),
+                Role.ro_level == "ADMIN",
+            )
+            .first()
+        )
+        admin_role_level = "ADMIN" if _admin_role else None
+        try:
+            result = vihara_service.unlock_bypass(
+                db, vh_id=payload.vh_id, actor_id=user_id, admin_role_level=admin_role_level
+            )
+            temp_data = vihara_service.enrich_with_temp_entities(db, result)
+            viharanga_data = vihara_service.enrich_with_viharanga_data(db, result)
+            result_dict = ViharaOut.model_validate(result).model_dump()
+            result_dict.update(temp_data)
+            result_dict.update(viharanga_data)
+            return ViharaManagementResponse(
+                status="success",
+                message="Bypass unlocked. Record status reset to S1_PENDING.",
+                data=result_dict,
+            )
+        except ValueError as exc:
+            message = str(exc)
+            if "not found" in message.lower():
+                raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=message) from exc
             raise validation_error([(None, message)]) from exc
 
     raise validation_error([("action", "Invalid action specified")])
