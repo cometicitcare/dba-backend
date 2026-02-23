@@ -246,6 +246,7 @@ class ViharaResponse(BaseModel):
     """Nested response for vihara/temple"""
     vh_trn: str
     vh_vname: str
+    vh_addrs: Optional[str] = None
 
 class BhikkuRefResponse(BaseModel):
     """Nested response for bhikku references (viharadhipathi, mahanaacharyacd, etc.)"""
