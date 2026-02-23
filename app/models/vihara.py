@@ -46,6 +46,30 @@ class ViharaData(Base):
     vh_mahanayake_letter_nu = Column(String(50))
     vh_mahanayake_remarks = Column(String(500))
     
+    # Stage F / Stage B: Bypass Toggle Fields
+    vh_bypass_no_detail = Column(Boolean, nullable=True, server_default=text("false"))
+    vh_bypass_no_chief = Column(Boolean, nullable=True, server_default=text("false"))
+    vh_bypass_ltr_cert = Column(Boolean, nullable=True, server_default=text("false"))
+    # Stage B: Bypass Audit Columns
+    vh_bypass_no_detail_by = Column(String(25), nullable=True)
+    vh_bypass_no_detail_at = Column(DateTime, nullable=True)
+    vh_bypass_no_chief_by = Column(String(25), nullable=True)
+    vh_bypass_no_chief_at = Column(DateTime, nullable=True)
+    vh_bypass_ltr_cert_by = Column(String(25), nullable=True)
+    vh_bypass_ltr_cert_at = Column(DateTime, nullable=True)
+    vh_bypass_unlocked_by = Column(String(25), nullable=True)
+    vh_bypass_unlocked_at = Column(DateTime, nullable=True)
+    
+    # Stage F: Historical Period Fields
+    vh_period_era = Column(String(50))    # "AD" | "BC" | "BUDDHIST_ERA"
+    vh_period_year = Column(String(10))   # free text e.g. '1890', '~600'
+    vh_period_month = Column(String(2))   # 01-12
+    vh_period_day = Column(String(2))     # 01-31
+    vh_period_notes = Column(String(500)) # Optional historical notes
+    
+    # Stage F: Date Fields
+    viharadhipathi_date = Column(Date)  # Viharadhipathi appointment date
+    
     # File / Code fields
     vh_file_number = Column(String(50))
     vh_vihara_code = Column(String(50))
@@ -149,31 +173,32 @@ class ViharaData(Base):
     vihara_lands = relationship("ViharaLand", back_populates="vihara", cascade="all, delete-orphan")
     
     # Foreign key relationships - only for fields with ForeignKey constraints
-    province_info = relationship("Province", foreign_keys=[vh_province], lazy="joined")
-    district_info = relationship("District", foreign_keys=[vh_district], lazy="joined")
-    divisional_secretariat_info = relationship("DivisionalSecretariat", foreign_keys=[vh_divisional_secretariat], lazy="joined")
-    gn_division_info = relationship("Gramasewaka", foreign_keys=[vh_gndiv], lazy="joined")
-    nikaya_info = relationship("NikayaData", foreign_keys=[vh_nikaya], lazy="joined")
+    province_info = relationship("Province", foreign_keys=[vh_province], lazy="select")
+    district_info = relationship("District", foreign_keys=[vh_district], lazy="select")
+    divisional_secretariat_info = relationship("DivisionalSecretariat", foreign_keys=[vh_divisional_secretariat], lazy="select")
+    gn_division_info = relationship("Gramasewaka", foreign_keys=[vh_gndiv], lazy="select")
+    nikaya_info = relationship("NikayaData", foreign_keys=[vh_nikaya], lazy="select")
     
     # Additional FK relationships (DB-level FKs exist, using explicit primaryjoin)
+    # Changed from lazy="joined" to lazy="select" to prevent circular joins
     parshawa_info = relationship(
         "ParshawaData",
         primaryjoin="ViharaData.vh_parshawa == ParshawaData.pr_prn",
         foreign_keys="[ViharaData.vh_parshawa]",
-        lazy="joined",
+        lazy="select",
         viewonly=True,
     )
     ssbm_info = relationship(
         "SasanarakshakaBalaMandalaya",
         primaryjoin="ViharaData.vh_ssbmcode == SasanarakshakaBalaMandalaya.sr_ssbmcode",
         foreign_keys="[ViharaData.vh_ssbmcode]",
-        lazy="joined",
+        lazy="select",
         viewonly=True,
     )
     owner_bhikku_info = relationship(
         "Bhikku",
         primaryjoin="ViharaData.vh_ownercd == Bhikku.br_regn",
         foreign_keys="[ViharaData.vh_ownercd]",
-        lazy="joined",
+        lazy="select",
         viewonly=True,
     )
