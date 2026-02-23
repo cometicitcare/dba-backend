@@ -13,6 +13,7 @@ from app.schemas.vihara import BhikkuViharaListResponse, BhikkuViharaManagementR
 from app.services.bhikku_service import bhikku_service
 from app.services.vihara_service import vihara_service
 from app.services.temporary_vihara_service import temporary_vihara_service
+from app.services.temporary_bhikku_service import temporary_bhikku_service
 from app.utils.http_exceptions import validation_error
 from pydantic import ValidationError
 
@@ -930,11 +931,76 @@ def manage_bhikku_records(
         # Convert SQLAlchemy models to Pydantic schemas with enriched data (names replace codes)
         bhikku_schemas = [schemas.Bhikku(**bhikku_service.enrich_bhikku_dict(bhikku, db=db)) for bhikku in bhikkus]
         
+        # Also fetch temporary bhikkus and include them in results (similar to viharas)
+        # Only fetch if search or no advanced filters applied
+        temp_bhikkus = []
+        temp_count = 0
+        if not (payload.province or payload.vh_trn or payload.district or 
+                payload.divisional_secretariat or payload.gn_division or 
+                payload.temple or payload.child_temple or payload.nikaya or 
+                payload.parshawaya or payload.category or payload.status or 
+                payload.workflow_status or payload.date_from or payload.date_to):
+            # Only include temp bhikkus if no advanced filters are applied
+            temp_bhikkus = temporary_bhikku_service.list_temporary_bhikkus(
+                db,
+                skip=0,
+                limit=200,
+                search=search_key
+            )
+            
+            # Convert temporary bhikkus to Bhikku schema format with TEMP- prefix
+            for temp_bhikku in temp_bhikkus:
+                temp_bhikku_dict = {
+                    "br_regn": f"TEMP-{temp_bhikku.tb_id}",
+                    "br_mahananame": temp_bhikku.tb_name,
+                    "br_gihiname": temp_bhikku.tb_samanera_name,
+                    "br_mobile": temp_bhikku.tb_contact_number,
+                    "br_fathrsaddrs": temp_bhikku.tb_address,
+                    # Add temple info if available
+                    "br_livtemple": {
+                        "vh_vname": temp_bhikku.tb_living_temple,
+                        "vh_addrs": None,  # Temp bhikkus don't have FK to vihaddata
+                    } if temp_bhikku.tb_living_temple else None,
+                    # Set other required fields to None or defaults for temp bhikkus
+                    "br_upasampada_serial_no": None,
+                    "br_fathrname": None,
+                    "br_birthpls": None,
+                    "br_province": None,
+                    "br_district": None,
+                    "br_korale": None,
+                    "br_pattu": None,
+                    "br_division": None,
+                    "br_vilage": None,
+                    "br_gndiv": None,
+                    "br_email": None,
+                    "br_fathrsaddrs": temp_bhikku.tb_address,
+                    "br_fathrsmobile": None,
+                    "br_parshawaya": None,
+                    "br_mahanatemple": None,
+                    "br_mahanaacharyacd": None,
+                    "br_currstat": None,
+                    "br_cat": None,
+                    "br_nikaya": None,
+                    "br_workflow_status": "DRAFT",
+                }
+                try:
+                    bhikku_schemas.append(schemas.Bhikku(**temp_bhikku_dict))
+                except Exception:
+                    # Skip if schema validation fails
+                    pass
+            
+            temp_count = temporary_bhikku_service.count_temporary_bhikkus(
+                db,
+                search=search_key
+            )
+        
+        total_with_temp = total_count + temp_count
+        
         return schemas.BhikkuManagementResponse(
             status="success",
             message="Bhikkus retrieved successfully.",
             data=bhikku_schemas,
-            totalRecords=total_count,
+            totalRecords=total_with_temp,
             page=page,
             limit=limit,
         )
