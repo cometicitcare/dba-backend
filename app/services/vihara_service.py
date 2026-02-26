@@ -41,9 +41,21 @@ class ViharaService:
         Creates new record with status S1_PENDING or updates existing.
         """
         from app.schemas.vihara import ViharaCreate
-        
+
+        # --- Mandatory field guard (blocks blank records at service level) ---
+        _vh_vname = (payload_data.get("vh_vname") or "").strip()
+        _vh_addrs = (payload_data.get("vh_addrs") or "").strip()
+        if not _vh_vname:
+            raise ValueError("Vihara name (Temple Name) is required and cannot be blank.")
+        if not _vh_addrs:
+            raise ValueError("Vihara address (Temple Address) is required and cannot be blank.")
+        # Normalise back so downstream logic uses the stripped value
+        payload_data["vh_vname"] = _vh_vname
+        payload_data["vh_addrs"] = _vh_addrs
+        # --- End guard ---
+
         now = datetime.utcnow()
-        
+
         if vh_id:
             # Update existing record - stage one fields only
             entity = vihara_repo.get(db, vh_id)
@@ -729,6 +741,14 @@ class ViharaService:
         self, db: Session, *, payload: ViharaCreate | ViharaCreatePayload, actor_id: Optional[str]
     ) -> ViharaData:
         """Legacy create method - creates with S1_PENDING status"""
+        # --- Mandatory field guard ---
+        _name = (getattr(payload, 'vh_vname', None) or getattr(payload, 'temple_name', None) or "").strip()
+        _addr = (getattr(payload, 'vh_addrs', None) or getattr(payload, 'temple_address', None) or "").strip()
+        if not _name:
+            raise ValueError("Vihara name (Temple Name) is required and cannot be blank.")
+        if not _addr:
+            raise ValueError("Vihara address (Temple Address) is required and cannot be blank.")
+        # --- End guard ---
         if isinstance(payload, ViharaCreatePayload):
             payload_dict = {
                 "vh_vname": payload.temple_name,
