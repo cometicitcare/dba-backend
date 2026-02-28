@@ -56,6 +56,9 @@ from app.models.objection_type import ObjectionType
 from app.models.sasanarakshana_regist import SasanarakshanaRegist
 from app.models.sasanarakshaka import SasanarakshakaBalaMandalaya
 
+# Government Officers
+from app.models.gov_officers import GovOfficer
+
 # Other models
 from app.models.status import StatusData
 # from app.models.certificate import Certificate
