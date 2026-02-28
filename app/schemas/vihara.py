@@ -304,6 +304,8 @@ class ViharaBase(BaseModel):
         "vh_minissecrmrks",
         "vh_mahanayake_letter_nu",
         "vh_mahanayake_remarks",
+        "vh_viharadhipathi_name",
+        "vh_viharadhipathi_regn",
         "vh_created_by",
         "vh_updated_by",
         mode="before",
@@ -564,6 +566,8 @@ class ViharaUpdate(BaseModel):
         "vh_pralename",
         "vh_bacgrecmn",
         "vh_minissecrmrks",
+        "vh_viharadhipathi_name",
+        "vh_viharadhipathi_regn",
         "vh_updated_by",
         mode="before",
     )
