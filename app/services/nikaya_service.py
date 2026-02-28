@@ -65,5 +65,34 @@ class NikayaService:
             raise ValueError("Nikaya data record not found.")
         return nikaya_repo.soft_delete(db, entity=entity, actor_id=actor_id)
 
+    def set_mahanayaka(
+        self,
+        db: Session,
+        *,
+        nk_id: Optional[int] = None,
+        nk_nkn: Optional[str] = None,
+        br_regn: str,
+        nk_startdate=None,
+        nk_rmakrs: Optional[str] = None,
+        actor_id: Optional[str],
+    ) -> NikayaData:
+        entity = None
+        if nk_id is not None:
+            entity = nikaya_repo.get(db, nk_id)
+        elif nk_nkn:
+            entity = nikaya_repo.get_by_nkn(db, nk_nkn)
+
+        if not entity:
+            raise ValueError("Nikaya record not found.")
+
+        return nikaya_repo.set_mahanayaka(
+            db,
+            entity=entity,
+            br_regn=br_regn,
+            nk_startdate=nk_startdate,
+            nk_rmakrs=nk_rmakrs,
+            actor_id=actor_id,
+        )
+
 
 nikaya_service = NikayaService()
