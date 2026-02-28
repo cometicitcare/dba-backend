@@ -41,9 +41,21 @@ class ViharaService:
         Creates new record with status S1_PENDING or updates existing.
         """
         from app.schemas.vihara import ViharaCreate
-        
+
+        # --- Mandatory field guard (blocks blank records at service level) ---
+        _vh_vname = (payload_data.get("vh_vname") or "").strip()
+        _vh_addrs = (payload_data.get("vh_addrs") or "").strip()
+        if not _vh_vname:
+            raise ValueError("Vihara name (Temple Name) is required and cannot be blank.")
+        if not _vh_addrs:
+            raise ValueError("Vihara address (Temple Address) is required and cannot be blank.")
+        # Normalise back so downstream logic uses the stripped value
+        payload_data["vh_vname"] = _vh_vname
+        payload_data["vh_addrs"] = _vh_addrs
+        # --- End guard ---
+
         now = datetime.utcnow()
-        
+
         if vh_id:
             # Update existing record - stage one fields only
             entity = vihara_repo.get(db, vh_id)
@@ -320,9 +332,11 @@ class ViharaService:
         
         # Allow stage 2 data entry while stage 1 is pending/in progress
         # Also allow when stage 2 is already in progress (for updates)
+        # Also allow when a Stage 1 bypass is active (treated as equivalent to S1_APPROVED)
         # Only block if stage 1 was explicitly rejected or workflow is completed/final rejected
         allowed_statuses = [
             "S1_PENDING", "S1_PRINTING", "S1_PEND_APPROVAL", "S1_APPROVED",
+            "S1_NO_DETAIL_COMP", "S1_NO_CHIEF_COMP", "S1_LTR_CERT_DONE",
             "S2_PENDING", "S2_PRINTING", "S2_PEND_APPROVAL", "S2_APPROVED"
         ]
         if entity.vh_workflow_status not in allowed_statuses:
@@ -493,7 +507,13 @@ class ViharaService:
             raise ValueError(f"Cannot approve Stage 2. Current status: {entity.vh_workflow_status}. Must be S2_PEND_APPROVAL.")
         
         # Check if Stage 1 is already approved
-        stage1_approved = entity.vh_s1_approved_at is not None
+        # Bypass statuses (S1_NO_DETAIL_COMP, S1_NO_CHIEF_COMP, S1_LTR_CERT_DONE)
+        # are treated as equivalent to S1_APPROVED for auto-completion check.
+        BYPASS_STATUSES = {"S1_NO_DETAIL_COMP", "S1_NO_CHIEF_COMP", "S1_LTR_CERT_DONE"}
+        stage1_approved = (
+            entity.vh_s1_approved_at is not None
+            or entity.vh_workflow_status in BYPASS_STATUSES
+        )
         
         # Set Stage 2 approval fields
         entity.vh_s2_approved_by = actor_id
@@ -560,6 +580,123 @@ class ViharaService:
         return entity
 
     # =================================================================
+    # STAGE B: BYPASS SERVICE METHODS
+    # =================================================================
+    # These 3 methods set a bypass status directly without the print/scan/approve chain.
+    # The bypass flag (boolean) is saved AND the workflow status is transitioned.
+    # All 3 bypass statuses are treated as equivalent to S1_APPROVED for Stage 2.
+
+    _BYPASS_STATUSES = {
+        "S1_NO_DETAIL_COMP",
+        "S1_NO_CHIEF_COMP",
+        "S1_LTR_CERT_DONE",
+    }
+
+    def _apply_bypass(
+        self,
+        db: Session,
+        entity,
+        *,
+        flag_field: str,       # e.g. "vh_bypass_no_detail"
+        by_field: str,         # e.g. "vh_bypass_no_detail_by"
+        at_field: str,         # e.g. "vh_bypass_no_detail_at"
+        new_status: str,       # e.g. "S1_NO_DETAIL_COMP"
+        actor_id: Optional[str],
+    ):
+        """Shared logic for all 3 bypass activations."""
+        allowed = {"S1_PENDING", "S1_REJECTED"} | self._BYPASS_STATUSES
+        if entity.vh_workflow_status not in allowed:
+            raise ValueError(
+                f"Bypass can only be set when status is S1_PENDING or S1_REJECTED. "
+                f"Current status: {entity.vh_workflow_status}."
+            )
+        now = datetime.utcnow()
+        setattr(entity, flag_field, True)
+        setattr(entity, by_field, actor_id)
+        setattr(entity, at_field, now)
+        # If Stage 2 already approved → go straight to COMPLETED
+        stage2_approved = entity.vh_s2_approved_at is not None
+        entity.vh_workflow_status = "COMPLETED" if stage2_approved else new_status
+        entity.vh_updated_by = actor_id
+        entity.vh_updated_at = now
+        entity.vh_version_number = (entity.vh_version_number or 1) + 1
+        db.commit()
+        db.refresh(entity)
+        return entity
+
+    def set_no_detail_complete(
+        self, db: Session, *, vh_id: int, actor_id: Optional[str]
+    ):
+        """Bypass: Religious Affiliation → S1_NO_DETAIL_COMP"""
+        entity = vihara_repo.get(db, vh_id)
+        if not entity:
+            raise ValueError("Vihara record not found.")
+        return self._apply_bypass(
+            db, entity,
+            flag_field="vh_bypass_no_detail",
+            by_field="vh_bypass_no_detail_by",
+            at_field="vh_bypass_no_detail_at",
+            new_status="S1_NO_DETAIL_COMP",
+            actor_id=actor_id,
+        )
+
+    def set_no_chief_complete(
+        self, db: Session, *, vh_id: int, actor_id: Optional[str]
+    ):
+        """Bypass: Leadership — no chief incumbent → S1_NO_CHIEF_COMP"""
+        entity = vihara_repo.get(db, vh_id)
+        if not entity:
+            raise ValueError("Vihara record not found.")
+        return self._apply_bypass(
+            db, entity,
+            flag_field="vh_bypass_no_chief",
+            by_field="vh_bypass_no_chief_by",
+            at_field="vh_bypass_no_chief_at",
+            new_status="S1_NO_CHIEF_COMP",
+            actor_id=actor_id,
+        )
+
+    def set_letter_cert_done(
+        self, db: Session, *, vh_id: int, actor_id: Optional[str]
+    ):
+        """Bypass: Mahanyake — letter & certificate done → S1_LTR_CERT_DONE"""
+        entity = vihara_repo.get(db, vh_id)
+        if not entity:
+            raise ValueError("Vihara record not found.")
+        return self._apply_bypass(
+            db, entity,
+            flag_field="vh_bypass_ltr_cert",
+            by_field="vh_bypass_ltr_cert_by",
+            at_field="vh_bypass_ltr_cert_at",
+            new_status="S1_LTR_CERT_DONE",
+            actor_id=actor_id,
+        )
+
+    def unlock_bypass(
+        self, db: Session, *, vh_id: int, actor_id: Optional[str], admin_role_level: Optional[str] = None
+    ):
+        """Admin-only: reset a bypass status back to S1_PENDING so the normal flow can resume."""
+        if admin_role_level != "ADMIN":
+            raise ValueError("Only administrators can unlock a bypass status.")
+        entity = vihara_repo.get(db, vh_id)
+        if not entity:
+            raise ValueError("Vihara record not found.")
+        if entity.vh_workflow_status not in self._BYPASS_STATUSES:
+            raise ValueError(
+                f"Record is not in a bypass status. Current status: {entity.vh_workflow_status}."
+            )
+        now = datetime.utcnow()
+        entity.vh_workflow_status = "S1_PENDING"
+        entity.vh_bypass_unlocked_by = actor_id
+        entity.vh_bypass_unlocked_at = now
+        entity.vh_updated_by = actor_id
+        entity.vh_updated_at = now
+        entity.vh_version_number = (entity.vh_version_number or 1) + 1
+        db.commit()
+        db.refresh(entity)
+        return entity
+
+    # =================================================================
     # HELPER METHOD FOR FILE ARCHIVING
     # =================================================================
     
@@ -604,6 +741,14 @@ class ViharaService:
         self, db: Session, *, payload: ViharaCreate | ViharaCreatePayload, actor_id: Optional[str]
     ) -> ViharaData:
         """Legacy create method - creates with S1_PENDING status"""
+        # --- Mandatory field guard ---
+        _name = (getattr(payload, 'vh_vname', None) or getattr(payload, 'temple_name', None) or "").strip()
+        _addr = (getattr(payload, 'vh_addrs', None) or getattr(payload, 'temple_address', None) or "").strip()
+        if not _name:
+            raise ValueError("Vihara name (Temple Name) is required and cannot be blank.")
+        if not _addr:
+            raise ValueError("Vihara address (Temple Address) is required and cannot be blank.")
+        # --- End guard ---
         if isinstance(payload, ViharaCreatePayload):
             payload_dict = {
                 "vh_vname": payload.temple_name,
