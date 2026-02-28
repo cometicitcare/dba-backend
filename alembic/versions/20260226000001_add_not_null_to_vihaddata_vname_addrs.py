@@ -1,7 +1,7 @@
 """add_not_null_to_vihaddata_vname_addrs
 
 Revision ID: 20260226000001
-Revises: 20260223000001
+Revises: 20260223000002
 Create Date: 2026-02-26
 
 Adds NOT NULL constraints to vh_vname and vh_addrs in vihaddata.
@@ -18,7 +18,7 @@ from sqlalchemy import text
 
 # revision identifiers
 revision = '20260226000001'
-down_revision = '20260223000001'
+down_revision = '20260223000002'
 branch_labels = None
 depends_on = None
 

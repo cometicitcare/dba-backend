@@ -1,5 +1,5 @@
 # app/models/temporary_bhikku.py
-from sqlalchemy import Column, Integer, String, TIMESTAMP
+from sqlalchemy import Boolean, Column, Integer, String, TIMESTAMP, text
 from sqlalchemy.sql import func
 from app.db.base import Base
 
@@ -22,6 +22,12 @@ class TemporaryBhikku(Base):
     tb_samanera_name = Column(String(100), nullable=True, comment="Samanera (novice) name")
     tb_address = Column(String(500), nullable=True, comment="Residential address")
     tb_living_temple = Column(String(200), nullable=True, comment="Current living temple/vihara")
+    
+    # Transfer Flag
+    tb_is_transferred = Column(
+        Boolean, nullable=False, server_default=text("false"),
+        comment="Flag indicating this record has been transferred to bhikku_regist",
+    )
     
     # Audit Fields
     tb_created_at = Column(TIMESTAMP, server_default=func.now(), nullable=False)

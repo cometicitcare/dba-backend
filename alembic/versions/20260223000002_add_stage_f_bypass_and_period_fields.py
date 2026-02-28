@@ -1,7 +1,7 @@
 """add stage f bypass and period fields to vihaddata
 
-Revision ID: 20260223000001
-Revises: 20260219000001
+Revision ID: 20260223000002
+Revises: 20260223000001
 Create Date: 2026-02-23
 
 """
@@ -10,8 +10,8 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision = "20260223000001"
-down_revision = "20260219000001"
+revision = "20260223000002"
+down_revision = "20260223000001"
 branch_labels = None
 depends_on = None
 
