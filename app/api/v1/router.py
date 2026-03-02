@@ -42,6 +42,7 @@ import app.api.v1.routes.roles as roles
 import app.api.v1.routes.sasanarakshaka as sasanarakshaka
 import app.api.v1.routes.sasanarakshana_regist as sasanarakshana_regist
 import app.api.v1.routes.dayakasaba_regist as dayakasaba_regist
+import app.api.v1.routes.gov_officers as gov_officers
 import app.api.v1.routes.status as status
 import app.api.v1.routes.silmatha_id as silmatha_id
 import app.api.v1.routes.silmatha_id_card as silmatha_id_card
@@ -297,6 +298,11 @@ api_router.include_router(
 api_router.include_router(
     dayakasaba_regist.router,
     prefix="/dayakasaba-regist-manage",
+    tags=["📊 Master Data Management"]
+)
+api_router.include_router(
+    gov_officers.router,
+    prefix="/gov-officers",
     tags=["📊 Master Data Management"]
 )
 api_router.include_router(

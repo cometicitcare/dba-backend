@@ -1,0 +1,390 @@
+{
+  "info": {
+    "name": "Gov Officers CRUD",
+    "description": "Full CRUD collection for the Government Officers endpoint (`/gov-officers/manage`).\n\n**Getting started:**\n1. Run **Auth ▸ Login** first — it sets the `access_token` cookie automatically.\n2. All Gov Officers requests reuse that cookie.\n3. After a successful CREATE, copy the returned `go_id` into the collection variable `go_id` so READ_ONE / UPDATE / DELETE requests are pre-filled.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Login",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Login successful\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "// Extract access_token from cookie and store as collection variable",
+                  "var cookies = pm.cookies.toObject();",
+                  "if (cookies.access_token) {",
+                  "    pm.collectionVariables.set(\"accessToken\", cookies.access_token);",
+                  "    console.log(\"access_token saved to collectionVariables.\");",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"ua_username\": \"{{auth_username}}\",\n  \"ua_password\": \"{{auth_password}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "login"]
+            },
+            "description": "Authenticates using username/password. The response sets the `access_token` HTTP-only cookie which is automatically reused by all subsequent requests in this collection.\n\nSet `auth_username` and `auth_password` in the collection variables before running."
+          },
+          "response": []
+        },
+        {
+          "name": "Refresh Token",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/auth/refresh",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "refresh"]
+            },
+            "description": "Refreshes the access token using the `refresh_token` cookie."
+          },
+          "response": []
+        },
+        {
+          "name": "Logout",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/auth/logout",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "logout"]
+            },
+            "description": "Clears all authentication cookies."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Gov Officers",
+      "item": [
+        {
+          "name": "CREATE — New Officer",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Record created\", function () {",
+                  "    var json = pm.response.json();",
+                  "    pm.expect(json.status).to.eql(\"success\");",
+                  "    pm.expect(json.data).to.have.property(\"go_id\");",
+                  "    // Save go_id for later requests",
+                  "    pm.collectionVariables.set(\"go_id\", json.data.go_id);",
+                  "    console.log(\"Saved go_id:\", json.data.go_id);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Cookie",
+                "value": "access_token={{accessToken}}",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"action\": \"CREATE\",\n  \"payload\": {\n    \"data\": {\n      \"go_title\": \"Mr.\",\n      \"go_first_name\": \"Kamal\",\n      \"go_last_name\": \"Perera\",\n      \"go_contact_number\": \"0711234567\",\n      \"go_email\": \"kamal.perera@gov.lk\",\n      \"go_address\": \"123, Temple Road, Colombo 07\",\n      \"go_id_number\": \"199012345678\"\n    }\n  }\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/gov-officers/manage",
+              "host": ["{{baseUrl}}"],
+              "path": ["gov-officers", "manage"]
+            },
+            "description": "Creates a new Government Officer record.\n\n**Required fields:** `go_title`, `go_first_name`, `go_last_name`, `go_contact_number`, `go_address`\n\n**Optional fields:** `go_email`, `go_id_number`\n\nThe test script automatically saves the returned `go_id` to the `go_id` collection variable."
+          },
+          "response": []
+        },
+        {
+          "name": "READ_ONE — Get Officer by ID",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Officer returned\", function () {",
+                  "    var json = pm.response.json();",
+                  "    pm.expect(json.status).to.eql(\"success\");",
+                  "    pm.expect(json.data).to.have.property(\"go_id\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Cookie",
+                "value": "access_token={{accessToken}}",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"action\": \"READ_ONE\",\n  \"payload\": {\n    \"go_id\": {{go_id}}\n  }\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/gov-officers/manage",
+              "host": ["{{baseUrl}}"],
+              "path": ["gov-officers", "manage"]
+            },
+            "description": "Fetches a single Government Officer by `go_id`.\n\nThe `go_id` collection variable is automatically set after a successful CREATE. You can also set it manually."
+          },
+          "response": []
+        },
+        {
+          "name": "READ_ALL — List Officers (paginated)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"List returned\", function () {",
+                  "    var json = pm.response.json();",
+                  "    pm.expect(json.status).to.eql(\"success\");",
+                  "    pm.expect(json.data).to.be.an(\"array\");",
+                  "    pm.expect(json).to.have.property(\"total\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Cookie",
+                "value": "access_token={{accessToken}}",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"action\": \"READ_ALL\",\n  \"payload\": {\n    \"page\": 1,\n    \"limit\": 10,\n    \"search_key\": \"\"\n  }\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/gov-officers/manage",
+              "host": ["{{baseUrl}}"],
+              "path": ["gov-officers", "manage"]
+            },
+            "description": "Returns a paginated list of Government Officers.\n\n- `page` — page number (default: 1)\n- `limit` — records per page (default: 10, max: 1000)\n- `search_key` — partial match against first name, last name, title, contact number, email, address, or ID number"
+          },
+          "response": []
+        },
+        {
+          "name": "READ_ALL — Search Officers",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Cookie",
+                "value": "access_token={{accessToken}}",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"action\": \"READ_ALL\",\n  \"payload\": {\n    \"page\": 1,\n    \"limit\": 10,\n    \"search_key\": \"Kamal\"\n  }\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/gov-officers/manage",
+              "host": ["{{baseUrl}}"],
+              "path": ["gov-officers", "manage"]
+            },
+            "description": "Same as READ_ALL but with a non-empty `search_key`. Filters across first name, last name, title, contact, email, address, and ID number."
+          },
+          "response": []
+        },
+        {
+          "name": "UPDATE — Edit Officer",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Officer updated\", function () {",
+                  "    var json = pm.response.json();",
+                  "    pm.expect(json.status).to.eql(\"success\");",
+                  "    pm.expect(json.message).to.include(\"updated\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Cookie",
+                "value": "access_token={{accessToken}}",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"action\": \"UPDATE\",\n  \"payload\": {\n    \"go_id\": {{go_id}},\n    \"data\": {\n      \"go_contact_number\": \"0719876543\",\n      \"go_email\": \"kamal.updated@gov.lk\",\n      \"go_address\": \"456, New Street, Gampaha\"\n    }\n  }\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/gov-officers/manage",
+              "host": ["{{baseUrl}}"],
+              "path": ["gov-officers", "manage"]
+            },
+            "description": "Updates an existing officer record. Only include the fields you want to change — all fields in `data` are optional for updates."
+          },
+          "response": []
+        },
+        {
+          "name": "DELETE — Soft Delete Officer",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Officer deleted\", function () {",
+                  "    var json = pm.response.json();",
+                  "    pm.expect(json.status).to.eql(\"success\");",
+                  "    pm.expect(json.message).to.include(\"deleted\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Cookie",
+                "value": "access_token={{accessToken}}",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"action\": \"DELETE\",\n  \"payload\": {\n    \"go_id\": {{go_id}}\n  }\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/gov-officers/manage",
+              "host": ["{{baseUrl}}"],
+              "path": ["gov-officers", "manage"]
+            },
+            "description": "Soft-deletes a Government Officer record. The record is flagged as deleted (`go_is_deleted = true`) and will no longer appear in list or read queries."
+          },
+          "response": []
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8000/api/v1",
+      "type": "string",
+      "description": "Base URL for the DBA backend API."
+    },
+    {
+      "key": "auth_username",
+      "value": "admin",
+      "type": "string",
+      "description": "Username for login."
+    },
+    {
+      "key": "auth_password",
+      "value": "Pass@1234",
+      "type": "string",
+      "description": "Password for login."
+    },
+    {
+      "key": "accessToken",
+      "value": "",
+      "type": "string",
+      "description": "Populated automatically by the Login test script."
+    },
+    {
+      "key": "go_id",
+      "value": "1",
+      "type": "string",
+      "description": "Populated automatically by the CREATE test script. You can also set it manually."
+    }
+  ],
+  "protocolProfileBehavior": {}
+}

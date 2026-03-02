@@ -119,3 +119,49 @@ class NikayaManagementResponse(BaseModel):
     totalRecords: Optional[int] = None
     page: Optional[int] = None
     limit: Optional[int] = None
+
+
+# ------------------------------------------------------------------
+# Set Mahanayaka schemas
+# ------------------------------------------------------------------
+
+class SetMahanayakaRequest(BaseModel):
+    """Request to assign a bhikku as the Mahanayaka of a nikaya."""
+
+    model_config = ConfigDict(str_strip_whitespace=True, populate_by_name=True)
+
+    nk_id: Optional[int] = None
+    nk_nkn: Annotated[Optional[str], Field(default=None, max_length=10)] = None
+    br_regn: Annotated[str, Field(min_length=1, max_length=20)]
+    nk_startdate: Optional[date] = None
+    nk_rmakrs: Annotated[Optional[str], Field(default=None, max_length=200)] = None
+
+    @field_validator("nk_nkn", mode="before")
+    @classmethod
+    def _normalize_nkn(cls, value: Optional[str]) -> Optional[str]:
+        if isinstance(value, str):
+            stripped = value.strip()
+            return stripped.upper() if stripped else None
+        return value
+
+    @field_validator("br_regn", mode="before")
+    @classmethod
+    def _normalize_br_regn(cls, value: Optional[str]) -> str:
+        if not value or not str(value).strip():
+            raise ValueError("br_regn is required.")
+        return str(value).strip().upper()
+
+
+class AssignedBhikkuInfo(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    br_regn: str
+    br_mahananame: Optional[str] = None
+    br_gihiname: Optional[str] = None
+
+
+class SetMahanayakaResponse(BaseModel):
+    status: str
+    message: str
+    data: Optional[NikayaOut] = None
+    assigned_bhikku: Optional[AssignedBhikkuInfo] = None
