@@ -371,7 +371,7 @@ api_router.include_router(
 )
 api_router.include_router(
     location_hierarchy.router,
-    prefix="/locations",
+    prefix="/location-hierarchy",
     tags=["📍 Location Management"]
 )
 

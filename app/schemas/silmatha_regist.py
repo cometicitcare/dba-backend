@@ -197,6 +197,9 @@ class SilmathaRegistUpdate(BaseModel):
     # Document Storage
     sil_scanned_document_path: Optional[str] = None
     
+    # Temporary record flag - allows promotion from TEMP to regular record
+    sil_is_temporary_record: Optional[bool] = None
+    
     # Audit Fields
     sil_created_by: Optional[str] = None
     sil_updated_by: Optional[str] = None
