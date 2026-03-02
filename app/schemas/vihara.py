@@ -268,7 +268,8 @@ class ViharaBase(BaseModel):
     vh_is_registered: Optional[bool] = True
     vh_unregistered_reason: Annotated[Optional[str], Field(default=None, max_length=500)] = None
 
-    # Stage F / Stage B: Bypass Toggle Fields
+    # Temporary record flag - allows promotion from TEMP to regular record
+    vh_is_temporary_record: Optional[bool] = None
     vh_bypass_no_detail: Optional[bool] = None
     vh_bypass_no_chief: Optional[bool] = None
     vh_bypass_ltr_cert: Optional[bool] = None
@@ -559,6 +560,9 @@ class ViharaUpdate(BaseModel):
     # Registration status
     vh_is_registered: Optional[bool] = None
     vh_unregistered_reason: Annotated[Optional[str], Field(default=None, max_length=500)] = None
+    
+    # Temporary record flag - allows promotion from TEMP to regular record
+    vh_is_temporary_record: Optional[bool] = None
 
     @field_validator(
         "vh_trn",
@@ -724,6 +728,9 @@ class ViharaOut(ViharaBase):
     model_config = ConfigDict(from_attributes=True, validate_assignment=False)
 
     vh_id: int
+    
+    # Temporary record flag
+    vh_is_temporary_record: Optional[bool] = None
     
     # Override required fields from ViharaBase to make them optional for output
     # (existing data may have empty/null values)
