@@ -1,7 +1,7 @@
 from datetime import date, datetime
 import re
 from enum import Enum
-from typing import Annotated, ClassVar, Optional, Union, List, Any, Dict
+from typing import Annotated, ClassVar, Optional, Union, List, Any, Dict, Literal
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator, model_validator
 
@@ -264,7 +264,12 @@ class ViharaBase(BaseModel):
     vh_updated_by: Annotated[Optional[str], Field(default=None, max_length=25)]
     vh_version_number: Annotated[int, Field(ge=1)] = 1
     
-    # Stage F / Stage B: Bypass Toggle Fields
+    # Registration status (default True = registered)
+    vh_is_registered: Optional[bool] = True
+    vh_unregistered_reason: Annotated[Optional[str], Field(default=None, max_length=500)] = None
+
+    # Temporary record flag - allows promotion from TEMP to regular record
+    vh_is_temporary_record: Optional[bool] = None
     vh_bypass_no_detail: Optional[bool] = None
     vh_bypass_no_chief: Optional[bool] = None
     vh_bypass_ltr_cert: Optional[bool] = None
@@ -552,6 +557,13 @@ class ViharaUpdate(BaseModel):
     vh_updated_by: Annotated[Optional[str], Field(default=None, max_length=25)] = None
     vh_updated_at: Optional[datetime] = None
 
+    # Registration status
+    vh_is_registered: Optional[bool] = None
+    vh_unregistered_reason: Annotated[Optional[str], Field(default=None, max_length=500)] = None
+    
+    # Temporary record flag - allows promotion from TEMP to regular record
+    vh_is_temporary_record: Optional[bool] = None
+
     @field_validator(
         "vh_trn",
         "vh_vname",
@@ -717,6 +729,9 @@ class ViharaOut(ViharaBase):
 
     vh_id: int
     
+    # Temporary record flag
+    vh_is_temporary_record: Optional[bool] = None
+    
     # Override required fields from ViharaBase to make them optional for output
     # (existing data may have empty/null values)
     vh_trn: Optional[str] = None
@@ -843,19 +858,27 @@ class ViharaRequestPayload(BaseModel):
     limit: Annotated[int, Field(ge=1, le=200)] = 10
     page: Annotated[Optional[int], Field(default=1, ge=1)] = 1
     
-    # Search and filters
+    # Search and filters (all use CODE values, not names)
     search_key: Annotated[Optional[str], Field(default=None, max_length=200)] = None
-    province: Annotated[Optional[str], Field(default=None, max_length=10)] = None
-    district: Annotated[Optional[str], Field(default=None, max_length=10)] = None
-    divisional_secretariat: Annotated[Optional[str], Field(default=None, max_length=10)] = None
+    province: Annotated[Optional[str], Field(default=None, max_length=10, description="Province code (e.g., WP, CP, SP)")] = None
+    district: Annotated[Optional[str], Field(default=None, max_length=10, description="District code (e.g., DC001, DC003)")] = None
+    divisional_secretariat: Annotated[Optional[str], Field(default=None, max_length=10, description="Divisional Secretariat code (e.g., DV0001)")] = None
+    ssbmcode: Annotated[Optional[str], Field(default=None, max_length=10, description="Sasanarakshaka Bala Mandala code")] = None
     gn_division: Annotated[Optional[str], Field(default=None, max_length=10)] = None
     temple: Annotated[Optional[str], Field(default=None, max_length=12)] = None  # vh_ownercd
     child_temple: Annotated[Optional[str], Field(default=None, max_length=12)] = None
     nikaya: Annotated[Optional[str], Field(default=None, max_length=10)] = None
     parshawaya: Annotated[Optional[str], Field(default=None, max_length=10)] = None  # vh_parshawa
     category: Annotated[Optional[str], Field(default=None, max_length=10)] = None
-    status: Annotated[Optional[str], Field(default=None, max_length=10)] = None
+    workflow_status: Annotated[Optional[str], Field(default=None, max_length=25)] = None
     vh_typ: Annotated[Optional[str], Field(default=None, max_length=10)] = None  # vihara type
+    
+    # Sorting
+    sort_by: Annotated[Optional[str], Field(default=None, max_length=50)] = None
+    sort_dir: Annotated[Optional[Literal["asc", "desc"]], Field(default="asc")] = "asc"
+    
+    # Record type filter for TEMP vs live records
+    record_type: Annotated[Optional[Literal["all", "live", "temp"]], Field(default="all")] = "all"
     
     # Date range filters
     date_from: Optional[date] = None
@@ -866,6 +889,22 @@ class ViharaRequestPayload(BaseModel):
     
     # Data payload for CREATE/UPDATE (supports both snake_case and camelCase, and staged operations)
     data: Optional[Union[ViharaCreate, ViharaCreatePayload, ViharaUpdate, ViharaStageOneData, ViharaStageTwoData, dict]] = None
+    
+    @field_validator('sort_by')
+    @classmethod
+    def validate_sort_by(cls, v: Optional[str]) -> Optional[str]:
+        """Validate sort_by is one of the allowed columns."""
+        if v is None:
+            return v
+        allowed_columns = {
+            'vh_id', 'vh_trn', 'vh_vname', 'vh_created_at', 
+            'vh_updated_at', 'vh_workflow_status', 'vh_created_by'
+        }
+        if v not in allowed_columns:
+            raise ValueError(
+                f"sort_by must be one of {allowed_columns}, got '{v}'"
+            )
+        return v
 
 
 class ViharaManagementRequest(BaseModel):

@@ -46,6 +46,13 @@ class ViharaData(Base):
     vh_mahanayake_letter_nu = Column(String(50))
     vh_mahanayake_remarks = Column(String(500))
     
+    # Registration status
+    vh_is_registered = Column(Boolean, nullable=False, server_default=text("true"))
+    vh_unregistered_reason = Column(String(500), nullable=True)
+    
+    # TEMP Record Flag - Indicates this record was created as temporary in temporary_vihara first
+    vh_is_temporary_record = Column(Boolean, nullable=False, server_default=text("false"))
+
     # Stage F / Stage B: Bypass Toggle Fields
     vh_bypass_no_detail = Column(Boolean, nullable=True, server_default=text("false"))
     vh_bypass_no_chief = Column(Boolean, nullable=True, server_default=text("false"))

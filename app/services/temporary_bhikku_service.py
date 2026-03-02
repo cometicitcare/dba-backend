@@ -108,6 +108,9 @@ class TemporaryBhikkuService:
                 f"{'' if province_code else f', Province (unvalidated): {tb_province}'}"
             ),
             
+            # Temporary record flag
+            "br_is_temporary_record": True,
+            
             # Audit fields
             "br_created_by": actor_id,
             "br_updated_by": actor_id,

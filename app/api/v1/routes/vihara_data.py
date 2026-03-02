@@ -471,21 +471,25 @@ def manage_vihara_records(
             "province": payload.province,
             "district": payload.district,
             "divisional_secretariat": payload.divisional_secretariat,
+            "ssbmcode": payload.ssbmcode,
             "gn_division": payload.gn_division,
             "temple": payload.temple,
             "child_temple": payload.child_temple,
             "nikaya": payload.nikaya,
             "parshawaya": payload.parshawaya,
             "category": payload.category,
-            "status": payload.status,
+            "workflow_status": payload.workflow_status,
             "vh_typ": payload.vh_typ,
             "date_from": payload.date_from,
             "date_to": payload.date_to,
+            "sort_by": payload.sort_by,
+            "sort_dir": payload.sort_dir,
+            "record_type": payload.record_type,
             "current_user": current_user,
         }
 
         records = vihara_service.list_viharas(db, **filters)
-        total = vihara_service.count_viharas(db, **{k: v for k, v in filters.items() if k not in ["skip", "limit"]})
+        total = vihara_service.count_viharas(db, **{k: v for k, v in filters.items() if k not in ["skip", "limit", "sort_by", "sort_dir"]})
         
         # Convert records to list of dicts for modification (serialize SQLAlchemy models)
         records_list = []
