@@ -46,6 +46,10 @@ class ViharaData(Base):
     vh_mahanayake_letter_nu = Column(String(50))
     vh_mahanayake_remarks = Column(String(500))
     
+    # Registration status
+    vh_is_registered = Column(Boolean, nullable=False, server_default=text("true"))
+    vh_unregistered_reason = Column(String(500), nullable=True)
+
     # Stage F / Stage B: Bypass Toggle Fields
     vh_bypass_no_detail = Column(Boolean, nullable=True, server_default=text("false"))
     vh_bypass_no_chief = Column(Boolean, nullable=True, server_default=text("false"))
