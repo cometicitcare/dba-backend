@@ -39,6 +39,7 @@ from app.models.resident_bhikkhu import ResidentBhikkhu
 from app.models.vihara_land import ViharaLand
 from app.models.nikaya import NikayaData
 from app.models.parshawadata import ParshawaData
+from app.models.main_bhikku import MainBhikku
 from app.models.arama import AramaData
 from app.models.arama_land import AramaLand
 from app.models.arama_resident_silmatha import AramaResidentSilmatha

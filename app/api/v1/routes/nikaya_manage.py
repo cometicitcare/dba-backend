@@ -19,6 +19,7 @@ from app.schemas.nikaya import (
     SetMahanayakaResponse,
 )
 from app.services.nikaya_service import nikaya_service
+from app.services.main_bhikku_service import main_bhikku_service
 from app.utils.http_exceptions import validation_error
 
 router = APIRouter()  # Tags defined in router.py
@@ -252,6 +253,21 @@ def set_nikaya_mahanayaka(
             br_mahananame=updated.main_bhikku_info.br_mahananame,
             br_gihiname=updated.main_bhikku_info.br_gihiname,
         )
+
+    # Also persist in main_bhikkus table
+    try:
+        main_bhikku_service.upsert_from_appointment(
+            db,
+            mb_type="NIKAYA_MAHANAYAKA",
+            mb_nikaya_cd=updated.nk_nkn,
+            mb_parshawa_cd=None,
+            mb_bhikku_regn=request.br_regn.strip().upper(),
+            mb_start_date=request.nk_startdate,
+            mb_remarks=request.nk_rmakrs,
+            actor_id=actor_id,
+        )
+    except ValueError:
+        pass  # nikaya already updated; main_bhikkus is supplementary
 
     return SetMahanayakaResponse(
         status="success",
