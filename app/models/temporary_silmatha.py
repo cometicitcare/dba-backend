@@ -1,5 +1,5 @@
 # app/models/temporary_silmatha.py
-from sqlalchemy import Column, Integer, String, Date, TIMESTAMP
+from sqlalchemy import Boolean, Column, Integer, String, Date, TIMESTAMP, text
 from sqlalchemy.sql import func
 from app.db.base import Base
 
@@ -24,6 +24,12 @@ class TemporarySilmatha(Base):
     ts_province = Column(String(100), nullable=True, comment="Province name or code")
     ts_arama_name = Column(String(200), nullable=True, comment="Arama/Hermitage name")
     ts_ordained_date = Column(Date, nullable=True, comment="Date of ordination")
+    
+    # Transfer Flag
+    ts_is_transferred = Column(
+        Boolean, nullable=False, server_default=text("false"),
+        comment="Flag indicating this record has been transferred to silmatha_regist",
+    )
     
     # Audit Fields
     ts_created_at = Column(TIMESTAMP, server_default=func.now(), nullable=False)

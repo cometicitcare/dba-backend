@@ -83,16 +83,20 @@ class ViharaRepository:
         province: Optional[str] = None,
         district: Optional[str] = None,
         divisional_secretariat: Optional[str] = None,
+        ssbmcode: Optional[str] = None,
         gn_division: Optional[str] = None,
         temple: Optional[str] = None,
         child_temple: Optional[str] = None,
         nikaya: Optional[str] = None,
         parshawaya: Optional[str] = None,
         category: Optional[str] = None,
-        status: Optional[str] = None,
+        workflow_status: Optional[str] = None,
         vh_typ: Optional[str] = None,
         date_from: Optional[Any] = None,
         date_to: Optional[Any] = None,
+        sort_by: Optional[str] = None,
+        sort_dir: Optional[str] = "asc",
+        record_type: Optional[str] = "all",
         current_user: Optional[UserAccount] = None,
     ) -> list[ViharaData]:
         query = db.query(ViharaData).filter(ViharaData.vh_is_deleted.is_(False))
@@ -131,16 +135,40 @@ class ViharaRepository:
         
         if vh_typ:  # Vihara type
             query = query.filter(ViharaData.vh_typ == vh_typ)
+        
+        # Geographic and organizational filters
+        if province:
+            query = query.filter(ViharaData.vh_province == province)
+        
+        if district:
+            query = query.filter(ViharaData.vh_district == district)
+        
+        if divisional_secretariat:
+            query = query.filter(ViharaData.vh_divisional_secretariat == divisional_secretariat)
+        
+        if ssbmcode:
+            query = query.filter(ViharaData.vh_ssbmcode == ssbmcode)
+        
+        if nikaya:
+            query = query.filter(ViharaData.vh_nikaya == nikaya)
+        
+        # Workflow status filter
+        if workflow_status:
+            query = query.filter(ViharaData.vh_workflow_status == workflow_status)
+        
+        # Record type filter (TEMP vs live records)
+        if record_type == "live":
+            query = query.filter(ViharaData.vh_is_temporary_record.is_(False))
+        elif record_type == "temp":
+            query = query.filter(ViharaData.vh_is_temporary_record.is_(True))
+        # else: record_type == "all" → no filter, show all records
+        
         # Date range filtering (on creation date)
         if date_from:
             query = query.filter(ViharaData.vh_created_at >= date_from)
         
         if date_to:
             query = query.filter(ViharaData.vh_created_at <= date_to)
-        
-        # Note: province, district, divisional_secretariat, nikaya, category, status
-        # are not currently in the ViharaData model. If they are in related tables,
-        # you'll need to add joins here. For now, we skip them to avoid errors.
 
         # Ordering logic:
         # - ADMIN users: See ALL records with pending approvals at top (ascending order),
@@ -227,6 +255,29 @@ class ViharaRepository:
             # DATA_ENTRY or other users
             query = query.order_by(ViharaData.vh_id.desc() if order_desc else ViharaData.vh_id)
 
+        # User-driven sort (if specified, overrides role-based defaults)
+        if sort_by:
+            # Whitelist of sortable columns for security
+            sortable_columns = {
+                'vh_id': ViharaData.vh_id,
+                'vh_trn': ViharaData.vh_trn,
+                'vh_vname': ViharaData.vh_vname,
+                'vh_created_at': ViharaData.vh_created_at,
+                'vh_updated_at': ViharaData.vh_updated_at,
+                'vh_workflow_status': ViharaData.vh_workflow_status,
+                'vh_created_by': ViharaData.vh_created_by,
+            }
+            
+            if sort_by in sortable_columns:
+                sort_column = sortable_columns[sort_by]
+                # Reset existing ORDER BY first — SQLAlchemy Query.order_by() appends,
+                # so without this the role-based priority ordering takes precedence.
+                query = query.order_by(False)
+                if sort_dir == 'desc':
+                    query = query.order_by(sort_column.desc())
+                else:
+                    query = query.order_by(sort_column.asc())
+
         return query.offset(max(skip, 0)).limit(limit).all()
 
     def count(
@@ -238,16 +289,18 @@ class ViharaRepository:
         province: Optional[str] = None,
         district: Optional[str] = None,
         divisional_secretariat: Optional[str] = None,
+        ssbmcode: Optional[str] = None,
         gn_division: Optional[str] = None,
         temple: Optional[str] = None,
         child_temple: Optional[str] = None,
         nikaya: Optional[str] = None,
         parshawaya: Optional[str] = None,
         category: Optional[str] = None,
-        status: Optional[str] = None,
+        workflow_status: Optional[str] = None,
         vh_typ: Optional[str] = None,
         date_from: Optional[Any] = None,
         date_to: Optional[Any] = None,
+        record_type: Optional[str] = "all",
         current_user: Optional[UserAccount] = None,
     ) -> int:
         query = db.query(func.count(ViharaData.vh_id)).filter(
@@ -288,6 +341,33 @@ class ViharaRepository:
         
         if vh_typ:
             query = query.filter(ViharaData.vh_typ == vh_typ)
+        
+        # Geographic and organizational filters (must match list() method)
+        if province:
+            query = query.filter(ViharaData.vh_province == province)
+        
+        if district:
+            query = query.filter(ViharaData.vh_district == district)
+        
+        if divisional_secretariat:
+            query = query.filter(ViharaData.vh_divisional_secretariat == divisional_secretariat)
+        
+        if ssbmcode:
+            query = query.filter(ViharaData.vh_ssbmcode == ssbmcode)
+        
+        if nikaya:
+            query = query.filter(ViharaData.vh_nikaya == nikaya)
+        
+        # Workflow status filter
+        if workflow_status:
+            query = query.filter(ViharaData.vh_workflow_status == workflow_status)
+        
+        # Record type filter (TEMP vs live records - must match list() method)
+        if record_type == "live":
+            query = query.filter(ViharaData.vh_is_temporary_record.is_(False))
+        elif record_type == "temp":
+            query = query.filter(ViharaData.vh_is_temporary_record.is_(True))
+        # else: record_type == "all" → no filter, show all records
         
         if date_from:
             query = query.filter(ViharaData.vh_created_at >= date_from)

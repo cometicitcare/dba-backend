@@ -357,6 +357,9 @@ class AramaUpdate(BaseModel):
     ar_version_number: Annotated[Optional[int], Field(default=None, ge=1)] = None
     ar_updated_by: Annotated[Optional[str], Field(default=None, max_length=25)] = None
     ar_updated_at: Optional[datetime] = None
+    
+    # Temporary record flag - allows promotion from TEMP to regular record
+    ar_is_temporary_record: Optional[bool] = None
 
     @field_validator(
         "ar_trn",

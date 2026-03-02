@@ -165,6 +165,37 @@ class NikayaRepository:
         db.refresh(entity)
         return entity
 
+    def set_mahanayaka(
+        self,
+        db: Session,
+        *,
+        entity: NikayaData,
+        br_regn: str,
+        nk_startdate=None,
+        nk_rmakrs: Optional[str] = None,
+        actor_id: Optional[str],
+    ) -> NikayaData:
+        normalized_regn = br_regn.strip().upper() if br_regn else None
+        if not normalized_regn:
+            raise ValueError("br_regn is required.")
+
+        bhikku = bhikku_repo.get_by_regn(db, normalized_regn)
+        if not bhikku:
+            raise ValueError(f"Bhikku with br_regn '{br_regn}' does not exist.")
+
+        entity.nk_nahimicd = normalized_regn
+        if nk_startdate is not None:
+            entity.nk_startdate = nk_startdate
+        if nk_rmakrs is not None:
+            stripped = nk_rmakrs.strip()
+            entity.nk_rmakrs = stripped or None
+        entity.nk_updated_by = actor_id
+        entity.nk_version_number = (entity.nk_version_number or 1) + 1
+
+        db.commit()
+        db.refresh(entity)
+        return entity
+
     def soft_delete(
         self, db: Session, *, entity: NikayaData, actor_id: Optional[str]
     ) -> NikayaData:

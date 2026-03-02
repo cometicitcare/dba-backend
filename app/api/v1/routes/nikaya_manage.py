@@ -8,12 +8,15 @@ from app.api.auth_dependencies import has_any_permission
 from app.api.deps import get_db
 from app.models.user import UserAccount
 from app.schemas.nikaya import (
+    AssignedBhikkuInfo,
     CRUDAction,
     NikayaCreate,
     NikayaManagementRequest,
     NikayaManagementResponse,
     NikayaOut,
     NikayaUpdate,
+    SetMahanayakaRequest,
+    SetMahanayakaResponse,
 )
 from app.services.nikaya_service import nikaya_service
 from app.utils.http_exceptions import validation_error
@@ -193,6 +196,69 @@ def manage_nikaya_records(
             ) from exc
 
     raise validation_error([("action", "Invalid action specified")])
+
+
+@router.post(
+    "/set-mahanayaka",
+    response_model=SetMahanayakaResponse,
+    dependencies=[has_any_permission(
+        "system:create", "system:update",
+        "vihara:create", "vihara:update",
+        "bhikku:create", "bhikku:update",
+    )],
+)
+def set_nikaya_mahanayaka(
+    request: SetMahanayakaRequest,
+    db: Session = Depends(get_db),
+    current_user: UserAccount = Depends(get_current_user),
+):
+    """Assign a bhikku as the Mahanayaka of a nikaya.
+
+    Identify the nikaya by **nk_id** or **nk_nkn** (at least one is required).
+    Provide the bhikku registration number via **br_regn**.
+    Optionally supply **nk_startdate** and **nk_rmakrs**.
+    """
+    if request.nk_id is None and not request.nk_nkn:
+        raise validation_error(
+            [("nk_id", "Either nk_id or nk_nkn is required to identify the nikaya")]
+        )
+
+    actor_id = current_user.ua_user_id
+    try:
+        updated = nikaya_service.set_mahanayaka(
+            db,
+            nk_id=request.nk_id,
+            nk_nkn=request.nk_nkn,
+            br_regn=request.br_regn,
+            nk_startdate=request.nk_startdate,
+            nk_rmakrs=request.nk_rmakrs,
+            actor_id=actor_id,
+        )
+    except ValueError as exc:
+        message = str(exc)
+        if "not found" in message.lower():
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail=message
+            ) from exc
+        raise validation_error([(None, message)]) from exc
+
+    nikaya_out = NikayaOut.model_validate(updated)
+
+    # Build assigned bhikku info from the joined relationship
+    bhikku_info: AssignedBhikkuInfo | None = None
+    if updated.main_bhikku_info is not None:
+        bhikku_info = AssignedBhikkuInfo(
+            br_regn=updated.main_bhikku_info.br_regn,
+            br_mahananame=updated.main_bhikku_info.br_mahananame,
+            br_gihiname=updated.main_bhikku_info.br_gihiname,
+        )
+
+    return SetMahanayakaResponse(
+        status="success",
+        message="Mahanayaka assigned successfully.",
+        data=nikaya_out,
+        assigned_bhikku=bhikku_info,
+    )
 
 
 # ------------------------------------------------------------------
