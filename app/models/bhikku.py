@@ -94,6 +94,9 @@ class Bhikku(Base):
     br_reprint_completed_by = Column(String(25))
     br_reprint_completed_at = Column(TIMESTAMP)
     
+    # TEMP Record Flag - Indicates this record was created as temporary in temporary_bhikku first
+    br_is_temporary_record = Column(Boolean, nullable=False, server_default=text('false'))
+    
     # Audit Fields
     br_version = Column(TIMESTAMP, nullable=False, server_default=func.now())
     br_is_deleted = Column(Boolean, server_default=text('false'))

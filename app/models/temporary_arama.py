@@ -1,5 +1,5 @@
 # app/models/temporary_arama.py
-from sqlalchemy import Column, Integer, String, TIMESTAMP
+from sqlalchemy import Boolean, Column, Integer, String, TIMESTAMP, text
 from sqlalchemy.sql import func
 from app.db.base import Base
 
@@ -23,6 +23,12 @@ class TemporaryArama(Base):
     ta_province = Column(String(100), nullable=True, comment="Province name or code")
     ta_aramadhipathi_name = Column(String(200), nullable=True, comment="Aramadhipathi/Chief incumbent name")
     
+    # Transfer Flag
+    ta_is_transferred = Column(
+        Boolean, nullable=False, server_default=text("false"),
+        comment="Flag indicating this record has been transferred to aramadata"
+    )
+
     # Audit Fields
     ta_created_at = Column(TIMESTAMP, server_default=func.now(), nullable=False)
     ta_created_by = Column(String(25), nullable=True, comment="User ID who created this record")
