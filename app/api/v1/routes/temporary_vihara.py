@@ -20,7 +20,9 @@ from app.schemas.temporary_vihara import (
     ProvinceResponse,
     DistrictResponse,
 )
+from app.schemas.vihara import ViharaCreate
 from app.services.temporary_vihara_service import temporary_vihara_service
+from app.services.vihara_service import vihara_service
 from app.repositories.province_repo import province_repo
 from app.repositories.district_repo import district_repo
 from app.utils.http_exceptions import validation_error
@@ -89,17 +91,68 @@ def manage_temporary_vihara_records(
         if not payload.data:
             raise validation_error([("payload.data", "data is required for CREATE action")])
 
+        temp_data = payload.data
+
+        # Validate and look up province/district codes
+        province_code = None
+        district_code = None
+        tv_province = temp_data.tv_province if isinstance(temp_data.tv_province, str) else None
+        tv_district = temp_data.tv_district if isinstance(temp_data.tv_district, str) else None
+
+        if tv_province:
+            from app.models.province import Province
+            province = db.query(Province).filter(
+                Province.cp_name.ilike(f"%{tv_province}%"),
+                Province.cp_is_deleted.is_(False)
+            ).first()
+            if province:
+                province_code = province.cp_code
+
+        if tv_district:
+            from app.models.district import District
+            district = db.query(District).filter(
+                District.dd_dname.ilike(f"%{tv_district}%"),
+                District.dd_is_deleted.is_(False)
+            ).first()
+            if district:
+                district_code = district.dd_dcode
+
+        # Build main-table vihara payload
+        mobile = (temp_data.tv_contact_number or "")[:10] or None
+        vihara_payload = ViharaCreate(
+            vh_trn=None,  # Auto-generated as VH{YEAR}{SEQUENCE}
+            vh_vname=temp_data.tv_name,
+            vh_addrs=temp_data.tv_address or "N/A",
+            vh_mobile=mobile if mobile and len(mobile) == 10 else None,
+            vh_province=province_code,
+            vh_district=district_code,
+            vh_is_temporary_record=True,
+            vh_minissecrmrks=(
+                f"[TEMP_VIHARA] Created from temporary vihara registration. "
+                f"{f'Province (unvalidated): {tv_province}' if tv_province and not province_code else ''}"
+                f"{f', District (unvalidated): {tv_district}' if tv_district and not district_code else ''}"
+            ).strip(", ") or None,
+        )
+
         try:
-            created = temporary_vihara_service.create_temporary_vihara(
-                db, payload=payload.data, actor_id=user_id
+            created_vihara = vihara_service.create_vihara(
+                db, payload=vihara_payload, actor_id=user_id
             )
+            db.refresh(created_vihara)
             return TemporaryViharaManagementResponse(
                 status="success",
-                message="Temporary vihara record created successfully.",
-                data=created,
+                message="Vihara record created successfully.",
+                data={
+                    "vh_trn": created_vihara.vh_trn,
+                    "vh_vname": created_vihara.vh_vname,
+                    "vh_addrs": created_vihara.vh_addrs,
+                    "vh_is_temporary_record": created_vihara.vh_is_temporary_record,
+                },
             )
         except ValueError as exc:
             raise validation_error([(None, str(exc))]) from exc
+        except RuntimeError as exc:
+            raise HTTPException(status_code=500, detail=str(exc)) from exc
 
     # ==================== READ_ONE ====================
     if action == CRUDAction.READ_ONE:

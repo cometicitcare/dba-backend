@@ -150,6 +150,9 @@ class BhikkuUpdate(BaseModel):
     # Document Storage
     br_scanned_document_path: Optional[str] = None
     
+    # Temporary record flag - allows promotion from TEMP to regular record
+    br_is_temporary_record: Optional[bool] = None
+    
     # Audit Fields (only for update)
     br_created_by: Optional[str] = None
     br_updated_by: Optional[str] = None
@@ -259,6 +262,9 @@ class Bhikku(BhikkuBase):
     model_config = ConfigDict(from_attributes=True)
     
     br_regn: str  # Required in response
+    
+    # Temporary record flag
+    br_is_temporary_record: Optional[bool] = None
     
     # Override base fields to use nested response objects
     br_province: Optional[Union[ProvinceResponse, str]] = None
