@@ -264,6 +264,10 @@ class ViharaBase(BaseModel):
     vh_updated_by: Annotated[Optional[str], Field(default=None, max_length=25)]
     vh_version_number: Annotated[int, Field(ge=1)] = 1
     
+    # Registration status (default True = registered)
+    vh_is_registered: Optional[bool] = True
+    vh_unregistered_reason: Annotated[Optional[str], Field(default=None, max_length=500)] = None
+
     # Stage F / Stage B: Bypass Toggle Fields
     vh_bypass_no_detail: Optional[bool] = None
     vh_bypass_no_chief: Optional[bool] = None
@@ -551,6 +555,10 @@ class ViharaUpdate(BaseModel):
     vh_version_number: Annotated[Optional[int], Field(default=None, ge=1)] = None
     vh_updated_by: Annotated[Optional[str], Field(default=None, max_length=25)] = None
     vh_updated_at: Optional[datetime] = None
+
+    # Registration status
+    vh_is_registered: Optional[bool] = None
+    vh_unregistered_reason: Annotated[Optional[str], Field(default=None, max_length=500)] = None
 
     @field_validator(
         "vh_trn",
