@@ -1,68 +1,77 @@
-from fastapi import Depends, HTTPException, status, Header
-from sqlalchemy.orm import Session
+# app/api/auth_middleware.py
+from fastapi import Depends, HTTPException, status, Request
+from sqlalchemy.orm import Session, joinedload
 from typing import Optional
 from app.api.deps import get_db
-from app.repositories import auth_repo
 from app.models.user import UserAccount
+from app.services.auth_service import auth_service
 
 
-def get_current_user(
-    authorization: Optional[str] = Header(None),
-    db: Session = Depends(get_db)
-) -> UserAccount:
+def get_current_user(request: Request, db: Session = Depends(get_db)) -> UserAccount:
     """
-    Dependency to get the current authenticated user from session ID.
-    Expects Authorization header with format: "Bearer <session_id>"
+    Dependency to get the current authenticated user from the access_token cookie.
+    This function reads the JWT token from HTTP-only cookies (not from Authorization header).
     """
-    if not authorization:
+    # Read access token from cookie (not from Authorization header)
+    token: Optional[str] = request.cookies.get("access_token")
+    
+    if not token:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Not authenticated. Authorization header missing.",
-            headers={"WWW-Authenticate": "Bearer"},
+            detail="Not authenticated. Please login to access this resource."
         )
-    
-    # Extract session ID from "Bearer <session_id>"
+
+    # Decode and validate the JWT token
     try:
-        scheme, session_id = authorization.split()
-        if scheme.lower() != "bearer":
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Invalid authentication scheme. Use 'Bearer <session_id>'",
-                headers={"WWW-Authenticate": "Bearer"},
-            )
-    except ValueError:
+        user_id = auth_service.decode_token(token)
+    except Exception:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid authorization header format. Use 'Bearer <session_id>'",
-            headers={"WWW-Authenticate": "Bearer"},
+            detail="Invalid or expired token. Please login again."
         )
-    
-    # Verify session exists and is active
-    login_history = auth_repo.get_login_history_by_session_id(db, session_id)
-    if not login_history:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid or expired session. Please login again.",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-    
-    # Get the user associated with this session
-    user = db.query(UserAccount).filter(
-        UserAccount.ua_user_id == login_history.lh_user_id
+
+    # Fetch user from database with location relationships
+    user = db.query(UserAccount).options(
+        joinedload(UserAccount.district_branch),
+        joinedload(UserAccount.main_branch)
+    ).filter(
+        UserAccount.ua_user_id == user_id,
+        UserAccount.ua_is_deleted == False,
     ).first()
-    
+
     if not user:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="User not found",
-            headers={"WWW-Authenticate": "Bearer"},
+            detail="User not found or has been deleted."
         )
-    
-    # Check if user is active
+
+    # Check if user account is active
     if user.ua_status != "active":
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail=f"User account is {user.ua_status}. Access denied.",
+            detail=f"User account is {user.ua_status}. Please contact administrator."
         )
-    
+
     return user
+
+
+def get_optional_user(request: Request, db: Session = Depends(get_db)) -> Optional[UserAccount]:
+    """
+    Optional dependency to get the current user if authenticated.
+    Returns None if not authenticated, useful for endpoints that work with or without auth.
+    """
+    token: Optional[str] = request.cookies.get("access_token")
+    
+    if not token:
+        return None
+
+    try:
+        user_id = auth_service.decode_token(token)
+        user = db.query(UserAccount).filter(
+            UserAccount.ua_user_id == user_id,
+            UserAccount.ua_is_deleted == False,
+            UserAccount.ua_status == "active"
+        ).first()
+        return user
+    except Exception:
+        return None

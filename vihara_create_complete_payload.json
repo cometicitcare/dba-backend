@@ -1,0 +1,106 @@
+{
+    "action": "CREATE",
+    "payload": {
+        "data": {
+            "vh_mobile": "0771234567",
+            "vh_whtapp": "0771234567",
+            "vh_email": "temple@example.com",
+            "vh_typ": "VIHARA",
+            "vh_gndiv": "1-2-24-070",
+            "vh_ownercd": "BH2025000129",
+            "vh_parshawa": "PR005",
+            "vh_vname": "Sample Temple Name",
+            "vh_addrs": "123 Temple Road, City",
+            "vh_province": "Western",
+            "vh_district": "Gampaha",
+            "vh_divisional_secretariat": "Gampaha",
+            "vh_pradeshya_sabha": "Gampaha Municipal Council",
+            "vh_nikaya": "Siam Nikaya",
+            "vh_viharadhipathi_name": "Ven. Chief Monk Name",
+            "vh_period_established": "1950",
+            "vh_buildings_description": "Main shrine hall, meditation hall, and living quarters",
+            "vh_dayaka_families_count": "30",
+            "vh_fmlycnt": 50,
+            "vh_bgndate": "1950-01-01",
+            "vh_kulangana_committee": "Committee member names",
+            "vh_dayaka_sabha": "Dayaka Sabha details",
+            "vh_temple_working_committee": "Working committee details",
+            "vh_other_associations": "Other associations",
+            "vh_land_info_certified": true,
+            "vh_resident_bhikkhus_certified": true,
+            "vh_inspection_report": "Inspection report details",
+            "vh_inspection_code": "INS-001",
+            "vh_grama_niladhari_division_ownership": "Ownership details",
+            "vh_sanghika_donation_deed": true,
+            "vh_government_donation_deed": false,
+            "vh_government_donation_deed_in_progress": false,
+            "vh_authority_consent_attached": true,
+            "vh_recommend_new_center": false,
+            "vh_recommend_registered_temple": true,
+            "vh_annex2_recommend_construction": false,
+            "vh_annex2_land_ownership_docs": true,
+            "vh_annex2_chief_incumbent_letter": true,
+            "vh_annex2_coordinator_recommendation": true,
+            "vh_annex2_divisional_secretary_recommendation": true,
+            "vh_annex2_approval_construction": false,
+            "vh_annex2_referral_resubmission": false,
+            "vh_ssbmcode": "SB003",
+            "vh_syojakarmakrs": "Committee Name",
+            "vh_syojakarmdate": "2023-02-01",
+            "vh_landownrship": "Temple Trust",
+            "vh_pralename": "Registrar Name",
+            "vh_pralesigdate": "2023-03-01",
+            "vh_bacgrecmn": "Recommendation Note",
+            "vh_bacgrcmdate": "2023-04-01",
+            "vh_minissecrsigdate": "2023-05-01",
+            "vh_minissecrmrks": "Secretary remarks",
+            "vh_ssbmsigdate": "2023-06-01",
+            "vh_form_id": "FORM-VH-001",
+            "temple_owned_land": [
+                {
+                    "serialNumber": 1,
+                    "landName": "Main Temple Land",
+                    "village": "Village Name",
+                    "district": "District Name",
+                    "extent": "1 acre 2 roods 20 perches",
+                    "cultivationDescription": "Temple buildings and garden",
+                    "ownershipNature": "Temple owned - Sanghika deed",
+                    "deedNumber": "D-12345/2020",
+                    "titleRegistrationNumber": "TR-2020-001",
+                    "taxDetails": "Exempt from property tax",
+                    "landOccupants": "Resident monks"
+                },
+                {
+                    "serialNumber": 2,
+                    "landName": "Secondary Land",
+                    "village": "Village Name",
+                    "district": "District Name",
+                    "extent": "50 perches",
+                    "cultivationDescription": "Vegetable garden",
+                    "ownershipNature": "Temple owned",
+                    "deedNumber": "D-12346/2021"
+                }
+            ],
+            "resident_bhikkhus": [
+                {
+                    "serialNumber": 1,
+                    "bhikkhuName": "Ven. Chief Incumbent Thero",
+                    "registrationNumber": "BH2025000001",
+                    "occupationEducation": "Chief Monk, BA in Buddhist Studies, Dhamma Teacher"
+                },
+                {
+                    "serialNumber": 2,
+                    "bhikkhuName": "Ven. Assistant Monk",
+                    "registrationNumber": "BH2025000002",
+                    "occupationEducation": "Assistant Monk, Sunday School Teacher"
+                },
+                {
+                    "serialNumber": 3,
+                    "bhikkhuName": "Ven. Junior Monk",
+                    "registrationNumber": "BH2025000003",
+                    "occupationEducation": "Novice Monk, Student of Buddhist Philosophy"
+                }
+            ]
+        }
+    }
+}

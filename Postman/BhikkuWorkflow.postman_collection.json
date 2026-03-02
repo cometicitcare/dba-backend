@@ -1,0 +1,65 @@
+{
+  "info": {
+    "name": "Bhikku Registration Workflow",
+    "description": "Sample requests for creating a Bhikku and retrieving the workflow payload returned by the /bhikkus/manage endpoint.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "version": {
+      "major": 1,
+      "minor": 0,
+      "patch": 0
+    }
+  },
+  "item": [
+    {
+      "name": "Bhikku Workflow",
+      "item": [
+        {
+          "name": "Create Bhikku (includes workflow)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Cookie",
+                "value": "access_token={{accessToken}}",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"action\": \"CREATE\",\n  \"payload\": {\n    \"skip\": 0,\n    \"limit\": 10,\n    \"page\": 1,\n    \"search_key\": \"\",\n    \"data\": {\n      \"br_reqstdate\": \"2024-10-01\",\n      \"br_birthpls\": \"Galle\",\n      \"br_province\": \"Southern\",\n      \"br_district\": \"Galle\",\n      \"br_korale\": \"Karandeniya\",\n      \"br_pattu\": \"North\",\n      \"br_division\": \"Yakkalamulla\",\n      \"br_vilage\": \"Narawala\",\n      \"br_gndiv\": \"GN-001\",\n      \"br_gihiname\": \"Ven. Soma\",\n      \"br_currstat\": \"ACT\",\n      \"br_effctdate\": \"2024-10-02\",\n      \"br_parshawaya\": \"PR001\",\n      \"br_livtemple\": \"VH0001\",\n      \"br_mahanatemple\": \"VH0002\",\n      \"br_mahanaacharyacd\": \"BH1999000001\",\n      \"br_mahananame\": \"Rev. Mahana\",\n      \"br_mahanadate\": \"2010-05-10\",\n      \"br_cat\": \"CAT01\",\n      \"br_mobile\": \"0712345678\",\n      \"br_email\": \"ven.soma@example.com\",\n      \"br_fathrsaddrs\": \"123 Temple Rd, Narawala\",\n      \"br_fathrsmobile\": \"0771234567\",\n      \"br_upasampada_serial_no\": \"UPA-2024-0001\"\n    }\n  }\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/bhikkus/manage",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "bhikkus",
+                "manage"
+              ]
+            },
+            "description": "Creates a Bhikku record and returns the workflow timeline. Replace the placeholder codes with values that exist in your database before sending. The Cookie header injects the access_token used by the FastAPI middleware."
+          },
+          "response": []
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8000/api/v1",
+      "type": "string"
+    },
+    {
+      "key": "accessToken",
+      "value": "<JWT from /login>",
+      "type": "string"
+    }
+  ],
+  "protocolProfileBehavior": {}
+}

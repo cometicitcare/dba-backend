@@ -1,5 +1,5 @@
 from app.repositories.base import BaseRepository
-from app.models.user_accounts import UserAccount
+from app.models.user import UserAccount  # Fixed: Import from correct location
 
 
 class UserRepository(BaseRepository[UserAccount]):

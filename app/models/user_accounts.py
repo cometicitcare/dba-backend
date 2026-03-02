@@ -1,14 +1,13 @@
-from datetime import datetime
-from sqlalchemy import String, Index, UniqueConstraint, TIMESTAMP
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy import String, TIMESTAMP, Index, UniqueConstraint
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.db.base import Base
-from app.models.mixins import AuditMixin 
-
+from datetime import datetime
+from app.models.user_group import UserGroup  # Import UserGroup model to establish relationship
 
 class UserAccount(Base, AuditMixin):
     __tablename__ = "user_accounts"
 
-
+    # User account fields
     ua_user_id: Mapped[str] = mapped_column(String(10), primary_key=True)
     ua_username: Mapped[str] = mapped_column(String(50), nullable=False, unique=True)
     ua_email: Mapped[str] = mapped_column(String(100), nullable=False, unique=True)
@@ -26,6 +25,8 @@ class UserAccount(Base, AuditMixin):
     ua_two_factor_enabled: Mapped[bool] = mapped_column(default=False, server_default="false")
     ua_two_factor_secret: Mapped[str | None] = mapped_column(String(100))
 
+    # Relationship to UserGroup: user can belong to multiple groups
+    groups = relationship("UserGroup", back_populates="user")
 
     __table_args__ = (
         Index("ix_user_accounts_username", "ua_username", unique=True),
@@ -34,3 +35,6 @@ class UserAccount(Base, AuditMixin):
         UniqueConstraint("ua_username", name="uq_user_accounts_username"),
         UniqueConstraint("ua_email", name="uq_user_accounts_email"),
     )
+
+    def __repr__(self):
+        return f"<UserAccount(ua_user_id={self.ua_user_id}, ua_username={self.ua_username})>"

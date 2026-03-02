@@ -1,6 +1,6 @@
-from typing import TypeVar, Generic, Type, Any
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from typing import Any, Generic, Type, TypeVar
+
+from sqlalchemy.orm import Session
 
 
 ModelT = TypeVar("ModelT")
@@ -10,15 +10,11 @@ class BaseRepository(Generic[ModelT]):
     def __init__(self, model: Type[ModelT]):
         self.model = model
 
+    def get(self, db: Session, id_: Any) -> ModelT | None:
+        return db.get(self.model, id_)
 
-async def get(self, db: AsyncSession, id_: Any) -> ModelT | None:
-    stmt = select(self.model).where(self.model.__table__.primary_key.columns.values()[0] == id_)
-    res = await db.execute(stmt)
-    return res.scalar_one_or_none()
-
-
-async def create(self, db: AsyncSession, obj_in: dict) -> ModelT:
-    obj = self.model(**obj_in)
-    db.add(obj)
-    await db.flush()
-    return obj
+    def create(self, db: Session, obj_in: dict) -> ModelT:
+        obj = self.model(**obj_in)
+        db.add(obj)
+        db.flush()
+        return obj
